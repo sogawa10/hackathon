@@ -234,9 +234,9 @@ S = D + P
   {
     "sub_task_id": "UUID",
     "scheduled_date": "YYYY-MM-DD",
-    "task_type": "単語帳" | "問題集" | "過去問" | "その他",
+    "task_type": "単語帳 | 問題集 | 過去問 | その他",
     "task_title": "task_title",
-    "task_content": "String",       // 何問 or 何単語 など
+    "task_content": "String（何問 or 何単語 など）",
     "is_completed": "Boolean",
     "vegetable_name": "vegetable_name",
     "growth_stage": "0〜9"
@@ -263,7 +263,7 @@ S = D + P
 ```json
 [
   {
-    "has_grown": "Boolean"          // 野菜が成長したかどうか
+    "has_grown": "Boolean（野菜が成長したかどうか）"
   }
 ]
 ```
@@ -289,7 +289,7 @@ S = D + P
   {
     "harvest_id": "UUID",
     "vegetable_name": "vegetable_name",
-    "size": "S" | "M" | "L"
+    "size": "S | M | L"
   }
 ]
 ```
@@ -303,13 +303,13 @@ S = D + P
 ```json
 [
   {
-    "task_type": "単語帳" | "問題集" | "過去問" | "その他",
+    "task_type": "単語帳 | 問題集 | 過去問 | その他",
     "task_title": "task_title",
-    "total_count": "total_count",   // 問題量
-    "lap_count": "lap_count",       // 周回数（デフォルト1）
+    "total_count": "total_count（問題量）",
+    "lap_count": "lap_count（周回数：デフォルトは1）",
     "start_date": "YYYY-MM-DD",
     "end_date": "YYYY-MM-DD"
-　}
+  }
 ]
 ```
 
@@ -319,8 +319,8 @@ S = D + P
 [
   {
     "task_id": "UUID",
-    "size": "S" | "M" | "L"
-　}
+    "size": "S | M | L"
+  }
 ]
 ```
 
@@ -360,13 +360,13 @@ S = D + P
 [
   {
     "task_id": "UUID",
-    "task_type": "単語帳" | "問題集" | "過去問" | "その他",
+    "task_type": "単語帳 | 問題集 | 過去問 | その他",
     "task_title": "task_title",
-    "total_count": "total_count",   // 問題量
-    "lap_count": "lap_count",       // 周回数（デフォルト1）
+    "total_count": "total_count（問題量）",
+    "lap_count": "lap_count（周回数：デフォルトは1）",
     "start_date": "YYYY-MM-DD",
     "end_date": "YYYY-MM-DD",
-    "buffer_days": "buffer_day",    // 予備日数 
+    "buffer_days": "buffer_day（予備日数）",
     "vegetable_name": "vegetable_name",
     "growth_stage": "0〜9",
     "image_url": "url"
@@ -394,7 +394,7 @@ S = D + P
     "harvest_id": "UUID",
     "task_id": "UUID",
     "vegetable_name": "vegetable_name",
-    "vegetable_size": "S" | "M" | "L",
+    "vegetable_size": "S | M | L",
     "image_url": "image_url",
     "harvested_at": "YYYY-MM-DD"
   }
