@@ -268,7 +268,7 @@ S = D + P
 ]
 ```
 
-**野菜の収穫*（**POST** `api/tasks/harvest`）
+**野菜の収穫**（**POST** `api/tasks/harvest`）
 
 → アクセストークンが必要
 
