@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { login } from '../services/auth';
-import { useNavigate, Link } from 'react-router-dom';
+import { signup } from '../services/auth';
+import { useNavigate } from 'react-router-dom';
 
-const Login: React.FC = () => {
-  // 変更点：email から username に変更
+const Signup: React.FC = () => {
+  // 入力値を state で管理
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -12,11 +12,11 @@ const Login: React.FC = () => {
   // 画面遷移用
   const navigate = useNavigate();
 
-  // フォームの送信処理
+  // フォーム送信処理
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 変更点：バリデーションのチェック対象と文言を変更
+    // 簡易バリデーション
     if (!username || !password) {
       setError('ユーザー名とパスワードを入力してください');
       return;
@@ -26,24 +26,25 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      // 変更点：Signup.tsxの形式に合わせてパラメータを送信
-      // ※ もし login API の仕様が signup と異なる（例えばキー名が username だったりする）場合は、バックエンドの仕様に合わせてください
-      const data = await login({ user_name: username, user_pass: password });
-      
+      // signup API 呼び出し
+      const data = await signup({ user_name: username, user_pass: password });
+
+      // アクセストークンをローカルストレージへ保存（基本的な実装）
       localStorage.setItem('access_token', data.access_token);
+
+      // 登録成功後の遷移（ここではホーム `/` へ遷移）
       navigate('/', { replace: true });
     } catch (err: any) {
-      setError(err?.message ?? 'ログインに失敗しました');
+      setError(err?.message ?? 'ユーザー登録に失敗しました');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="login-container" style={{ maxWidth: 400, margin: '0 auto', padding: 20 }}>
-      <h2>ログイン</h2>
+    <div className="signup-container" style={{ maxWidth: 400, margin: '0 auto', padding: 20 }}>
+      <h2>新規登録</h2>
       <form onSubmit={handleSubmit}>
-        {/* 変更点：メールアドレス入力欄をユーザー名入力欄に変更 */}
         <div style={{ marginBottom: 12 }}>
           <label htmlFor="username" style={{ display: 'block', marginBottom: 6 }}>ユーザー名</label>
           <input
@@ -70,23 +71,12 @@ const Login: React.FC = () => {
 
         {error && <div style={{ color: 'red', marginBottom: 12 }}>{error}</div>}
 
-        <button type="submit" disabled={loading} style={{ padding: '8px 16px', width: '100%' }}>
-          {loading ? 'ログイン中…' : 'Login'}
+        <button type="submit" disabled={loading} style={{ padding: '8px 16px' }}>
+          {loading ? '登録中…' : 'Sign Up'}
         </button>
       </form>
-
-      {/*新規登録画面へのリンクを追加 */}
-      <div style={{ marginTop: 24, textAlign: 'center', fontSize: '14px' }}>
-        アカウントをお持ちでないですか？<br />
-        <Link 
-          to="/signup" 
-          style={{ color: '#007bff', textDecoration: 'underline', marginTop: '8px', display: 'inline-block' }}
-        >
-          新規登録はこちら
-        </Link>
-      </div>
     </div>
   );
 };
 
-export default Login;
+export default Signup;
