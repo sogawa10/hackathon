@@ -233,6 +233,7 @@ S = D + P
 [
   {
     "sub_task_id": "UUID",
+    "task_id": "UUID",
     "scheduled_date": "YYYY-MM-DD",
     "task_type": "単語帳 | 問題集 | 過去問 | その他",
     "task_title": "task_title",
