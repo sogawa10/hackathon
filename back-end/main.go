@@ -6,11 +6,10 @@ import (
 	"log"
 	"os" // 環境変数を扱うパッケージ
 
-	// 堤さんのプロジェクト名に合わせてください
 	"back-end/handlers"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv" // 今回インストールしたパッケージ
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
@@ -47,6 +46,7 @@ func main() {
 	r := gin.Default()
 	r.POST("/api/signup", handlers.SignupHandler(db))
 	r.POST("/api/login", handlers.LoginHandler(db))
+	r.GET("/api/subtasks/today", handlers.GetTodaySubtasksHandler(db))
 
 	fmt.Println("🚀 VegeTask サーバーがポート3000番で起動しました")
 	r.Run(":3000")
