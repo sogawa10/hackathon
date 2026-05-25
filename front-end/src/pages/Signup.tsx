@@ -3,20 +3,16 @@ import { signup } from '../services/auth';
 import { useNavigate } from 'react-router-dom';
 
 const Signup: React.FC = () => {
-  // 入力値を state で管理
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // 画面遷移用
   const navigate = useNavigate();
 
-  // フォーム送信処理
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 簡易バリデーション
     if (!username || !password) {
       setError('ユーザー名とパスワードを入力してください');
       return;
@@ -26,13 +22,13 @@ const Signup: React.FC = () => {
     setLoading(true);
 
     try {
-      // signup API 呼び出し
       const data = await signup({ user_name: username, user_pass: password });
 
-      // アクセストークンをローカルストレージへ保存（基本的な実装）
       localStorage.setItem('access_token', data.access_token);
+      if (data.refresh_token) {
+        localStorage.setItem('refresh_token', data.refresh_token);
+      }
 
-      // 登録成功後の遷移（ここではホーム `/` へ遷移）
       navigate('/', { replace: true });
     } catch (err: any) {
       setError(err?.message ?? 'ユーザー登録に失敗しました');

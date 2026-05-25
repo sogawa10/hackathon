@@ -15,14 +15,12 @@ export type AuthPayload = {
   user_pass: string;
 };
 
-/**
- * ログイン処理
- */
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 export async function login({ user_name, user_pass }: AuthPayload): Promise<LoginResponse> {
-  // 配列形式を外し、オブジェクト形式で送信
   const body = JSON.stringify({ user_name, user_pass });
 
-  const res = await fetch('/api/login', {
+  const res = await fetch(`${API_BASE_URL}/api/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -37,7 +35,6 @@ export async function login({ user_name, user_pass }: AuthPayload): Promise<Logi
   }
 
   const json = await res.json().catch(() => []);
-  // バックエンドの仕様に合わせてデータを取り出し
   const data = Array.isArray(json) ? json[0] : json;
 
   if (!data || !data.access_token) {
@@ -47,14 +44,10 @@ export async function login({ user_name, user_pass }: AuthPayload): Promise<Logi
   return data as LoginResponse;
 }
 
-/**
- * 新規登録（サインアップ）処理
- */
 export async function signup({ user_name, user_pass }: AuthPayload): Promise<SignupResponse> {
-  // 配列形式を外し、オブジェクト形式で送信
   const body = JSON.stringify({ user_name, user_pass });
 
-  const res = await fetch('/api/signup', {
+  const res = await fetch(`${API_BASE_URL}/api/signup`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -69,7 +62,6 @@ export async function signup({ user_name, user_pass }: AuthPayload): Promise<Sig
   }
 
   const json = await res.json().catch(() => []);
-  // バックエンドの仕様に合わせてデータを取り出し
   const data = Array.isArray(json) ? json[0] : json;
 
   if (!data || !data.access_token) {

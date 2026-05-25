@@ -3,20 +3,16 @@ import { login } from '../services/auth';
 import { useNavigate, Link } from 'react-router-dom';
 
 const Login: React.FC = () => {
-  // 変更点：email から username に変更
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // 画面遷移用
   const navigate = useNavigate();
 
-  // フォームの送信処理
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 変更点：バリデーションのチェック対象と文言を変更
     if (!username || !password) {
       setError('ユーザー名とパスワードを入力してください');
       return;
@@ -26,11 +22,13 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      // 変更点：Signup.tsxの形式に合わせてパラメータを送信
-      // ※ もし login API の仕様が signup と異なる（例えばキー名が username だったりする）場合は、バックエンドの仕様に合わせてください
       const data = await login({ user_name: username, user_pass: password });
       
       localStorage.setItem('access_token', data.access_token);
+      if (data.refresh_token) {
+        localStorage.setItem('refresh_token', data.refresh_token);
+      }
+
       navigate('/', { replace: true });
     } catch (err: any) {
       setError(err?.message ?? 'ログインに失敗しました');
@@ -43,7 +41,6 @@ const Login: React.FC = () => {
     <div className="login-container" style={{ maxWidth: 400, margin: '0 auto', padding: 20 }}>
       <h2>ログイン</h2>
       <form onSubmit={handleSubmit}>
-        {/* 変更点：メールアドレス入力欄をユーザー名入力欄に変更 */}
         <div style={{ marginBottom: 12 }}>
           <label htmlFor="username" style={{ display: 'block', marginBottom: 6 }}>ユーザー名</label>
           <input
@@ -75,7 +72,6 @@ const Login: React.FC = () => {
         </button>
       </form>
 
-      {/*新規登録画面へのリンクを追加 */}
       <div style={{ marginTop: 24, textAlign: 'center', fontSize: '14px' }}>
         アカウントをお持ちでないですか？<br />
         <Link 
