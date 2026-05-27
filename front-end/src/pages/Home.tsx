@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import VegetableField from '../components/VegetableField';
 
 type TodaySubtask = {
   sub_task_id: string;
@@ -12,7 +13,7 @@ type TodaySubtask = {
 };
 
 const Home: React.FC = () => {
-  const [subtasks, setSubtasks] = useState<TodaySubtask[]>([]);
+  const [subtasks, setSubtasks] = useState<(TodaySubtask | null)[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +40,7 @@ const Home: React.FC = () => {
         }
 
         const data = await res.json();
-        setSubtasks(Array.isArray(data) ? data : []);
+        setSubtasks(data);
       } catch (err: any) {
         setError(err.message || 'エラーが発生しました');
       } finally {
@@ -51,82 +52,51 @@ const Home: React.FC = () => {
   }, []);
 
   const handleToggleComplete = async (subTaskId: string, currentStatus: boolean) => {
-    try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch(`${API_BASE_URL}/api/subtasks`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify([{ sub_task_id: subTaskId }]),
-      });
+    const isNowCompleted = !currentStatus;
 
-      if (!res.ok) {
-        throw new Error('タスクの更新に失敗しました');
-      }
+    setSubtasks((prev) =>
+      prev.map((task) => {
+        if (task && task.sub_task_id === subTaskId) {
+          let nextStage = task.growth_stage;
+          
+          if (isNowCompleted) {
+            nextStage = task.growth_stage < 10 ? task.growth_stage + 1 : 10;
+          } else {
+            nextStage = task.growth_stage > 0 ? task.growth_stage - 1 : 0;
+          }
 
-      setSubtasks((prev) =>
-        prev.map((task) =>
-          task.sub_task_id === subTaskId ? { ...task, is_completed: !currentStatus } : task
-        )
-      );
-    } catch (err: any) {
-      alert(err.message);
-    }
+          return {
+            ...task,
+            is_completed: isNowCompleted,
+            growth_stage: nextStage
+          };
+        }
+        return task;
+      })
+    );
   };
 
   if (loading) return <div style={{ padding: 20 }}>読み込み中…</div>;
   if (error) return <div style={{ padding: 20, color: 'red' }}>{error}</div>;
 
+  const validTasks = subtasks.filter((t): t is TodaySubtask => t !== null);
+
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '20px' }}>
       <h1 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>VegeTASK ホーム</h1>
 
-      {/* コンテナをFlexboxにして横並びに配置 */}
       <div style={{ display: 'flex', gap: '24px', alignItems: 'stretch' }}>
         
-        {/* 左側：畑の画面 (6割) */}
         <section style={{ 
           flex: 6, 
-          padding: '30px', 
-          border: '2px solid #81c784', 
-          borderRadius: '12px', 
-          backgroundColor: '#e8f5e9',
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           minHeight: '400px'
         }}>
-          {subtasks.length > 0 ? (
-            <div style={{ textAlign: 'center', width: '100%' }}>
-              <div style={{ fontSize: '80px', marginBottom: '20px' }}>🌱</div>
-              <h2 style={{ margin: '0 0 10px 0', color: '#2e7d32' }}>{subtasks[0].vegetable_name} を栽培中</h2>
-              <p style={{ fontSize: '18px', color: '#555', marginBottom: '20px' }}>
-                成長段階: <strong>{subtasks[0].growth_stage}</strong> / 9
-              </p>
-              
-              {/* プログレスバー */}
-              <div style={{ width: '80%', margin: '0 auto', backgroundColor: '#c8e6c9', borderRadius: '8px', height: '20px', overflow: 'hidden' }}>
-                <div style={{ 
-                  width: `${(subtasks[0].growth_stage / 9) * 100}%`, 
-                  backgroundColor: '#4caf50', 
-                  height: '100%', 
-                  transition: 'width 0.3s ease-in-out' 
-                }} />
-              </div>
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center', color: '#757575' }}>
-              <div style={{ fontSize: '64px', marginBottom: '16px' }}>🪹</div>
-              <p style={{ fontSize: '18px', fontWeight: 'bold' }}>現在植えられている種はありません</p>
-              <p>タスクを作成して、新しい野菜を育て始めましょう！</p>
-            </div>
-          )}
+          <VegetableField subtasks={subtasks} />
         </section>
 
-        {/* 右側：今日のタスク (4割) */}
         <section style={{ 
           flex: 4, 
           padding: '20px', 
@@ -140,11 +110,11 @@ const Home: React.FC = () => {
             今日のToDo
           </h2>
           
-          {subtasks.length === 0 ? (
+          {validTasks.length === 0 ? (
             <p style={{ color: '#888', textAlign: 'center', marginTop: '40px' }}>今日のタスクはありません。</p>
           ) : (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {subtasks.map((task) => (
+              {validTasks.map((task) => (
                 <li
                   key={task.sub_task_id}
                   style={{
