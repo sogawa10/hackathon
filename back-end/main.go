@@ -49,6 +49,7 @@ func main() {
 	r.POST("/api/login", handlers.LoginHandler(db))
 	r.GET("/api/subtasks/today", handlers.GetTodaySubtasksHandler(db))
 	r.POST("/api/tasks", handlers.CreateTaskHandler(db))
+	r.POST("/api/vegetable/:task_id", handlers.AssignVegetableHandler(db))
 
 	fmt.Println("🚀 VegeTask サーバーがポート3000番で起動しました")
 	r.Run(":3000")

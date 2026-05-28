@@ -11,26 +11,26 @@ import (
 	"github.com/google/uuid"
 )
 
-// TaskCreateRequest は仕様書通りのリクエスト構造体です
+// TaskCreateRequest はフロントエンドから受け取るタスク作成のデータ構造です
 type TaskCreateRequest struct {
 	TaskType   string `json:"task_type" binding:"required"` // 単語帳 | 問題集 | 過去問 | その他
 	TaskTitle  string `json:"task_title" binding:"required"`
-	TotalCount int    `json:"total_count" binding:"required"` // 問題量（年数、ページ数など）
+	TotalCount int    `json:"total_count" binding:"required"` // 総問題量（年数、ページ数など）
 	LapCount   int    `json:"lap_count"`                      // 周回数（デフォルト1）
 	StartDate  string `json:"start_date" binding:"required"`  // YYYY-MM-DD
 	EndDate    string `json:"end_date" binding:"required"`    // YYYY-MM-DD
 }
 
-// TaskCreateResponse は仕様書通りのレスポンス構造体です
+// TaskCreateResponse はフロントエンドへ返すレスポンス構造体です
 type TaskCreateResponse struct {
 	TaskID string `json:"task_id"`
 	Size   string `json:"size"` // S | M | L
 }
 
-// CreateTaskHandler は仕様書のアルゴリズムに基づきタスクとサブタスクを生成します
+// CreateTaskHandler は仕様書のアルゴリズムに基づき、野菜サイズを判定して日々のToDoを自動生成します
 func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 仮のUserID（テスト用ID）
+		// ※開発中の仮UserID（テスト用ID）
 		userID := "f2aacbf1-92b8-4fd3-b5e0-4beac04b117d"
 
 		var req TaskCreateRequest
@@ -60,7 +60,7 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 		// 実施日数 = 期日 - 開始日 + 1
 		execDays := int(end.Sub(start).Hours()/24) + 1
 
-		// ⚠️ 仕様バリデーション: 1週間（7日）未満のタスクは入力不可
+		// ⚠️ バリデーション: 1週間（7日）未満のタスクは入力不可
 		if execDays < 7 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "1週間未満のタスクは入力不可です"})
 			return
@@ -77,7 +77,7 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 		}
 
 		// ==========================================
-		// 🧮 野菜の割当アルゴリズム (仕様書セクション)
+		// 🧮 野菜サイズ判定アルゴリズム (仕様書ロジック)
 		// ==========================================
 		var typeScore float64  // ⓵ タスク種別のスコア
 		var dailyScore float64 // ⓶ 1日あたりの分量に応じたスコア
@@ -100,10 +100,10 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// D = タスク種別のスコア + 1日あたりの分量に応じたスコア
+		// 難易度スコア D = タスク種別のスコア + 1日あたりの分量に応じたスコア
 		D := typeScore + dailyScore
 
-		// Step2: 期間スコア(P)の計算
+		// 期間スコア P の計算
 		var P float64
 		switch {
 		case execDays >= 7 && execDays <= 16:
@@ -122,10 +122,10 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 			P = 2.4
 		}
 
-		// S = D + P
+		// 総合スコア S = D + P
 		S := D + P
 
-		// Step4: 野菜サイズの決定
+		// 野菜サイズの決定
 		var size string
 		if S < 2.8 {
 			size = "S"
@@ -136,7 +136,7 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 		}
 
 		// ==========================================
-		// 💾 データベースへの一括登録 (トランザクション)
+		// 💾 データベースへの登録 (トランザクション)
 		// ==========================================
 		tx, err := db.Begin()
 		if err != nil {
@@ -147,7 +147,7 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 
 		taskID := uuid.New().String()
 
-		// TASKSテーブルへの挿入
+		// 1. TASKSテーブルへの挿入
 		queryInsertTask := `
 			INSERT INTO "TASKS" (
 				"task_id", "user_id", "task_type", "task_title", 
@@ -168,21 +168,21 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 			totalAmount = req.TotalCount
 		}
 
-		// SUB_TASKSの一括生成クエリ
+		// SUB_TASKS用の一括生成クエリ
 		queryInsertSubTask := `
 			INSERT INTO "SUB_TASKS" ("sub_task_id", "task_id", "scheduled_date", "task_content", "is_completed") 
 			VALUES ($1, $2, $3, $4, $5)`
 
-		// モード判定：1日の平均が1未満になるなら分数モード
+		// モード判定：1日の平均が1未満になるなら「分数モード」、1以上なら「通常モード」
 		isFractionMode := totalAmount < validDays
 
 		if isFractionMode {
-			// 💡 自動分数モード：有効日数を無駄なく使い切るように分母を自動拡張する
+			// 💡 【自動分数モード】 有効日数を無駄なく使い切るように、1タスクあたりにかける日数を自動拡張
 			baseDaysPerTask := validDays / totalAmount // 1つあたりにかける基本日数（分母のベース）
 			remainderDays := validDays % totalAmount   // 分母を+1日して格上げする残余日数
 			errorAccumulator := 0
 
-			currentDateIndex := 0 // 日付を進めるためのインデックス
+			currentDateIndex := 0 // カレンダーの日付を進めるためのインデックス
 
 			for taskCounter := 1; taskCounter <= totalAmount; taskCounter++ {
 				// このタスクに何日間（分母）かけるかをブレンド計算
@@ -193,20 +193,20 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 					errorAccumulator -= totalAmount
 				}
 
-				// 決定した分母（daysForThisTask）を使って、1日目からN日目までを連続生成
+				// 決定した分母（daysForThisTask）を使って、(1/N日目) から (N/N日目) まで連続生成
 				for day := 1; day <= daysForThisTask; day++ {
 					currentDate := start.AddDate(0, 0, currentDateIndex)
 					var taskContent string
 
 					switch req.TaskType {
 					case "問題集":
-						taskContent = fmt.Sprintf("%d問解く(%d/%d日目)", taskCounter, day, daysForThisTask)
+						taskContent = fmt.Sprintf("問題集%d問解く(%d/%d日目)", taskCounter, day, daysForThisTask)
 					case "単語帳":
-						taskContent = fmt.Sprintf("%d単語覚える(%d/%d日目)", taskCounter, day, daysForThisTask)
+						taskContent = fmt.Sprintf("単語帳%d単語覚える(%d/%d日目)", taskCounter, day, daysForThisTask)
 					case "過去問":
-						taskContent = fmt.Sprintf("1年分解く(%d/%d日目)", day, daysForThisTask)
+						taskContent = fmt.Sprintf("過去問%d年分解く(%d/%d日目)", taskCounter, day, daysForThisTask)
 					case "その他":
-						taskContent = fmt.Sprintf("%dページする(%d/%d日目)", taskCounter, day, daysForThisTask)
+						taskContent = fmt.Sprintf("その他%dページする(%d/%d日目)", taskCounter, day, daysForThisTask)
 					}
 
 					subTaskID := uuid.New().String()
@@ -219,7 +219,7 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 				}
 			}
 
-			// 有効日数をぴったり消費しきった後、末尾に絶対死守する10%分の予備日を生成
+			// 有効日数をぴったり消費しきった後、末尾に「絶対死守する10%分の予備日」を生成
 			for i := currentDateIndex; i < execDays; i++ {
 				currentDate := start.AddDate(0, 0, i)
 				subTaskID := uuid.New().String()
@@ -231,7 +231,7 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 			}
 
 		} else {
-			// 💡 通常モード：以前作ったバラバラ均等配置ロジック
+			// 💡 【通常モード】 分量が日数を上回る場合、余りを毎日綺麗にばら散らすロジック
 			baseNorma := totalAmount / validDays
 			remainder := totalAmount % validDays
 			errorAccumulator := 0
@@ -259,6 +259,7 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 						taskContent = fmt.Sprintf("%dページする", currentNorma)
 					}
 				} else {
+					// 末尾10%を予備日として生成
 					taskContent = "予備日（調整期間）"
 				}
 
@@ -271,16 +272,78 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 			}
 		}
 
-		// トランザクションをコミット
+		// トランザクションをコミットしてDBに反映
 		if err := tx.Commit(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "データの確定に失敗しました"})
 			return
 		}
 
-		// 仕様書通りのレスポンスを返却
+		// 成功レスポンス
 		c.JSON(http.StatusOK, TaskCreateResponse{
 			TaskID: taskID,
 			Size:   size,
+		})
+	}
+}
+
+// 💡 この構造体の定義が抜けていたためエラーになっていました！ここを追加します
+type AssignVegetableRequest struct {
+	VegetableName string `json:"vegetable_name" binding:"required"`
+}
+
+// AssignVegetableHandler は指定されたタスクにユーザーが選んだ野菜の名前を割り当てます
+func AssignVegetableHandler(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		taskID := c.Param("task_id")
+		if taskID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "タスクIDが指定されていません"})
+			return
+		}
+
+		var req AssignVegetableRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "リクエストの形式が不正です"})
+			return
+		}
+
+		// 💡 仕様書にある15種類の野菜のホワイトリスト（バリデーション）
+		validVegetables := map[string]bool{
+			// 野菜S
+			"プチトマト": true, "オクラ": true, "枝豆": true, "シイタケ": true, "ネギ": true,
+			// 野菜M
+			"赤パプリカ": true, "ピーマン": true, "なす": true, "キュウリ": true, "タケノコ": true,
+			// 野菜L
+			"キャベツ": true, "かぼちゃ": true, "トウモロコシ": true, "ブロッコリー": true, "カリフラワー": true,
+		}
+
+		// 送られてきた野菜名がリストに存在するかチェック
+		if !validVegetables[req.VegetableName] {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": fmt.Sprintf("「%s」はアプリの仕様に存在しない野菜です。正しい野菜名を入力してください。", req.VegetableName),
+			})
+			return
+		}
+
+		// データベースの更新処理
+		queryUpdateVegetable := `
+			UPDATE "TASKS" 
+			SET "vegetable_name" = $1 
+			WHERE "task_id" = $2`
+
+		result, err := db.Exec(queryUpdateVegetable, req.VegetableName, taskID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "野菜の割り当てに失敗しました: " + err.Error()})
+			return
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil || rowsAffected == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "該当するタスクが見つかりませんでした"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"task_id": taskID,
 		})
 	}
 }
