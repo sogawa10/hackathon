@@ -14,6 +14,7 @@ import (
 )
 
 func main() {
+
 	// 1. .env ファイルを読み込む
 	err := godotenv.Load()
 	if err != nil {
@@ -47,6 +48,7 @@ func main() {
 	r.POST("/api/signup", handlers.SignupHandler(db))
 	r.POST("/api/login", handlers.LoginHandler(db))
 	r.GET("/api/subtasks/today", handlers.GetTodaySubtasksHandler(db))
+	r.POST("/api/tasks", handlers.CreateTaskHandler(db))
 
 	fmt.Println("🚀 VegeTask サーバーがポート3000番で起動しました")
 	r.Run(":3000")
