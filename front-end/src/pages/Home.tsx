@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import VegetableField from '../components/VegetableField';
+import TaskCreateModal from '../components/TaskCreateModal';
 
 type TodaySubtask = {
   sub_task_id: string;
@@ -16,6 +17,7 @@ const Home: React.FC = () => {
   const [subtasks, setSubtasks] = useState<(TodaySubtask | null)[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -49,7 +51,7 @@ const Home: React.FC = () => {
     };
 
     fetchTodaySubtasks();
-  }, []);
+  }, [API_BASE_URL]);
 
   const handleToggleComplete = async (subTaskId: string, currentStatus: boolean) => {
     const isNowCompleted = !currentStatus;
@@ -106,9 +108,23 @@ const Home: React.FC = () => {
           boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
           minHeight: '400px'
         }}>
-          <h2 style={{ marginTop: 0, borderBottom: '3px solid #4caf50', paddingBottom: '10px', color: '#333' }}>
-            今日のToDo
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', borderBottom: '3px solid #4caf50', paddingBottom: '10px', marginBottom: '20px' }}>
+            <h2 style={{ margin: 0, color: '#333' }}>
+              今日のToDo
+            </h2>
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              style={{ 
+                marginLeft: '15px', width: '32px', height: '32px', borderRadius: '50%', 
+                backgroundColor: '#ff9800', color: '#fff', border: 'none', 
+                fontSize: '22px', fontWeight: 'bold', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+              }}
+            >
+              ＋
+            </button>
+          </div>
           
           {validTasks.length === 0 ? (
             <p style={{ color: '#888', textAlign: 'center', marginTop: '40px' }}>今日のタスクはありません。</p>
@@ -154,6 +170,12 @@ const Home: React.FC = () => {
         </section>
 
       </div>
+      
+      <TaskCreateModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onTaskCreated={() => setIsModalOpen(false)}
+      />
     </div>
   );
 };
