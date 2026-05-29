@@ -1,0 +1,346 @@
+import React, { useEffect, useState } from 'react';
+
+type HarvestedVegetable = {
+  harvest_id: string;
+  task_id: string;
+  vegetable_name: string;
+  vegetable_size: string;
+  image_url: string;
+  harvested_at: string;
+};
+
+type VisualHarvest = HarvestedVegetable & {
+  screenX: number;
+  screenY: number;
+  zIndex: number;
+  rotation: number;
+  scale: number;
+};
+
+const ASSET_SCALE = 0.45;
+
+function mulberry32(a: number) {
+  return function() {
+    let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+}
+
+const HarvestBasket: React.FC = () => {
+  const [harvests, setHarvests] = useState<VisualHarvest[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+  useEffect(() => {
+    const fetchHarvestData = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`${API_BASE_URL}/api/harvest_basket`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('データの取得に失敗しました');
+        }
+        const data: HarvestedVegetable[] = await response.json();
+
+        const rand = mulberry32(12345);
+
+        const cx = 300; 
+        const cy = 250; 
+        const rx = 180;
+        const rz = 50;
+        const min_dist = 40;
+        const stack_h = 20;
+
+        const placed: { x: number, z: number, y: number }[] = [];
+        
+        const calculatedData: VisualHarvest[] = data.map((veg) => {
+          const r = Math.sqrt(rand()); 
+          const theta = rand() * 2 * Math.PI;
+          const x = r * Math.cos(theta) * rx;
+          const z = r * Math.sin(theta) * rz;
+
+          const nx = x / rx;
+          const nz = z / rz;
+          let y = 15 * (nx * nx + nz * nz);
+
+          for (const p of placed) {
+            const dx = x - p.x;
+            const dz = z - p.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            
+            if (dist < min_dist) {
+              const height_boost = stack_h - (dist / min_dist) * 8;
+              y = Math.max(y, p.y + height_boost);
+            }
+          }
+          placed.push({ x, z, y });
+
+          const screenX = cx + x;
+          const screenY = cy + z - y;
+          const zIndex = Math.floor(screenY);
+          const rotation = rand() * 60 - 30;
+
+          return { 
+            ...veg, 
+            screenX, 
+            screenY, 
+            zIndex, 
+            rotation, 
+            scale: 1.0
+          };
+        });
+
+        setHarvests(calculatedData);
+        setLoading(false);
+      } catch (err: any) {
+        setError('収穫データの取得に失敗しました');
+        setLoading(false);
+      }
+    };
+
+    fetchHarvestData();
+  }, [API_BASE_URL]);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLImageElement>, id: string) => {
+    setDraggingId(id);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLImageElement>, id: string) => {
+    if (draggingId !== id) return;
+    
+    const cx = 300; 
+    const cy = 250; 
+    const rx = 175;
+    const rz = 55;
+
+    setHarvests(prev => prev.map(veg => {
+      if (veg.harvest_id === id) {
+        let nextX = veg.screenX + e.movementX;
+        let nextY = veg.screenY + e.movementY;
+
+        nextX = Math.max(cx - rx, Math.min(cx + rx, nextX));
+
+        const dx = nextX - cx;
+        const maxDy = Math.sqrt(1 - Math.pow(dx / rx, 2)) * rz;
+        const maxY = cy + maxDy; 
+        nextY = Math.min(maxY, nextY);
+
+        const minY = 90;
+        nextY = Math.max(minY, nextY);
+
+        return {
+          ...veg,
+          screenX: nextX,
+          screenY: nextY,
+        };
+      }
+      return veg;
+    }));
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLImageElement>, id: string) => {
+    if (draggingId !== id) return;
+    setDraggingId(null);
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    
+    setHarvests(prev => prev.map(veg => ({
+      ...veg,
+      zIndex: Math.floor(veg.screenY)
+    })));
+  };
+
+  const getFallbackImagePath = (vegName: string, vegSize: string) => {
+    let size = vegSize || 'L';
+    let jpName = 'かぼちゃ';
+
+    if (vegName === 'kabocha' || vegName === 'pumpkin' || vegName === 'L') {
+      jpName = 'かぼちゃ';
+      size = 'L';
+    } else if (vegName === 'cabbage') {
+      jpName = 'キャベツ';
+      size = 'L';
+    } else if (vegName === 'corn') {
+      jpName = 'トウモロコシ';
+      size = 'L';
+    } else if (vegName === 'broccoli') {
+      jpName = 'ブロッコリー';
+      size = 'L';
+    } else if (vegName === 'cauliflower') {
+      jpName = 'カリフラワー';
+      size = 'L';
+    } else if (['赤パプリカ', 'ピーマン', 'なす', 'キュウリ', 'タケノコ', 'M'].includes(vegName)) {
+      jpName = vegName === 'M' ? 'なす' : vegName;
+      size = 'M';
+    } else if (['プチトマト', 'オクラ', '枝豆', 'シイタケ', 'ネギ', 'S'].includes(vegName)) {
+      jpName = vegName === 'S' ? 'プチトマト' : vegName;
+      size = 'S';
+    }
+
+    return `/野菜${size}/収穫_${jpName}.png`;
+  };
+
+  if (loading) return <div style={{ padding: 20, textAlign: 'center' }}>読み込み中…</div>;
+  if (error) return <div style={{ padding: 20, color: 'red', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>;
+
+  return (
+    <div style={{ maxWidth: 1000, margin: '0 auto', padding: '20px' }}>
+      <h1 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>収穫かご</h1>
+
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        backgroundColor: '#fff',
+        borderRadius: '12px',
+        padding: '40px 20px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+      }}>
+        
+        <div style={{
+          position: 'relative',
+          width: '600px',
+          height: '450px',
+          display: 'flex',
+          justifyContent: 'center',
+          overflow: 'hidden'
+        }}>
+          
+          <div style={{
+            position: 'absolute',
+            top: '125px',
+            left: 0,
+            width: '100%',
+            height: '400px',
+          }}>
+            
+            <img 
+              src="/VegeTASK_籠(後).png" 
+              alt="籠の背面"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                zIndex: 10
+              }}
+            />
+
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              zIndex: 20,
+              overflow: 'visible'
+            }}>
+              {harvests.length === 0 ? (
+                <p style={{ color: '#fff', fontWeight: 'bold', textShadow: '1px 1px 2px rgba(0,0,0,0.5)', textAlign: 'center', marginTop: '35%' }}>
+                </p>
+              ) : (
+                harvests.map((veg) => {
+                  const isDragging = draggingId === veg.harvest_id;
+                  
+                  return (
+                    <img 
+                      key={veg.harvest_id}
+                      title={`${veg.vegetable_name} (収穫日: ${veg.harvested_at})`}
+                      src={veg.image_url || getFallbackImagePath(veg.vegetable_name, veg.vegetable_size)}
+                      alt={veg.vegetable_name}
+                      draggable={false}
+                      style={{
+                        position: 'absolute',
+                        left: `${veg.screenX}px`,
+                        top: `${veg.screenY}px`,
+                        zIndex: isDragging ? 99999 : veg.zIndex,
+                        cursor: isDragging ? 'grabbing' : 'grab',
+                        width: 'auto',
+                        height: 'auto',
+                        maxWidth: 'none',
+                        maxHeight: 'none',
+                        imageRendering: 'pixelated',
+                        touchAction: 'none',
+                        filter: isDragging 
+                          ? `drop-shadow(0px 20px 15px rgba(0,0,0,0.4))` 
+                          : `drop-shadow(0px 3px 4px rgba(0,0,0,0.4))`,
+                        transition: isDragging 
+                          ? 'none' 
+                          : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s',
+                        transform: isDragging
+                          ? `translate(-50%, calc(-100% - 20px)) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale * 1.15})`
+                          : `translate(-50%, -100%) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale})`,
+                        transformOrigin: 'bottom center'
+                      }}
+                      onPointerDown={(e) => handlePointerDown(e, veg.harvest_id)}
+                      onPointerMove={(e) => handlePointerMove(e, veg.harvest_id)}
+                      onPointerUp={(e) => handlePointerUp(e, veg.harvest_id)}
+                      onMouseEnter={(e) => {
+                        if (draggingId) return;
+                        e.currentTarget.style.transform = `translate(-50%, calc(-100% - 15px)) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale * 1.15})`;
+                        e.currentTarget.style.zIndex = '9999';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (draggingId) return;
+                        e.currentTarget.style.transform = `translate(-50%, -100%) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale})`;
+                        e.currentTarget.style.zIndex = String(veg.zIndex);
+                      }}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        const fallback = getFallbackImagePath(veg.vegetable_name, veg.vegetable_size);
+                        if (!target.src.includes(fallback)) {
+                          target.src = fallback;
+                        } else {
+                          target.style.display = 'none';
+                        }
+                      }}
+                    />
+                  );
+                })
+              )}
+            </div>
+
+            <img 
+              src="/VegeTASK_籠(前).png" 
+              alt="籠の前面"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                zIndex: 10000,
+                pointerEvents: 'none'
+              }}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          <h3 style={{ margin: '0 0 10px 0', color: '#4caf50' }}>これまでの成果</h3>
+          <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#555' }}>
+            合計収穫数: <span style={{ fontSize: '24px', color: '#ff9800' }}>{harvests.length}</span> 個
+          </p>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+export default HarvestBasket;
