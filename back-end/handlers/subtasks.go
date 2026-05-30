@@ -2,14 +2,12 @@ package handlers
 
 import (
 	"database/sql"
+	"math"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
-
-// ==========================================
-// 構造体の定義
-// ==========================================
 
 // [GET] 今日のToDo取得用レスポンス
 type TodaySubtaskResponse struct {
@@ -40,7 +38,6 @@ type CompleteSubTaskResponse struct {
 // 今日のToDo取得（GET /api/subtasks/today）
 func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 1. ログイン中のユーザーIDを取得（警備員AuthMiddlewareがセットしてくれたものを使う！）
 		ctxUserID, exists := c.Get("user_id")
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "認証情報が見つかりません"})
@@ -48,17 +45,13 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		userID := ctxUserID.(string)
 
-		// 2. DBからテーブルを結合して取得
+		// タスクの開始日・終了日・サボり日数も一緒に取得する
 		query := `
 			SELECT 
-				s.sub_task_id, 
-				s.scheduled_date, 
-				t.task_type, 
-				t.task_title, 
-				s.task_content, 
-				s.is_completed, 
-				t.vegetable_name, 
-				t.growth_stage
+				s.sub_task_id, s.scheduled_date, t.task_type, t.task_title, 
+				s.task_content, s.is_completed, t.vegetable_name, t.growth_stage,
+				t.start_date, t.end_date,
+				(SELECT COUNT(*) FROM "SUB_TASKS" past WHERE past.task_id = t.task_id AND past.scheduled_date < CURRENT_DATE AND past.is_completed = false) AS missed_days
 			FROM "SUB_TASKS" s
 			INNER JOIN "TASKS" t ON s.task_id = t.task_id
 			WHERE t.user_id = $1 AND s.scheduled_date = CURRENT_DATE
@@ -70,29 +63,32 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		defer rows.Close()
 
-		// 3. データを配列に詰めて返却 (配列を返す仕様に合わせています)
 		subtasks := []TodaySubtaskResponse{}
 
 		for rows.Next() {
 			var s TodaySubtaskResponse
-			// ※ t.vegetable_name が NULL の場合（まだ野菜を割り当てていないタスク）のエラーを防ぐため、
-			//   sql.NullString を使って安全に読み取ります。
 			var vegName sql.NullString
+			var startDate, endDate time.Time
+			var missedDays int
 
 			if err := rows.Scan(
-				&s.SubTaskID,
-				&s.ScheduledDate,
-				&s.TaskType,
-				&s.TaskTitle,
-				&s.TaskContent,
-				&s.IsCompleted,
-				&vegName,
-				&s.GrowthStage,
+				&s.SubTaskID, &s.ScheduledDate, &s.TaskType, &s.TaskTitle,
+				&s.TaskContent, &s.IsCompleted, &vegName, &s.GrowthStage,
+				&startDate, &endDate, &missedDays,
 			); err != nil {
 				continue
 			}
 
-			// NULLじゃなければ値を入れる
+			// 枯死判定ロジック
+			duration := endDate.Sub(startDate)
+			days := int(duration.Hours()/24) + 1
+			originalBufferDays := int(math.Ceil(float64(days) * 0.1))
+
+			// 予備日を使い切ってマイナスになっている（＝枯れている）なら、今日のToDoには出さない！
+			if originalBufferDays-missedDays < 0 {
+				continue
+			}
+
 			if vegName.Valid {
 				s.VegetableName = vegName.String
 			}
