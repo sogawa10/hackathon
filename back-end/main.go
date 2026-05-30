@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os" // 環境変数を扱うパッケージ
+	"os"
 
 	"back-end/handlers"
 
@@ -45,10 +45,18 @@ func main() {
 
 	// ルーター設定とサーバー起動
 	r := gin.Default()
+
+	// （トークン不要：ログイン・サインアップ）
 	r.POST("/api/signup", handlers.SignupHandler(db))
 	r.POST("/api/login", handlers.LoginHandler(db))
-	r.GET("/api/subtasks/today", handlers.GetTodaySubtasksHandler(db))
-	r.POST("/api/tasks", handlers.CreateTaskHandler(db))
+
+	authGroup := r.Group("/")
+	authGroup.Use(handlers.AuthMiddleware())
+	{
+		authGroup.GET("/api/subtasks/today", handlers.GetTodaySubtasksHandler(db))
+		authGroup.POST("/api/tasks", handlers.CreateTaskHandler(db))
+		authGroup.POST("/api/vegetable/:task_id", handlers.AssignVegetableHandler(db))
+	}
 
 	fmt.Println("🚀 VegeTask サーバーがポート3000番で起動しました")
 	r.Run(":3000")
