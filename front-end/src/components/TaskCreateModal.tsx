@@ -173,10 +173,10 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
 
   const getTitlePlaceholder = () => {
     switch (taskType) {
-      case '問題集': return '例: 基本情報技術者試験 過去問';
-      case '単語帳': return '例: シスタン';
-      case '過去問': return '例: 同志社大 情報工学方式';
-      default: return '例: React公式ドキュメント';
+      case '問題集': return '例: 青チャート 数学ⅠA';
+      case '単語帳': return '例: システム英単語';
+      case '過去問': return '例: 同志社大 理工学部 学部個別 数学';
+      default: return '例: 授業ノートを暗記する';
     }
   };
 
