@@ -196,7 +196,31 @@ const HarvestBasket: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '20px' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>収穫かご</h1>
+      
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '30px' }}>
+        <h1 style={{ margin: 0, color: '#333' }}>収穫かご</h1>
+        <button 
+          onClick={() => window.location.href = '/'}
+          style={{
+            position: 'absolute',
+            right: 0,
+            padding: '10px 20px',
+            backgroundColor: '#4caf50',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '8px',
+            fontWeight: 'bold',
+            fontSize: '15px',
+            cursor: 'pointer',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            transition: 'background-color 0.2s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#45a049'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#4caf50'}
+        >
+          畑ページへ
+        </button>
+      </div>
 
       <div style={{ 
         display: 'flex', 
@@ -251,6 +275,7 @@ const HarvestBasket: React.FC = () => {
             }}>
               {harvests.length === 0 ? (
                 <p style={{ color: '#fff', fontWeight: 'bold', textShadow: '1px 1px 2px rgba(0,0,0,0.5)', textAlign: 'center', marginTop: '35%' }}>
+                  まだ収穫された野菜はありません
                 </p>
               ) : (
                 harvests.map((veg) => {

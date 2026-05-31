@@ -12,13 +12,13 @@ import (
 // [GET] 今日のToDo取得用レスポンス
 type TodaySubtaskResponse struct {
 	SubTaskID     string `json:"sub_task_id"`
-	ScheduledDate string `json:"scheduled_date"` // YYYY-MM-DD
-	TaskType      string `json:"task_type"`      // 単語帳 | 問題集 | 過去問 | その他
+	ScheduledDate string `json:"scheduled_date"`
+	TaskType      string `json:"task_type"`
 	TaskTitle     string `json:"task_title"`
 	TaskContent   string `json:"task_content"`
 	IsCompleted   bool   `json:"is_completed"`
 	VegetableName string `json:"vegetable_name"`
-	GrowthStage   int    `json:"growth_stage"` // 0〜9
+	GrowthStage   int    `json:"growth_stage"`
 }
 
 // [PATCH] ToDo完了用リクエスト
@@ -45,15 +45,28 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		userID := ctxUserID.(string)
 
-		// タスクの開始日・終了日・サボり日数も一緒に取得する
 		query := `
-			SELECT 
-				s.sub_task_id, s.scheduled_date, t.task_type, t.task_title, 
-				s.task_content, s.is_completed, t.vegetable_name, t.growth_stage,
-				t.start_date, t.end_date,
-				(SELECT COUNT(*) FROM "SUB_TASKS" past WHERE past.task_id = t.task_id AND past.scheduled_date < CURRENT_DATE AND past.is_completed = false) AS missed_days
+      SELECT
+        s.sub_task_id,
+        s.scheduled_date,
+        t.task_type,
+        t.task_title,
+        s.task_content,
+        s.is_completed,
+        v.vegetable_name,
+        t.growth_stage,
+        t.start_date,
+        t.end_date,
+        (
+          SELECT COUNT(*)
+          FROM "SUB_TASKS" past
+          WHERE past.task_id = t.task_id
+            AND past.scheduled_date < CURRENT_DATE
+            AND past.is_completed = false
+        ) AS missed_days
 			FROM "SUB_TASKS" s
 			INNER JOIN "TASKS" t ON s.task_id = t.task_id
+			INNER JOIN "VEGETABLES" v ON t.vegetable_id = v.vegetable_id
 			WHERE t.user_id = $1 AND s.scheduled_date = CURRENT_DATE
 		`
 		rows, err := db.Query(query, userID)
@@ -84,7 +97,7 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 			days := int(duration.Hours()/24) + 1
 			originalBufferDays := int(math.Ceil(float64(days) * 0.1))
 
-			// 予備日を使い切ってマイナスになっている（＝枯れている）なら、今日のToDoには出さない！
+			// 予備日を使い切ってマイナスになっているなら、今日のToDoには出さない
 			if originalBufferDays-missedDays < 0 {
 				continue
 			}
@@ -100,7 +113,7 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-// ToDoにチェックをつける（PATCH /api/subtasks）
+// ToDoにチェックをつける
 func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 1. ログイン中のユーザーIDを取得
@@ -153,7 +166,7 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// 4. サブタスクを完了状態（true）に更新する
+		// 4. サブタスクを完了状態に更新する
 		queryUpdateSub := `UPDATE "SUB_TASKS" SET is_completed = true WHERE sub_task_id = $1`
 		_, err = tx.Exec(queryUpdateSub, req.SubTaskID)
 		if err != nil {
@@ -161,7 +174,7 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// 5. タスク全体の進捗（全小タスク数と、完了済み小タスク数）を取得
+		// 5. タスク全体の進捗を取得
 		var totalSubtasks, completedSubtasks int
 		queryProgress := `
 			SELECT 
@@ -184,7 +197,7 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 
 		hasGrown := false
 
-		// 計算した新しい成長段階が、今の成長段階より大きければアップデート（成長）！
+		// 計算した新しい成長段階が、今の成長段階より大きければアップデート
 		if newGrowthStage > currentGrowthStage {
 			queryGrow := `UPDATE "TASKS" SET growth_stage = $1 WHERE task_id = $2`
 			_, err = tx.Exec(queryGrow, newGrowthStage, taskID)
@@ -201,7 +214,7 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// 7. 成長したかどうか（true/false）を返す
+		// 7. 成長したかどうかを返す
 		c.JSON(http.StatusOK, CompleteSubTaskResponse{
 			HasGrown: hasGrown,
 		})

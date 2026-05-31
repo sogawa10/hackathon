@@ -16,7 +16,13 @@ export default defineConfig([
       reactRefresh.configs.vite,
     ],
     languageOptions: {
+      ecmaVersion: 2020,
       globals: globals.browser,
+    },
+    rules: {
+    "no-undef": "error",
+    "no-unused-vars": "error",
+    "react/prop-types": "off",
     },
   },
 ])

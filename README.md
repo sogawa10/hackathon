@@ -171,7 +171,18 @@ S = D + P
 
 **ER図**
 
-<img width="1465" height="922" alt="Image" src="https://github.com/user-attachments/assets/cc47c48b-8696-4956-9de6-505ca01b1cfb" />
+<img width="679" height="561" alt="Image" src="https://github.com/user-attachments/assets/7f97e690-82a8-461c-8874-133ca8a4e8fc" />
+
+**補足：「growth_stage」について**
+
+< -1 > → 枯れた状態
+
+< 0 > → 種の状態
+
+< 1 ~ 10 > → 畑にて成長中
+
+< 11 > → 収穫済み
+
 
 **ユーザー登録**（**POST** `api/signup`）
 
