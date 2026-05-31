@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Home from './pages/Home';
+import Tasks from './pages/Tasks';
 import HarvestBasket from './pages/HarvestBasket';
 
 const App: React.FC = () => {
@@ -13,6 +14,7 @@ const App: React.FC = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/basket" element={<HarvestBasket />} />
+        <Route path="/tasks" element={<Tasks />} />
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </Router>
