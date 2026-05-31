@@ -296,11 +296,16 @@ func AssignVegetableHandler(db *sql.DB) gin.HandlerFunc {
 		}
 
 		queryUpdateVegetable := `
-			UPDATE "TASKS" 
-			SET "vegetable_name" = $1 
-			WHERE "task_id" = $2`
-
+			UPDATE "TASKS"
+			SET "vegetable_id" = (
+				SELECT "vegetable_id"
+				FROM "VEGETABLES"
+				WHERE "vegetable_name" = $1
+			)
+			WHERE "task_id" = $2
+		`
 		result, err := db.Exec(queryUpdateVegetable, req.VegetableName, taskID)
+
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "野菜の割り当てに失敗しました: " + err.Error()})
 			return
@@ -315,5 +320,84 @@ func AssignVegetableHandler(db *sql.DB) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{
 			"task_id": taskID,
 		})
+	}
+}
+
+type TaskResponse struct {
+	TaskID        string `json:"task_id"`
+	TaskType      string `json:"task_type"`
+	TaskTitle     string `json:"task_title"`
+	TotalCount    int    `json:"total_count"`
+	LapCount      int    `json:"lap_count"`
+	StartDate     string `json:"start_date"`
+	EndDate       string `json:"end_date"`
+	BufferDays    int    `json:"buffer_days"`
+	VegetableName string `json:"vegetable_name"`
+	GrowthStage   int    `json:"growth_stage"`
+	ImageURL      string `json:"image_url"`
+}
+
+func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctxUserID, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "認証情報が見つかりません"})
+			return
+		}
+		userID := ctxUserID.(string)
+
+		query := `
+			SELECT 
+				t.task_id, t.task_type, t.task_title, t.total_count, t.lap_count, 
+				t.start_date, t.end_date, t.vegetable_name, t.growth_stage,
+				(SELECT COUNT(*) FROM "SUB_TASKS" s WHERE s.task_id = t.task_id AND s.scheduled_date < CURRENT_DATE AND s.is_completed = false) AS missed_days
+			FROM "TASKS" t
+			WHERE t.user_id = $1
+			ORDER BY t.start_date DESC
+		`
+		rows, err := db.Query(query, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラーが発生しました"})
+			return
+		}
+		defer rows.Close()
+
+		var tasks []TaskResponse = []TaskResponse{}
+
+		for rows.Next() {
+			var t TaskResponse
+			var startDate, endDate time.Time
+			var vegName sql.NullString
+			var missedDays int
+
+			if err := rows.Scan(
+				&t.TaskID, &t.TaskType, &t.TaskTitle, &t.TotalCount, &t.LapCount,
+				&startDate, &endDate, &vegName, &t.GrowthStage, &missedDays,
+			); err != nil {
+				continue
+			}
+
+			if vegName.Valid {
+				t.VegetableName = vegName.String
+			}
+
+			duration := endDate.Sub(startDate)
+			days := int(duration.Hours()/24) + 1
+			originalBufferDays := int(math.Ceil(float64(days) * 0.1))
+
+			t.BufferDays = originalBufferDays - missedDays
+
+			if t.BufferDays < 0 {
+				t.GrowthStage = -1
+				t.BufferDays = 0
+			}
+
+			t.StartDate = startDate.Format("2006-01-02")
+			t.EndDate = endDate.Format("2006-01-02")
+
+			tasks = append(tasks, t)
+		}
+
+		c.JSON(http.StatusOK, tasks)
 	}
 }

@@ -55,8 +55,11 @@ func main() {
 	authGroup.Use(handlers.AuthMiddleware())
 	{
 		authGroup.GET("/api/subtasks/today", handlers.GetTodaySubtasksHandler(db))
+		authGroup.PATCH("/api/subtasks", handlers.CompleteSubTaskHandler(db))
 		authGroup.POST("/api/tasks", handlers.CreateTaskHandler(db))
 		authGroup.POST("/api/vegetable/:task_id", handlers.AssignVegetableHandler(db))
+		authGroup.GET("/api/tasks", handlers.GetTasksHandler(db))
+		authGroup.DELETE("/api/tasks/:task_id", handlers.DeleteTaskHandler(db))
 	}
 
 	fmt.Println("VegeTask サーバーがポート3000番で起動しました。")
