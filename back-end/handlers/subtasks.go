@@ -40,7 +40,7 @@ type CompleteSubTaskResponse struct {
 // 今日のToDo取得（GET /api/subtasks/today）
 func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 1. ログイン中のユーザーIDを取得（警備員AuthMiddlewareがセットしてくれたものを使う！）
+		// 1. ログイン中のユーザーIDを取得
 		ctxUserID, exists := c.Get("user_id")
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "認証情報が見つかりません"})
@@ -48,7 +48,7 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		userID := ctxUserID.(string)
 
-		// 2. DBからテーブルを結合して取得（※メンバーのDB変更に合わせて v.vegetable_name に修正）
+		// 2. DBからテーブルを結合して取得
 		query := `
 			SELECT 
 				s.sub_task_id, 
@@ -71,7 +71,7 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		defer rows.Close()
 
-		// 3. データを配列に詰めて返却 (配列を返す仕様に合わせています)
+		// 3. データを配列に詰めて返却 
 		subtasks := []TodaySubtaskResponse{}
 
 		for rows.Next() {
