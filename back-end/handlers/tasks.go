@@ -317,3 +317,89 @@ func AssignVegetableHandler(db *sql.DB) gin.HandlerFunc {
 		})
 	}
 }
+
+// ==========================================
+// [GET] タスク一覧取得用レスポンス
+// ==========================================
+type TaskResponse struct {
+	TaskID        string `json:"task_id"`
+	TaskType      string `json:"task_type"`
+	TaskTitle     string `json:"task_title"`
+	TotalCount    int    `json:"total_count"`
+	LapCount      int    `json:"lap_count"`
+	StartDate     string `json:"start_date"`  // YYYY-MM-DD
+	EndDate       string `json:"end_date"`    // YYYY-MM-DD
+	BufferDays    int    `json:"buffer_days"` // 残り予備日
+	VegetableName string `json:"vegetable_name"`
+	GrowthStage   int    `json:"growth_stage"` // -1なら枯れている
+	ImageURL      string `json:"image_url"`
+}
+
+// タスク一覧取得（GET /api/tasks）
+func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctxUserID, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "認証情報が見つかりません"})
+			return
+		}
+		userID := ctxUserID.(string)
+
+		// タスク情報と一緒に「過去の日付で未完了の小タスク数（＝サボり日数）」も取得
+		query := `
+			SELECT 
+				t.task_id, t.task_type, t.task_title, t.total_count, t.lap_count, 
+				t.start_date, t.end_date, t.vegetable_name, t.growth_stage,
+				(SELECT COUNT(*) FROM "SUB_TASKS" s WHERE s.task_id = t.task_id AND s.scheduled_date < CURRENT_DATE AND s.is_completed = false) AS missed_days
+			FROM "TASKS" t
+			WHERE t.user_id = $1
+			ORDER BY t.start_date DESC
+		`
+		rows, err := db.Query(query, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラーが発生しました"})
+			return
+		}
+		defer rows.Close()
+
+		var tasks []TaskResponse = []TaskResponse{}
+
+		for rows.Next() {
+			var t TaskResponse
+			var startDate, endDate time.Time
+			var vegName sql.NullString
+			var missedDays int // サボった日数
+
+			if err := rows.Scan(
+				&t.TaskID, &t.TaskType, &t.TaskTitle, &t.TotalCount, &t.LapCount,
+				&startDate, &endDate, &vegName, &t.GrowthStage, &missedDays,
+			); err != nil {
+				continue
+			}
+
+			if vegName.Valid {
+				t.VegetableName = vegName.String
+			}
+
+			duration := endDate.Sub(startDate)
+			days := int(duration.Hours()/24) + 1
+			originalBufferDays := int(math.Ceil(float64(days) * 0.1))
+
+			// 残り予備日の計算（元の予備日 - サボった日数）
+			t.BufferDays = originalBufferDays - missedDays
+
+			// 枯死判定（予備日を使い切ってマイナスになったら枯れる！）
+			if t.BufferDays < 0 {
+				t.GrowthStage = -1 // フロントエンドで枯れた画像を出す合図
+				t.BufferDays = 0   // 残り日数は0として表示
+			}
+
+			t.StartDate = startDate.Format("2006-01-02")
+			t.EndDate = endDate.Format("2006-01-02")
+
+			tasks = append(tasks, t)
+		}
+
+		c.JSON(http.StatusOK, tasks)
+	}
+}
