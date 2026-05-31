@@ -2,14 +2,12 @@ package handlers
 
 import (
 	"database/sql"
+	"math"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
-
-// ==========================================
-// 構造体の定義
-// ==========================================
 
 // [GET] 今日のToDo取得用レスポンス
 type TodaySubtaskResponse struct {
@@ -40,7 +38,6 @@ type CompleteSubTaskResponse struct {
 // 今日のToDo取得（GET /api/subtasks/today）
 func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 1. ログイン中のユーザーIDを取得
 		ctxUserID, exists := c.Get("user_id")
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "認証情報が見つかりません"})
@@ -48,17 +45,25 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		userID := ctxUserID.(string)
 
-		// 2. DBからテーブルを結合して取得
 		query := `
-			SELECT 
-				s.sub_task_id, 
-				s.scheduled_date, 
-				t.task_type, 
-				t.task_title, 
-				s.task_content, 
-				s.is_completed, 
-				v.vegetable_name, 
-				t.growth_stage
+      SELECT
+        s.sub_task_id,
+        s.scheduled_date,
+        t.task_type,
+        t.task_title,
+        s.task_content,
+        s.is_completed,
+        v.vegetable_name,
+        t.growth_stage,
+        t.start_date,
+        t.end_date,
+        (
+          SELECT COUNT(*)
+          FROM "SUB_TASKS" past
+          WHERE past.task_id = t.task_id
+            AND past.scheduled_date < CURRENT_DATE
+            AND past.is_completed = false
+        ) AS missed_days
 			FROM "SUB_TASKS" s
 			INNER JOIN "TASKS" t ON s.task_id = t.task_id
 			INNER JOIN "VEGETABLES" v ON t.vegetable_id = v.vegetable_id
@@ -71,29 +76,32 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		defer rows.Close()
 
-		// 3. データを配列に詰めて返却 
 		subtasks := []TodaySubtaskResponse{}
 
 		for rows.Next() {
 			var s TodaySubtaskResponse
-			// ※ vegetable_name が NULL の場合（まだ野菜を割り当てていないタスク）のエラーを防ぐため、
-			//   sql.NullString を使って安全に読み取ります。
 			var vegName sql.NullString
+			var startDate, endDate time.Time
+			var missedDays int
 
 			if err := rows.Scan(
-				&s.SubTaskID,
-				&s.ScheduledDate,
-				&s.TaskType,
-				&s.TaskTitle,
-				&s.TaskContent,
-				&s.IsCompleted,
-				&vegName,
-				&s.GrowthStage,
+				&s.SubTaskID, &s.ScheduledDate, &s.TaskType, &s.TaskTitle,
+				&s.TaskContent, &s.IsCompleted, &vegName, &s.GrowthStage,
+				&startDate, &endDate, &missedDays,
 			); err != nil {
 				continue
 			}
 
-			// NULLじゃなければ値を入れる
+			// 枯死判定ロジック
+			duration := endDate.Sub(startDate)
+			days := int(duration.Hours()/24) + 1
+			originalBufferDays := int(math.Ceil(float64(days) * 0.1))
+
+			// 予備日を使い切ってマイナスになっているなら、今日のToDoには出さない
+			if originalBufferDays-missedDays < 0 {
+				continue
+			}
+
 			if vegName.Valid {
 				s.VegetableName = vegName.String
 			}
@@ -105,7 +113,7 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-// ToDoにチェックをつける（PATCH /api/subtasks）
+// ToDoにチェックをつける
 func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 1. ログイン中のユーザーIDを取得
@@ -158,7 +166,7 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// 4. サブタスクを完了状態（true）に更新する
+		// 4. サブタスクを完了状態に更新する
 		queryUpdateSub := `UPDATE "SUB_TASKS" SET is_completed = true WHERE sub_task_id = $1`
 		_, err = tx.Exec(queryUpdateSub, req.SubTaskID)
 		if err != nil {
@@ -166,7 +174,7 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// 5. タスク全体の進捗（全小タスク数と、完了済み小タスク数）を取得
+		// 5. タスク全体の進捗を取得
 		var totalSubtasks, completedSubtasks int
 		queryProgress := `
 			SELECT 
@@ -189,7 +197,7 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 
 		hasGrown := false
 
-		// 計算した新しい成長段階が、今の成長段階より大きければアップデート（成長）！
+		// 計算した新しい成長段階が、今の成長段階より大きければアップデート
 		if newGrowthStage > currentGrowthStage {
 			queryGrow := `UPDATE "TASKS" SET growth_stage = $1 WHERE task_id = $2`
 			_, err = tx.Exec(queryGrow, newGrowthStage, taskID)
@@ -206,7 +214,7 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// 7. 成長したかどうか（true/false）を返す
+		// 7. 成長したかどうかを返す
 		c.JSON(http.StatusOK, CompleteSubTaskResponse{
 			HasGrown: hasGrown,
 		})

@@ -58,7 +58,7 @@ func main() {
 		authGroup.PATCH("/api/subtasks", handlers.CompleteSubTaskHandler(db))
 		authGroup.POST("/api/tasks", handlers.CreateTaskHandler(db))
 		authGroup.POST("/api/vegetable/:task_id", handlers.AssignVegetableHandler(db))
-
+		authGroup.GET("/api/tasks", handlers.GetTasksHandler(db))
 		authGroup.DELETE("/api/tasks/:task_id", handlers.DeleteTaskHandler(db))
 	}
 
