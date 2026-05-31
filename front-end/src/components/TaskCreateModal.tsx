@@ -82,14 +82,6 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
       return;
     }
 
-    // 💡 修正ポイント: Goの binding:"required" 対策として確実に1以上の数値に変換
-    const parsedTotalCount = parseInt(String(totalCount), 10);
-    if (isNaN(parsedTotalCount) || parsedTotalCount <= 0) {
-      setErrorMsg('分量は1以上の数値を入力してください。');
-      return;
-    }
-    const parsedLapCount = taskType === '単語帳' ? parseInt(String(lapCount), 10) : 1;
-
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
@@ -99,25 +91,21 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        // 💡 修正ポイント: tasks.goに合わせてオブジェクト形式 {} で送信
         body: JSON.stringify({
           task_type: taskType,
           task_title: taskTitle,
-          total_count: parsedTotalCount,
-          lap_count: isNaN(parsedLapCount) || parsedLapCount <= 0 ? 1 : parsedLapCount,
+          total_count: Number(totalCount),
+          lap_count: taskType === '単語帳' ? Number(lapCount) : 1,
           start_date: startDate,
           end_date: endDate
         })
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `サーバーエラー (${response.status})`);
+        throw new Error('タスクの登録に失敗しました');
       }
       
       const data = await response.json();
-      
-      // 💡 修正ポイント: オブジェクト形式でデータを受け取る
       setCreatedTaskId(data.task_id);
       setAssignedSize(data.size);
       setStep(2);
@@ -141,13 +129,11 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        // 💡 修正ポイント: こちらもオブジェクト形式 {} で送信
         body: JSON.stringify({ vegetable_name: vegetableName })
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || '野菜の割り当てに失敗しました');
+        throw new Error('野菜の割り当てに失敗しました');
       }
 
       if (onTaskCreated) onTaskCreated();
