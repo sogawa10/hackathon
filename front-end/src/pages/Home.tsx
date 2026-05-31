@@ -172,7 +172,7 @@ const Home: React.FC = () => {
               <div 
                 onClick={() => {
                   setIsMenuOpen(false);
-                  navigate('/tasks'); // 💡 アラートを消して、タスク一覧ページへ飛ぶように変更済み！
+                  navigate('/tasks'); 
                 }}
                 style={{ 
                   padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', 

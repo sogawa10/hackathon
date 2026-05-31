@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// 💡 予想されるバックエンドからのレスポンスの型を定義しておく
 type Task = {
   task_id: string;
   task_type: string;
@@ -12,7 +11,6 @@ type Task = {
   vegetable_name: string;
 };
 
-// 💡 APIができるまでの「仮のデータ（モック）」
 const MOCK_TASKS: Task[] = [
   {
     task_id: "dummy-1",
@@ -40,8 +38,6 @@ const Tasks: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // 💡 本来はここで fetch('/api/tasks') を行いますが、今はモックデータをセットするだけ！
-    // API通信の「遅延」を再現するために setTimeout を使うとよりリアルになります
     setTimeout(() => {
       setTasks(MOCK_TASKS);
       setLoading(false);
@@ -50,17 +46,24 @@ const Tasks: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '30px' }}>
-        <button 
-          onClick={() => navigate('/home')}
-          style={{
-            padding: '8px 16px', backgroundColor: '#e0e0e0', border: 'none', 
-            borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold'
-          }}
-        >
-          ← ホームへ戻る
-        </button>
-        <h1 style={{ margin: '0 0 0 20px', color: '#333' }}>📋 タスク一覧</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '30px' }}>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
+          <button 
+            onClick={() => navigate('/home')}
+            style={{
+              padding: '8px 16px', backgroundColor: '#e0e0e0', border: 'none', 
+              borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap'
+            }}
+          >
+            ←畑ページへ
+          </button>
+        </div>
+
+        <h1 style={{ margin: 0, color: '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '1.2em' }}>📋</span> タスク一覧
+        </h1>
+
+        <div style={{ flex: 1 }}></div>
       </div>
 
       {loading ? (
