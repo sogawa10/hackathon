@@ -14,13 +14,13 @@ import (
 // [GET] 今日のToDo取得用レスポンス
 type TodaySubtaskResponse struct {
 	SubTaskID     string `json:"sub_task_id"`
-	ScheduledDate string `json:"scheduled_date"` // YYYY-MM-DD
-	TaskType      string `json:"task_type"`      // 単語帳 | 問題集 | 過去問 | その他
+	ScheduledDate string `json:"scheduled_date"`
+	TaskType      string `json:"task_type"`
 	TaskTitle     string `json:"task_title"`
 	TaskContent   string `json:"task_content"`
 	IsCompleted   bool   `json:"is_completed"`
 	VegetableName string `json:"vegetable_name"`
-	GrowthStage   int    `json:"growth_stage"` // 0〜9
+	GrowthStage   int    `json:"growth_stage"`
 }
 
 // [PATCH] ToDo完了用リクエスト
@@ -48,7 +48,7 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		userID := ctxUserID.(string)
 
-		// 2. DBからテーブルを結合して取得
+		// 2. DBからテーブルを結合して取得（※メンバーのDB変更に合わせて v.vegetable_name に修正）
 		query := `
 			SELECT 
 				s.sub_task_id, 
@@ -57,10 +57,11 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 				t.task_title, 
 				s.task_content, 
 				s.is_completed, 
-				t.vegetable_name, 
+				v.vegetable_name, 
 				t.growth_stage
 			FROM "SUB_TASKS" s
 			INNER JOIN "TASKS" t ON s.task_id = t.task_id
+			INNER JOIN "VEGETABLES" v ON t.vegetable_id = v.vegetable_id
 			WHERE t.user_id = $1 AND s.scheduled_date = CURRENT_DATE
 		`
 		rows, err := db.Query(query, userID)
@@ -75,7 +76,7 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 
 		for rows.Next() {
 			var s TodaySubtaskResponse
-			// ※ t.vegetable_name が NULL の場合（まだ野菜を割り当てていないタスク）のエラーを防ぐため、
+			// ※ vegetable_name が NULL の場合（まだ野菜を割り当てていないタスク）のエラーを防ぐため、
 			//   sql.NullString を使って安全に読み取ります。
 			var vegName sql.NullString
 

@@ -29,7 +29,7 @@ const Signup: React.FC = () => {
         localStorage.setItem('refresh_token', data.refresh_token);
       }
 
-      navigate('/', { replace: true });
+      navigate('/home', { replace: true });
     } catch (err: any) {
       setError(err?.message ?? 'ユーザー登録に失敗しました');
     } finally {

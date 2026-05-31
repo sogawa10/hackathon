@@ -15,7 +15,7 @@ export type AuthPayload = {
   user_pass: string;
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export async function login({ user_name, user_pass }: AuthPayload): Promise<LoginResponse> {
   const body = JSON.stringify({ user_name, user_pass });
