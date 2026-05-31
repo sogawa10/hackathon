@@ -19,7 +19,7 @@ CREATE TABLE "VEGETABLES" (
 CREATE TABLE "TASKS" (
     "task_id"      UUID PRIMARY KEY,
     "user_id"      UUID NOT NULL REFERENCES "USERS" ("user_id"),
-    "vegetable_id" UUID NOT NULL REFERENCES "VEGETABLES" ("vegetable_id"),
+    "vegetable_id" UUID REFERENCES "VEGETABLES" ("vegetable_id"),
     "task_type"    VARCHAR(50) NOT NULL,
     "task_title"   VARCHAR(255) NOT NULL,
     "start_date"   DATE NOT NULL, 
