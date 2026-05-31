@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import VegetableField from '../components/VegetableField';
 import TaskCreateModal from '../components/TaskCreateModal';
 
@@ -18,6 +19,8 @@ const Home: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  
+  const navigate = useNavigate();
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -85,7 +88,34 @@ const Home: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '20px' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>VegeTASK ホーム</h1>
+      
+      <div style={{ position: 'relative', marginBottom: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button
+          onClick={() => navigate('/basket')}
+          style={{
+            position: 'absolute',
+            left: 0,
+            padding: '10px 16px',
+            backgroundColor: '#ff9800',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            transition: 'background-color 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f57c00'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ff9800'}
+        >
+          <span>🧺</span> 籠ページへ
+        </button>
+        <h1 style={{ margin: 0, color: '#333' }}>VegeTASK ホーム</h1>
+      </div>
 
       <div style={{ display: 'flex', gap: '24px', alignItems: 'stretch' }}>
         

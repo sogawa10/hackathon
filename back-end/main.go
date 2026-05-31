@@ -1,27 +1,24 @@
 package main
 
 import (
+	"back-end/handlers"
 	"database/sql"
 	"fmt"
 	"log"
-	"os" // 環境変数を扱うパッケージ
+	"os"
 
-	"back-end/handlers"
-
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
 func main() {
-
-	// 1. .env ファイルを読み込む
 	err := godotenv.Load()
 	if err != nil {
-		log.Println("⚠️ .envファイルが見つかりません。OSの環境変数を使用します。")
+		log.Println(".envファイルが見つかりません。OSの環境変数を使用します。")
 	}
 
-	// 2. 環境変数から値を取り出して、DB接続用の文字列を組み立てる
 	connStr := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		os.Getenv("DB_HOST"),
@@ -31,7 +28,6 @@ func main() {
 		os.Getenv("DB_NAME"),
 	)
 
-	// 3. データベースへの接続
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatalf("DB接続設定エラー: %v", err)
@@ -41,15 +37,28 @@ func main() {
 	if err := db.Ping(); err != nil {
 		log.Fatalf("DB接続エラー: %v", err)
 	}
-	fmt.Println("🎉 PostgreSQL への接続成功！（環境変数を使用）")
+	fmt.Println("PostgreSQL への接続成功！")
 
-	// ルーター設定とサーバー起動
 	r := gin.Default()
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowCredentials: true,
+	}))
+
 	r.POST("/api/signup", handlers.SignupHandler(db))
 	r.POST("/api/login", handlers.LoginHandler(db))
-	r.GET("/api/subtasks/today", handlers.GetTodaySubtasksHandler(db))
-	r.POST("/api/tasks", handlers.CreateTaskHandler(db))
 
-	fmt.Println("🚀 VegeTask サーバーがポート3000番で起動しました")
+	authGroup := r.Group("/")
+	authGroup.Use(handlers.AuthMiddleware())
+	{
+		authGroup.GET("/api/subtasks/today", handlers.GetTodaySubtasksHandler(db))
+		authGroup.POST("/api/tasks", handlers.CreateTaskHandler(db))
+		authGroup.POST("/api/vegetable/:task_id", handlers.AssignVegetableHandler(db))
+	}
+
+	fmt.Println("VegeTask サーバーがポート3000番で起動しました。")
 	r.Run(":3000")
 }

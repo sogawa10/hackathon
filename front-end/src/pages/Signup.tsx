@@ -24,12 +24,18 @@ const Signup: React.FC = () => {
     try {
       const data = await signup({ user_name: username, user_pass: password });
 
-      localStorage.setItem('access_token', data.access_token);
-      if (data.refresh_token) {
-        localStorage.setItem('refresh_token', data.refresh_token);
+      const responseData = Array.isArray(data) ? data[0] : data;
+
+      if (!responseData || !responseData.access_token) {
+        throw new Error('トークンの取得に失敗しました');
       }
 
-      navigate('/', { replace: true });
+      localStorage.setItem('access_token', responseData.access_token);
+      if (responseData.refresh_token) {
+        localStorage.setItem('refresh_token', responseData.refresh_token);
+      }
+
+      navigate('/home', { replace: true });
     } catch (err: any) {
       setError(err?.message ?? 'ユーザー登録に失敗しました');
     } finally {
@@ -67,7 +73,7 @@ const Signup: React.FC = () => {
 
         {error && <div style={{ color: 'red', marginBottom: 12 }}>{error}</div>}
 
-        <button type="submit" disabled={loading} style={{ padding: '8px 16px' }}>
+        <button type="submit" disabled={loading} style={{ padding: '8px 16px', width: '100%' }}>
           {loading ? '登録中…' : 'Sign Up'}
         </button>
       </form>
