@@ -9,7 +9,7 @@ type TaskCreateModalProps = {
 type TaskType = '単語帳' | '問題集' | '過去問' | 'その他';
 
 const VEGETABLES = {
-  S: ['プチトマト', 'オクラ', '枝豆', 'シイタケ', 'ネギ'],
+  S: ['プチトマト', 'オクラ', '枝豆', 'しいたけ', 'ネギ'],
   M: ['赤パプリカ', 'ピーマン', 'なす', 'キュウリ', 'タケノコ'],
   L: ['キャベツ', 'かぼちゃ', 'トウモロコシ', 'ブロッコリー', 'カリフラワー']
 };
@@ -82,6 +82,13 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
       return;
     }
 
+    const parsedTotalCount = parseInt(String(totalCount), 10);
+    if (isNaN(parsedTotalCount) || parsedTotalCount <= 0) {
+      setErrorMsg('分量は1以上の数値を入力してください。');
+      return;
+    }
+    const parsedLapCount = taskType === '単語帳' ? parseInt(String(lapCount), 10) : 1;
+
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
@@ -94,18 +101,20 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
         body: JSON.stringify({
           task_type: taskType,
           task_title: taskTitle,
-          total_count: Number(totalCount),
-          lap_count: taskType === '単語帳' ? Number(lapCount) : 1,
+          total_count: parsedTotalCount,
+          lap_count: isNaN(parsedLapCount) || parsedLapCount <= 0 ? 1 : parsedLapCount,
           start_date: startDate,
           end_date: endDate
         })
       });
 
       if (!response.ok) {
-        throw new Error('タスクの登録に失敗しました');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `サーバーエラー (${response.status})`);
       }
       
       const data = await response.json();
+      
       setCreatedTaskId(data.task_id);
       setAssignedSize(data.size);
       setStep(2);
@@ -133,7 +142,15 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
       });
 
       if (!response.ok) {
-        throw new Error('野菜の割り当てに失敗しました');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || '野菜の割り当てに失敗しました');
+      }
+
+      // 💡 追加: 登録日（今日）とタスク開始日が同じかどうかでポップアップを出し分ける！
+      if (startDate === getTodayString()) {
+        alert(`${vegetableName}の種を畑に植えました！🌱\nさっそく今日のToDoを進めて育てましょう！`);
+      } else {
+        alert(`${vegetableName}の種をゲットしました！🎁\n開始日の ${startDate} になったら自動的に畑に植えられます！`);
       }
 
       if (onTaskCreated) onTaskCreated();
@@ -305,7 +322,11 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
                   onMouseEnter={(e) => e.currentTarget.style.borderColor = '#4caf50'}
                   onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e0e0e0'}
                 >
-                  <div style={{ fontSize: '30px', marginBottom: '10px' }}>🌱</div>
+                  <img 
+                    src={`/野菜${assignedSize}/種_${veg}.png`} 
+                    alt={`${veg}の種`} 
+                    style={{ width: '50px', height: '50px', objectFit: 'contain', marginBottom: '10px' }} 
+                  />
                   <div style={{ fontWeight: 'bold', color: '#333' }}>{veg}</div>
                 </div>
               ))}

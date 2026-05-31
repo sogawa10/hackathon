@@ -5,6 +5,7 @@ import TaskCreateModal from '../components/TaskCreateModal';
 
 type TodaySubtask = {
   sub_task_id: string;
+  task_id: string;
   scheduled_date: string;
   task_type: string;
   task_title: string;
@@ -59,7 +60,33 @@ const Home: React.FC = () => {
         }
 
         const data = await res.json();
-        setSubtasks(data);
+        
+        const notifiedWithered = JSON.parse(localStorage.getItem('notified_withered') || '[]');
+
+        const initialTasks = data.filter((t: TodaySubtask) => {
+          if (t && t.growth_stage === -1 && notifiedWithered.includes(t.task_id)) {
+            return false; 
+          }
+          return true;
+        });
+
+        setSubtasks(initialTasks);
+
+        const newlyWithered = initialTasks.filter((t: TodaySubtask) => t && t.growth_stage === -1);
+        
+        if (newlyWithered.length > 0) {
+          const witheredNames = newlyWithered.map((t: TodaySubtask) => t.vegetable_name).join('と');
+          
+          setTimeout(() => {
+            alert(`残念ですが、${witheredNames}が枯死して消滅しました...🍂\nタスクのスケジュールを見直してみましょう。`);
+            
+            const updatedNotified = [...notifiedWithered, ...newlyWithered.map((t: TodaySubtask) => t.task_id)];
+            localStorage.setItem('notified_withered', JSON.stringify(updatedNotified));
+
+            setSubtasks(prev => prev.filter(t => t && t.growth_stage !== -1));
+          }, 1200); 
+        }
+
       } catch (err: any) {
         if (err.message.includes('認証トークン')) {
           handleLogout();
@@ -153,7 +180,6 @@ const Home: React.FC = () => {
             ☰
           </button>
 
-          {/* isMenuOpenがtrueの時だけドロップダウンを表示 */}
           {isMenuOpen && (
             <div style={{
               position: 'absolute',
@@ -171,7 +197,7 @@ const Home: React.FC = () => {
               <div 
                 onClick={() => {
                   setIsMenuOpen(false);
-                  alert('タスク一覧ページは準備中です！'); 
+                  navigate('/tasks');
                 }}
                 style={{ 
                   padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', 
@@ -285,7 +311,10 @@ const Home: React.FC = () => {
       <TaskCreateModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        onTaskCreated={() => setIsModalOpen(false)}
+        onTaskCreated={() => {
+          setIsModalOpen(false);
+          window.location.reload(); 
+        }}
       />
     </div>
   );
