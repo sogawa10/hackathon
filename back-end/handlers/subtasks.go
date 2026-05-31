@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// [GET] 今日のToDo取得用レスポンス
 type TodaySubtaskResponse struct {
 	SubTaskID     string `json:"sub_task_id"`
 	ScheduledDate string `json:"scheduled_date"`
@@ -21,21 +20,14 @@ type TodaySubtaskResponse struct {
 	GrowthStage   int    `json:"growth_stage"`
 }
 
-// [PATCH] ToDo完了用リクエスト
 type CompleteSubTaskRequest struct {
 	SubTaskID string `json:"sub_task_id" binding:"required"`
 }
 
-// [PATCH] ToDo完了用レスポンス
 type CompleteSubTaskResponse struct {
 	HasGrown bool `json:"has_grown"`
 }
 
-// ==========================================
-// APIハンドラー
-// ==========================================
-
-// 今日のToDo取得（GET /api/subtasks/today）
 func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctxUserID, exists := c.Get("user_id")
@@ -92,12 +84,10 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 				continue
 			}
 
-			// 枯死判定ロジック
 			duration := endDate.Sub(startDate)
 			days := int(duration.Hours()/24) + 1
 			originalBufferDays := int(math.Ceil(float64(days) * 0.1))
 
-			// 予備日を使い切ってマイナスになっているなら、今日のToDoには出さない
 			if originalBufferDays-missedDays < 0 {
 				continue
 			}
@@ -113,10 +103,8 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-// ToDoにチェックをつける
 func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 1. ログイン中のユーザーIDを取得
 		ctxUserID, exists := c.Get("user_id")
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "認証情報が見つかりません"})
@@ -124,14 +112,12 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		userID := ctxUserID.(string)
 
-		// 2. リクエストを受け取る
 		var req CompleteSubTaskRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "リクエストの形式が不正です"})
 			return
 		}
 
-		// トランザクション開始
 		tx, err := db.Begin()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラー"})
@@ -139,7 +125,6 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		defer tx.Rollback()
 
-		// 3. サブタスクと、その親タスクの情報を取得
 		var taskID string
 		var isAlreadyCompleted bool
 		var currentGrowthStage int
@@ -160,13 +145,11 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// 既に完了済みの場合は、何もせず成長もなし(false)で返す
 		if isAlreadyCompleted {
 			c.JSON(http.StatusOK, CompleteSubTaskResponse{HasGrown: false})
 			return
 		}
 
-		// 4. サブタスクを完了状態に更新する
 		queryUpdateSub := `UPDATE "SUB_TASKS" SET is_completed = true WHERE sub_task_id = $1`
 		_, err = tx.Exec(queryUpdateSub, req.SubTaskID)
 		if err != nil {
@@ -174,7 +157,6 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// 5. タスク全体の進捗を取得
 		var totalSubtasks, completedSubtasks int
 		queryProgress := `
 			SELECT 
@@ -189,7 +171,6 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// 6. 進捗割合から新しい成長段階（0〜9）を計算する
 		newGrowthStage := 0
 		if totalSubtasks > 0 {
 			newGrowthStage = (completedSubtasks * 9) / totalSubtasks
@@ -197,7 +178,6 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 
 		hasGrown := false
 
-		// 計算した新しい成長段階が、今の成長段階より大きければアップデート
 		if newGrowthStage > currentGrowthStage {
 			queryGrow := `UPDATE "TASKS" SET growth_stage = $1 WHERE task_id = $2`
 			_, err = tx.Exec(queryGrow, newGrowthStage, taskID)
@@ -208,13 +188,11 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 			hasGrown = true
 		}
 
-		// トランザクション確定
 		if err := tx.Commit(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "データの確定に失敗しました"})
 			return
 		}
 
-		// 7. 成長したかどうかを返す
 		c.JSON(http.StatusOK, CompleteSubTaskResponse{
 			HasGrown: hasGrown,
 		})
