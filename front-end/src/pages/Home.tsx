@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import VegetableField from '../components/VegetableField';
+import TaskCreateModal from '../components/TaskCreateModal';
 
 type TodaySubtask = {
   sub_task_id: string;
+  task_id: string;
   scheduled_date: string;
   task_type: string;
   task_title: string;
@@ -17,10 +19,19 @@ const Home: React.FC = () => {
   const [subtasks, setSubtasks] = useState<(TodaySubtask | null)[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   
   const navigate = useNavigate();
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    navigate('/login', { replace: true });
+  };
 
   useEffect(() => {
     const fetchTodaySubtasks = async () => {
@@ -38,21 +49,57 @@ const Home: React.FC = () => {
           },
         });
 
+        if (res.status === 401) {
+          alert('セッションの有効期限が切れました。再度ログインしてください。');
+          handleLogout();
+          return;
+        }
+
         if (!res.ok) {
           throw new Error('データの取得に失敗しました');
         }
 
         const data = await res.json();
-        setSubtasks(data);
+        
+        const notifiedWithered = JSON.parse(localStorage.getItem('notified_withered') || '[]');
+
+        const initialTasks = data.filter((t: TodaySubtask) => {
+          if (t && t.growth_stage === -1 && notifiedWithered.includes(t.task_id)) {
+            return false; 
+          }
+          return true;
+        });
+
+        setSubtasks(initialTasks);
+
+        const newlyWithered = initialTasks.filter((t: TodaySubtask) => t && t.growth_stage === -1);
+        
+        if (newlyWithered.length > 0) {
+          const witheredNames = newlyWithered.map((t: TodaySubtask) => t.vegetable_name).join('と');
+          
+          setTimeout(() => {
+            alert(`残念ですが、${witheredNames}が枯死して消滅しました...🍂\nタスクのスケジュールを見直してみましょう。`);
+            
+            const updatedNotified = [...notifiedWithered, ...newlyWithered.map((t: TodaySubtask) => t.task_id)];
+            localStorage.setItem('notified_withered', JSON.stringify(updatedNotified));
+
+            setSubtasks(prev => prev.filter(t => t && t.growth_stage !== -1));
+          }, 1200); 
+        }
+
       } catch (err: any) {
-        setError(err.message || 'エラーが発生しました');
+        if (err.message.includes('認証トークン')) {
+          handleLogout();
+        } else {
+          setError(err.message || 'エラーが発生しました');
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchTodaySubtasks();
-  }, []);
+  }, [API_BASE_URL, navigate]);
 
   const handleToggleComplete = async (subTaskId: string, currentStatus: boolean) => {
     const isNowCompleted = !currentStatus;
@@ -112,7 +159,69 @@ const Home: React.FC = () => {
         >
           <span>🧺</span> 籠ページへ
         </button>
+
         <h1 style={{ margin: 0, color: '#333' }}>VegeTASK ホーム</h1>
+
+        <div style={{ position: 'absolute', right: 0 }}>
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '28px',
+              cursor: 'pointer',
+              color: '#333',
+              padding: '4px 8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ☰
+          </button>
+
+          {isMenuOpen && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              right: 0,
+              marginTop: '8px',
+              backgroundColor: '#fff',
+              border: '1px solid #e0e0e0',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              minWidth: '160px',
+              zIndex: 100,
+              overflow: 'hidden'
+            }}>
+              <div 
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  navigate('/tasks');
+                }}
+                style={{ 
+                  padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', 
+                  color: '#333', fontSize: '14px', fontWeight: 'bold', transition: 'background-color 0.2s' 
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                📋 タスク一覧
+              </div>
+              <div 
+                onClick={handleLogout}
+                style={{ 
+                  padding: '12px 16px', cursor: 'pointer', color: '#e53935', 
+                  fontSize: '14px', fontWeight: 'bold', transition: 'background-color 0.2s' 
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#ffebee'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                🚪 ログアウト
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: '24px', alignItems: 'stretch' }}>
@@ -136,9 +245,23 @@ const Home: React.FC = () => {
           boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
           minHeight: '400px'
         }}>
-          <h2 style={{ marginTop: 0, borderBottom: '3px solid #4caf50', paddingBottom: '10px', color: '#333' }}>
-            今日のToDo
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', borderBottom: '3px solid #4caf50', paddingBottom: '10px', marginBottom: '20px' }}>
+            <h2 style={{ margin: 0, color: '#333' }}>
+              今日のToDo
+            </h2>
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              style={{ 
+                marginLeft: '15px', width: '32px', height: '32px', borderRadius: '50%', 
+                backgroundColor: '#ff9800', color: '#fff', border: 'none', 
+                fontSize: '22px', fontWeight: 'bold', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+              }}
+            >
+              ＋
+            </button>
+          </div>
           
           {validTasks.length === 0 ? (
             <p style={{ color: '#888', textAlign: 'center', marginTop: '40px' }}>今日のタスクはありません。</p>
@@ -184,6 +307,15 @@ const Home: React.FC = () => {
         </section>
 
       </div>
+      
+      <TaskCreateModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onTaskCreated={() => {
+          setIsModalOpen(false);
+          window.location.reload(); 
+        }}
+      />
     </div>
   );
 };
