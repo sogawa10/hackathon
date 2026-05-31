@@ -323,24 +323,20 @@ func AssignVegetableHandler(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-// ==========================================
-// [GET] タスク一覧取得用レスポンス
-// ==========================================
 type TaskResponse struct {
 	TaskID        string `json:"task_id"`
 	TaskType      string `json:"task_type"`
 	TaskTitle     string `json:"task_title"`
 	TotalCount    int    `json:"total_count"`
 	LapCount      int    `json:"lap_count"`
-	StartDate     string `json:"start_date"`  // YYYY-MM-DD
-	EndDate       string `json:"end_date"`    // YYYY-MM-DD
-	BufferDays    int    `json:"buffer_days"` // 残り予備日
+	StartDate     string `json:"start_date"`
+	EndDate       string `json:"end_date"`
+	BufferDays    int    `json:"buffer_days"`
 	VegetableName string `json:"vegetable_name"`
-	GrowthStage   int    `json:"growth_stage"` // -1なら枯れている
+	GrowthStage   int    `json:"growth_stage"`
 	ImageURL      string `json:"image_url"`
 }
 
-// タスク一覧取得（GET /api/tasks）
 func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctxUserID, exists := c.Get("user_id")
@@ -350,7 +346,6 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		userID := ctxUserID.(string)
 
-		// タスク情報と一緒に「過去の日付で未完了の小タスク数（＝サボり日数）」も取得
 		query := `
 			SELECT 
 				t.task_id, t.task_type, t.task_title, t.total_count, t.lap_count, 
@@ -373,7 +368,7 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 			var t TaskResponse
 			var startDate, endDate time.Time
 			var vegName sql.NullString
-			var missedDays int // サボった日数
+			var missedDays int
 
 			if err := rows.Scan(
 				&t.TaskID, &t.TaskType, &t.TaskTitle, &t.TotalCount, &t.LapCount,
@@ -390,13 +385,11 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 			days := int(duration.Hours()/24) + 1
 			originalBufferDays := int(math.Ceil(float64(days) * 0.1))
 
-			// 残り予備日の計算（元の予備日 - サボった日数）
 			t.BufferDays = originalBufferDays - missedDays
 
-			// 枯死判定（予備日を使い切ってマイナスになったら枯れる！）
 			if t.BufferDays < 0 {
-				t.GrowthStage = -1 // フロントエンドで枯れた画像を出す合図
-				t.BufferDays = 0   // 残り日数は0として表示
+				t.GrowthStage = -1
+				t.BufferDays = 0
 			}
 
 			t.StartDate = startDate.Format("2006-01-02")
