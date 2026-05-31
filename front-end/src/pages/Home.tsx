@@ -20,9 +20,17 @@ const Home: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+  
   const navigate = useNavigate();
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    navigate('/login', { replace: true });
+  };
 
   useEffect(() => {
     const fetchTodaySubtasks = async () => {
@@ -40,6 +48,12 @@ const Home: React.FC = () => {
           },
         });
 
+        if (res.status === 401) {
+          alert('セッションの有効期限が切れました。再度ログインしてください。');
+          handleLogout();
+          return;
+        }
+
         if (!res.ok) {
           throw new Error('データの取得に失敗しました');
         }
@@ -47,14 +61,18 @@ const Home: React.FC = () => {
         const data = await res.json();
         setSubtasks(data);
       } catch (err: any) {
-        setError(err.message || 'エラーが発生しました');
+        if (err.message.includes('認証トークン')) {
+          handleLogout();
+        } else {
+          setError(err.message || 'エラーが発生しました');
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchTodaySubtasks();
-  }, [API_BASE_URL]);
+  }, [API_BASE_URL, navigate]);
 
   const handleToggleComplete = async (subTaskId: string, currentStatus: boolean) => {
     const isNowCompleted = !currentStatus;
@@ -114,7 +132,70 @@ const Home: React.FC = () => {
         >
           <span>🧺</span> 籠ページへ
         </button>
+
         <h1 style={{ margin: 0, color: '#333' }}>VegeTASK ホーム</h1>
+
+        <div style={{ position: 'absolute', right: 0 }}>
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '28px',
+              cursor: 'pointer',
+              color: '#333',
+              padding: '4px 8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ☰
+          </button>
+
+          {/* isMenuOpenがtrueの時だけドロップダウンを表示 */}
+          {isMenuOpen && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              right: 0,
+              marginTop: '8px',
+              backgroundColor: '#fff',
+              border: '1px solid #e0e0e0',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              minWidth: '160px',
+              zIndex: 100,
+              overflow: 'hidden'
+            }}>
+              <div 
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  alert('タスク一覧ページは準備中です！'); 
+                }}
+                style={{ 
+                  padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', 
+                  color: '#333', fontSize: '14px', fontWeight: 'bold', transition: 'background-color 0.2s' 
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                📋 タスク一覧
+              </div>
+              <div 
+                onClick={handleLogout}
+                style={{ 
+                  padding: '12px 16px', cursor: 'pointer', color: '#e53935', 
+                  fontSize: '14px', fontWeight: 'bold', transition: 'background-color 0.2s' 
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#ffebee'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                🚪 ログアウト
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: '24px', alignItems: 'stretch' }}>
