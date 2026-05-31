@@ -296,11 +296,16 @@ func AssignVegetableHandler(db *sql.DB) gin.HandlerFunc {
 		}
 
 		queryUpdateVegetable := `
-			UPDATE "TASKS" 
-			SET "vegetable_name" = $1 
-			WHERE "task_id" = $2`
-
+			UPDATE "TASKS"
+			SET "vegetable_id" = (
+				SELECT "vegetable_id"
+				FROM "VEGETABLES"
+				WHERE "vegetable_name" = $1
+			)
+			WHERE "task_id" = $2
+		`
 		result, err := db.Exec(queryUpdateVegetable, req.VegetableName, taskID)
+
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "野菜の割り当てに失敗しました: " + err.Error()})
 			return
