@@ -13,6 +13,8 @@ interface TodaySubtask {
 
 interface VegetableFieldProps {
   subtasks: (TodaySubtask | null)[];
+  systemMessage?: string | null;
+  onClearSystemMessage?: () => void;
 }
 
 const PLACEMENT_ORDER: number[] = [
@@ -49,13 +51,21 @@ const GRID_POSITIONS: { [key: number]: { top: string; left: string } } = {
 
 const ASSET_SCALE = 0.2;
 
-const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [] }) => {
+const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMessage, onClearSystemMessage }) => {
   const field: (TodaySubtask | null)[] = Array(25).fill(null);
   
   const [recentCompleted, setRecentCompleted] = useState<Set<string>>(new Set());
+  
+  const [growthMsgs, setGrowthMsgs] = useState<{ [subTaskId: string]: string }>({});
+  
+  const [isClearingSystemMessage, setIsClearingSystemMessage] = useState(false);
+
   const prevSubtasksRef = useRef<(TodaySubtask | null)[]>([]);
 
   useEffect(() => {
+    const newGrowthMsgs = { ...growthMsgs };
+    let hasNewGrowth = false;
+
     subtasks.forEach(task => {
       if (!task) return;
       
@@ -76,10 +86,31 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [] }) => {
           });
         }, 1000);
       }
+
+      if (prevTask && prevTask.growth_stage < task.growth_stage && task.growth_stage > 0) {
+        newGrowthMsgs[task.sub_task_id] = `${task.vegetable_name || '野菜'}が成長しました！`;
+        hasNewGrowth = true;
+
+        setTimeout(() => {
+          setGrowthMsgs(prev => {
+            const next = { ...prev };
+            delete next[task.sub_task_id];
+            return next;
+          });
+        }, 3000);
+      }
     });
+
+    if (hasNewGrowth) {
+      setGrowthMsgs(newGrowthMsgs);
+    }
 
     prevSubtasksRef.current = subtasks;
   }, [subtasks]);
+
+  useEffect(() => {
+    if (systemMessage) setIsClearingSystemMessage(false);
+  }, [systemMessage]);
 
   if (Array.isArray(subtasks)) {
     const unassignedTasks: TodaySubtask[] = [];
@@ -140,8 +171,8 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [] }) => {
     let label = '';
     let bgColor = '';
     
-    let scaleMultiplier = 1;
-    let bottomOffset = '0px';
+    let scaleMultiplier = 1; 
+    let bottomOffset = '0px'; 
 
     if (stage === -1) {
       path = `/野菜${size}/枯れ_${jpName}.png`;
@@ -167,7 +198,44 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [] }) => {
   };
 
   return (
-    <div style={{ fontFamily: 'sans-serif', textAlign: 'center', padding: '10px' }}>
+    <div style={{ fontFamily: 'sans-serif', textAlign: 'center', padding: '10px', position: 'relative' }}>
+      
+      <style>{`
+        @keyframes popUpFadeIn {
+          0% { opacity: 0; transform: translate(-50%, 10px); }
+          100% { opacity: 1; transform: translate(-50%, 0); }
+        }
+      `}</style>
+
+      <div style={{
+        position: 'absolute',
+        top: '-100px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        backgroundColor: 'rgba(76, 175, 80, 0.95)',
+        color: '#fff',
+        padding: '12px 24px',
+        borderRadius: '12px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+        zIndex: 100,
+        cursor: 'pointer',
+        whiteSpace: 'pre-wrap',
+        fontSize: '14px',
+        fontWeight: 'bold',
+        opacity: systemMessage && !isClearingSystemMessage ? 1 : 0,
+        pointerEvents: systemMessage && !isClearingSystemMessage ? 'auto' : 'none',
+        transition: 'opacity 0.3s ease',
+        width: 'max-content',
+        maxWidth: '90%'
+      }} onClick={() => {
+        setIsClearingSystemMessage(true);
+        setTimeout(() => {
+          if (onClearSystemMessage) onClearSystemMessage();
+        }, 300);
+      }}>
+        {systemMessage}
+      </div>
+
       <h3 style={{ margin: '0 0 10px 0', color: '#4caf50' }}>マイベジタブル畑</h3>
 
       <div style={{
@@ -187,6 +255,7 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [] }) => {
           const { path, label, bgColor, scaleMultiplier, bottomOffset } = getVegetableInfo(task);
           const pos = GRID_POSITIONS[index] || { top: '50%', left: '50%' };
           const isAnimating = recentCompleted.has(task.sub_task_id);
+          const growthMsg = growthMsgs[task.sub_task_id];
 
           return (
             <div 
@@ -206,6 +275,39 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [] }) => {
               }}
             >
               <div style={{ position: 'relative', width: '100%', flex: 1 }}>
+                
+                {growthMsg && (
+                  <div 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setGrowthMsgs(prev => {
+                        const next = { ...prev };
+                        delete next[task.sub_task_id];
+                        return next;
+                      });
+                    }}
+                    style={{
+                      position: 'absolute',
+                      bottom: '100%',
+                      left: '50%',
+                      backgroundColor: '#fff',
+                      color: '#ff9800',
+                      border: '2px solid #ff9800',
+                      padding: '4px 10px',
+                      borderRadius: '16px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      whiteSpace: 'nowrap',
+                      zIndex: 10,
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                      animation: 'popUpFadeIn 0.3s ease-out forwards',
+                    }}
+                  >
+                    {growthMsg}
+                  </div>
+                )}
+
                 <img 
                   key={path}
                   src={path} 

@@ -20,8 +20,9 @@ const Home: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+  
+  const [systemMessage, setSystemMessage] = useState<string | null>(null);
   
   const navigate = useNavigate();
 
@@ -33,97 +34,106 @@ const Home: React.FC = () => {
     navigate('/login', { replace: true });
   };
 
-  useEffect(() => {
-    const fetchTodaySubtasks = async () => {
-      try {
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-          throw new Error('認証トークンが見つかりません。再ログインしてください。');
-        }
-
-        const res = await fetch(`${API_BASE_URL}/api/subtasks/today`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (res.status === 401) {
-          alert('セッションの有効期限が切れました。再度ログインしてください。');
-          handleLogout();
-          return;
-        }
-
-        if (!res.ok) {
-          throw new Error('データの取得に失敗しました');
-        }
-
-        const data = await res.json();
-        
-        const notifiedWithered = JSON.parse(localStorage.getItem('notified_withered') || '[]');
-
-        const initialTasks = data.filter((t: TodaySubtask) => {
-          if (t && t.growth_stage === -1 && notifiedWithered.includes(t.task_id)) {
-            return false; 
-          }
-          return true;
-        });
-
-        setSubtasks(initialTasks);
-
-        const newlyWithered = initialTasks.filter((t: TodaySubtask) => t && t.growth_stage === -1);
-        
-        if (newlyWithered.length > 0) {
-          const witheredNames = newlyWithered.map((t: TodaySubtask) => t.vegetable_name).join('と');
-          
-          setTimeout(() => {
-            alert(`残念ですが、${witheredNames}が枯死して消滅しました...🍂\nタスクのスケジュールを見直してみましょう。`);
-            
-            const updatedNotified = [...notifiedWithered, ...newlyWithered.map((t: TodaySubtask) => t.task_id)];
-            localStorage.setItem('notified_withered', JSON.stringify(updatedNotified));
-
-            setSubtasks(prev => prev.filter(t => t && t.growth_stage !== -1));
-          }, 1200); 
-        }
-
-      } catch (err: any) {
-        if (err.message.includes('認証トークン')) {
-          handleLogout();
-        } else {
-          setError(err.message || 'エラーが発生しました');
-        }
-      } finally {
-        setLoading(false);
+  const fetchTodaySubtasks = async (isInitial = false) => {
+    if (isInitial) setLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        throw new Error('認証トークンが見つかりません。再ログインしてください。');
       }
-    };
 
-    fetchTodaySubtasks();
+      const res = await fetch(`${API_BASE_URL}/api/subtasks/today`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (res.status === 401) {
+        alert('セッションの有効期限が切れました。再度ログインしてください。');
+        handleLogout();
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error('データの取得に失敗しました');
+      }
+
+      const data = await res.json();
+      const notifiedWithered = JSON.parse(localStorage.getItem('notified_withered') || '[]');
+
+      const initialTasks = data.filter((t: TodaySubtask) => {
+        if (t && t.growth_stage === -1 && notifiedWithered.includes(t.task_id)) {
+          return false; 
+        }
+        return true;
+      });
+
+      setSubtasks(initialTasks);
+
+      const newlyWithered = initialTasks.filter((t: TodaySubtask) => t && t.growth_stage === -1);
+      if (newlyWithered.length > 0) {
+        const witheredNames = newlyWithered.map((t: TodaySubtask) => t.vegetable_name).join('と');
+        setTimeout(() => {
+          alert(`残念ですが、${witheredNames}が枯死して消滅しました...🍂\nタスクのスケジュールを見直してみましょう。`);
+          const updatedNotified = [...notifiedWithered, ...newlyWithered.map((t: TodaySubtask) => t.task_id)];
+          localStorage.setItem('notified_withered', JSON.stringify(updatedNotified));
+          setSubtasks(prev => prev.filter(t => t && t.growth_stage !== -1));
+        }, 1200); 
+      }
+
+    } catch (err: any) {
+      if (err.message.includes('認証トークン')) {
+        handleLogout();
+      } else {
+        setError(err.message || 'エラーが発生しました');
+      }
+    } finally {
+      if (isInitial) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTodaySubtasks(true);
   }, [API_BASE_URL, navigate]);
 
   const handleToggleComplete = async (subTaskId: string, currentStatus: boolean) => {
-    const isNowCompleted = !currentStatus;
+    if (currentStatus) return;
 
-    setSubtasks((prev) =>
-      prev.map((task) => {
-        if (task && task.sub_task_id === subTaskId) {
-          let nextStage = task.growth_stage;
-          
-          if (isNowCompleted) {
-            nextStage = task.growth_stage < 10 ? task.growth_stage + 1 : 10;
-          } else {
-            nextStage = task.growth_stage > 0 ? task.growth_stage - 1 : 0;
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${API_BASE_URL}/api/subtasks`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sub_task_id: subTaskId }),
+      });
+
+      if (!res.ok) {
+        throw new Error('タスクの完了に失敗しました');
+      }
+
+      const data = await res.json();
+
+      setSubtasks((prev) =>
+        prev.map((task) => {
+          if (task && task.sub_task_id === subTaskId) {
+            return {
+              ...task,
+              is_completed: true,
+              growth_stage: data.new_growth_stage !== undefined ? data.new_growth_stage : (task.growth_stage < 10 ? task.growth_stage + 1 : 10)
+            };
           }
-
-          return {
-            ...task,
-            is_completed: isNowCompleted,
-            growth_stage: nextStage
-          };
-        }
-        return task;
-      })
-    );
+          return task;
+        })
+      );
+    } catch (err: any) {
+      console.error(err);
+      alert('エラーが発生しました。通信環境を確認してください。');
+    }
   };
 
   if (loading) return <div style={{ padding: 20 }}>読み込み中…</div>;
@@ -162,7 +172,6 @@ const Home: React.FC = () => {
 
         <h1 style={{ margin: 0, color: '#333' }}>VegeTASK ホーム</h1>
 
-        {/* ハンバーガーメニュー */}
         <div style={{ position: 'absolute', right: 0 }}>
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -234,7 +243,12 @@ const Home: React.FC = () => {
           justifyContent: 'center',
           minHeight: '400px'
         }}>
-          <VegetableField subtasks={subtasks} />
+
+          <VegetableField 
+            subtasks={subtasks} 
+            systemMessage={systemMessage}
+            onClearSystemMessage={() => setSystemMessage(null)}
+          />
         </section>
 
         <section style={{ 
@@ -279,20 +293,20 @@ const Home: React.FC = () => {
                   }}
                 >
                   <input
-                  type="checkbox"
-                  checked={task.is_completed}
-                  disabled={task.is_completed} 
-                  onChange={() => handleToggleComplete(task.sub_task_id, task.is_completed)}
-                  style={{ 
-                    marginRight: '16px', 
-                    width: '24px', 
-                    height: '24px', 
-                    cursor: task.is_completed ? 'not-allowed' : 'pointer', 
-                    flexShrink: 0, 
-                    marginTop: '2px',
-                    opacity: task.is_completed ? 0.5 : 1 
+                    type="checkbox"
+                    checked={task.is_completed}
+                    disabled={task.is_completed} 
+                    onChange={() => handleToggleComplete(task.sub_task_id, task.is_completed)}
+                    style={{ 
+                      marginRight: '16px', 
+                      width: '24px', 
+                      height: '24px', 
+                      cursor: task.is_completed ? 'not-allowed' : 'pointer', 
+                      flexShrink: 0, 
+                      marginTop: '2px',
+                      opacity: task.is_completed ? 0.5 : 1 
                     }}
-                    />
+                  />
                   <div style={{ flex: 1 }}>
                     <span style={{ fontSize: '12px', color: '#fff', backgroundColor: '#81c784', padding: '2px 8px', borderRadius: '12px', display: 'inline-block', marginBottom: '6px' }}>
                       {task.task_type}
@@ -321,9 +335,10 @@ const Home: React.FC = () => {
       <TaskCreateModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        onTaskCreated={() => {
+        onTaskCreated={(msg) => {
           setIsModalOpen(false);
-          window.location.reload(); 
+          if (msg) setSystemMessage(msg);
+          fetchTodaySubtasks(false); 
         }}
       />
     </div>
