@@ -251,7 +251,7 @@ S = D + P
     "task_content": "String（何問 or 何単語 など）",
     "is_completed": "Boolean",
     "vegetable_name": "vegetable_name",
-    "growth_stage": "0〜9"
+    "growth_stage": "-1〜11"
   }
 ]
 ```
@@ -275,7 +275,7 @@ S = D + P
 ```json
 [
   {
-    "has_grown": "Boolean（野菜が成長したかどうか）"
+    "growth_stage": "-1〜11"
   }
 ]
 ```
