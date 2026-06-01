@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface TodaySubtask {
   sub_task_id: string;
@@ -28,7 +28,7 @@ const GRID_POSITIONS: { [key: number]: { top: string; left: string } } = {
   5:  { top: '34.25%', left: '60%' },
   6:  { top: '39%', left: '50.5%' },
   7:  { top: '44%', left: '41%' },
-  8:  { top: '50.25%', left: '31.5%' },
+  8:  { top: '49.75%', left: '31.5%' },
   9:  { top: '54.5%', left: '22%' },
   10: { top: '38.5%', left: '69.5%' },
   11: { top: '44.75%', left: '60%' },
@@ -51,6 +51,35 @@ const ASSET_SCALE = 0.2;
 
 const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [] }) => {
   const field: (TodaySubtask | null)[] = Array(25).fill(null);
+  
+  const [recentCompleted, setRecentCompleted] = useState<Set<string>>(new Set());
+  const prevSubtasksRef = useRef<(TodaySubtask | null)[]>([]);
+
+  useEffect(() => {
+    subtasks.forEach(task => {
+      if (!task) return;
+      
+      const prevTask = prevSubtasksRef.current.find(t => t && t.sub_task_id === task.sub_task_id);
+      
+      if (prevTask && !prevTask.is_completed && task.is_completed) {
+        setRecentCompleted(prev => {
+          const next = new Set(prev);
+          next.add(task.sub_task_id);
+          return next;
+        });
+
+        setTimeout(() => {
+          setRecentCompleted(prev => {
+            const next = new Set(prev);
+            next.delete(task.sub_task_id);
+            return next;
+          });
+        }, 1000);
+      }
+    });
+
+    prevSubtasksRef.current = subtasks;
+  }, [subtasks]);
 
   if (Array.isArray(subtasks)) {
     const unassignedTasks: TodaySubtask[] = [];
@@ -108,15 +137,33 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [] }) => {
 
     const stage = task.growth_stage;
     let path = '';
+    let label = '';
+    let bgColor = '';
+    
+    let scaleMultiplier = 1;
+    let bottomOffset = '0px';
 
-    if (stage >= 10) {
-      path = `/野菜${size}/収穫_${jpName}.png`;
+    if (stage === -1) {
+      path = `/野菜${size}/枯れ_${jpName}.png`;
+      label = '枯れ';
+      bgColor = '#795548';
+    } else if (stage === 0) {
+      path = `/種が埋まっている土.png`;
+      label = '種';
+      bgColor = '#8d6e63';
+      scaleMultiplier = 0.2;
+      bottomOffset = '-18px'; 
+    } else if (stage >= 1 && stage <= 10) {
+      path = `/野菜${size}/(${stage})_${jpName}.png`;
+      label = `LV-${stage}`;
+      bgColor = 'rgba(0,0,0,0.6)';
     } else {
-      const fileStage = stage <= 0 ? 1 : stage;
-      path = `/野菜${size}/(${fileStage})_${jpName}.png`;
+      path = `/野菜${size}/収穫_${jpName}.png`;
+      label = '🎉収穫!';
+      bgColor = '#81c784';
     }
 
-    return { path, size, jpName };
+    return { path, size, jpName, label, bgColor, scaleMultiplier, bottomOffset };
   };
 
   return (
@@ -137,8 +184,9 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [] }) => {
         {field.map((task, index) => {
           if (!task || task.vegetable_name === undefined) return null;
 
-          const { path, size, jpName } = getVegetableInfo(task);
+          const { path, label, bgColor, scaleMultiplier, bottomOffset } = getVegetableInfo(task);
           const pos = GRID_POSITIONS[index] || { top: '50%', left: '50%' };
+          const isAnimating = recentCompleted.has(task.sub_task_id);
 
           return (
             <div 
@@ -159,37 +207,31 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [] }) => {
             >
               <div style={{ position: 'relative', width: '100%', flex: 1 }}>
                 <img 
+                  key={path}
                   src={path} 
                   alt={task.task_title || '野菜'}
                   style={{ 
                     position: 'absolute',
-                    bottom: 0,
+                    bottom: bottomOffset,
                     left: '50%',
-                    transform: `translateX(-50%) scale(${ASSET_SCALE})`, 
+                    transform: `translateX(-50%) scale(${ASSET_SCALE * scaleMultiplier})`, 
                     transformOrigin: 'bottom center',
                     width: 'auto',
                     height: 'auto',
                     imageRendering: 'pixelated',
-                    opacity: task.is_completed ? 0.4 : 1,
-                    transition: 'all 0.3s ease'
+                    opacity: task.growth_stage === -1 ? 0 : (isAnimating ? 0.4 : 1),
+                    transition: 'opacity 1s ease',
                   }} 
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
-                    const fallbackStage = task.growth_stage >= 10 ? '収穫' : `(${task.growth_stage <= 0 ? 1 : task.growth_stage})`;
-                    const filename = task.growth_stage >= 10 ? `収穫_${jpName}.png` : `${fallbackStage}_${jpName}.png`;
-                    
-                    if (!target.src.includes(filename)) {
-                      target.src = `/野菜${size}/${filename}`;
-                    } else {
-                      target.style.display = 'none';
-                    }
+                    target.style.display = 'none';
                   }}
                 />
               </div>
               <span style={{ 
                 fontSize: '8px', 
                 color: '#fff', 
-                backgroundColor: task.growth_stage >= 10 ? '#81c784' : 'rgba(0,0,0,0.6)', 
+                backgroundColor: bgColor, 
                 padding: '1px 3px', 
                 borderRadius: '3px',
                 zoom: 0.8,
@@ -198,7 +240,7 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [] }) => {
                 position: 'relative',
                 zIndex: 2
               }}>
-                {task.growth_stage >= 10 ? '🎉収穫!' : `LV-${task.growth_stage}`}
+                {label}
               </span>
             </div>
           );
