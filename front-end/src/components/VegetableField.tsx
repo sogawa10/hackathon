@@ -86,7 +86,7 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
         }, 1000);
 
         if (prevTask.growth_stage < task.growth_stage && task.growth_stage > 0) {
-          newGrowthMsgs[task.sub_task_id] = `${task.vegetable_name || '野菜'}が一段階成長しました！✨`;
+          newGrowthMsgs[task.sub_task_id] = `${task.vegetable_name || '野菜'}が成長しました！✨`;
         } else {
           newGrowthMsgs[task.sub_task_id] = `${task.vegetable_name || '野菜'}に栄養が届きました！💧`;
         }
