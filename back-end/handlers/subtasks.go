@@ -28,7 +28,7 @@ type CompleteSubTaskRequest struct {
 }
 
 type CompleteSubTaskResponse struct {
-	HasGrown bool `json:"has_grown"`
+	GrowthStage int `json:"growth_stage"`
 }
 
 func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
@@ -157,7 +157,6 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 		var targetDate, startDate, endDate time.Time
 		var taskContent string
 
-		// task_contentも取得するように変更
 		queryGetInfo := `
             SELECT s.task_id, s.is_completed, t.growth_stage, s.scheduled_date, t.start_date, t.end_date, s.task_content
             FROM "SUB_TASKS" s
@@ -175,11 +174,12 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 		}
 
 		if isAlreadyCompleted {
-			c.JSON(http.StatusOK, CompleteSubTaskResponse{HasGrown: false})
+			c.JSON(http.StatusOK, CompleteSubTaskResponse{
+				GrowthStage: currentGrowthStage,
+			})
 			return
 		}
 
-		// 正規表現で「1/3日目」タイプか判定する
 		re := regexp.MustCompile(`\((\d+)/(\d+)日目\)$`)
 		matches := re.FindStringSubmatch(taskContent)
 
@@ -188,8 +188,8 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "このタスクは最終日にしか完了チェックできません"})
 				return
 			}
-			
-			baseContent := taskContent[:len(taskContent)-len(matches[0])] 
+
+			baseContent := taskContent[:len(taskContent)-len(matches[0])]
 			queryUpdateSub := `UPDATE "SUB_TASKS" SET is_completed = true WHERE task_id = $1 AND task_content LIKE $2`
 			_, err = tx.Exec(queryUpdateSub, taskID, baseContent+"%")
 		} else {
@@ -204,31 +204,28 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 
 		var totalSubtasks, completedSubtasks int
 		queryProgress := `
-            SELECT 
-                COUNT(*),
-                COUNT(CASE WHEN is_completed = true THEN 1 END)
-            FROM "SUB_TASKS"
-            WHERE task_id = $1
-        `
+			SELECT 
+				COUNT(*) FILTER (
+					WHERE task_content <> '予備日（調整期間）'
+				),
+				COUNT(*) FILTER (
+					WHERE is_completed = true
+					AND task_content <> '予備日（調整期間）'
+				)
+			FROM "SUB_TASKS"
+			WHERE task_id = $1
+		`
 		err = tx.QueryRow(queryProgress, taskID).Scan(&totalSubtasks, &completedSubtasks)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "タスク進捗の確認に失敗しました"})
 			return
 		}
 
-		newGrowthStage := 0
+		newGrowthStage := currentGrowthStage
 		if totalSubtasks > 0 {
-			if completedSubtasks == 0 {
-				newGrowthStage = 0
-			} else if completedSubtasks == totalSubtasks {
-				newGrowthStage = 11
-			} else {
-				ratio := float64(completedSubtasks) / float64(totalSubtasks)
-				newGrowthStage = int(math.Ceil(ratio * 10))
-			}
+			ratio := float64(completedSubtasks) / float64(totalSubtasks)
+			newGrowthStage = int(math.Ceil(ratio*9)) + 1
 		}
-
-		hasGrown := false
 
 		if newGrowthStage > currentGrowthStage {
 			queryGrow := `UPDATE "TASKS" SET growth_stage = $1 WHERE task_id = $2`
@@ -237,7 +234,6 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "野菜の成長更新に失敗しました"})
 				return
 			}
-			hasGrown = true
 		}
 
 		if err := tx.Commit(); err != nil {
@@ -246,7 +242,7 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, CompleteSubTaskResponse{
-			HasGrown: hasGrown,
+			GrowthStage: newGrowthStage,
 		})
 	}
 }

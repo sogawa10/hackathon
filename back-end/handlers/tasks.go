@@ -184,13 +184,13 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 
 					switch req.TaskType {
 					case "問題集":
-						taskContent = fmt.Sprintf("問題集%d問解く(%d/%d日目)", taskCounter, day, daysForThisTask)
+						taskContent = fmt.Sprintf("問題集1問解く(%d/%d日目)", day, daysForThisTask)
 					case "単語帳":
-						taskContent = fmt.Sprintf("単語帳%d単語覚える(%d/%d日目)", taskCounter, day, daysForThisTask)
+						taskContent = fmt.Sprintf("単語帳1単語覚える(%d/%d日目)", day, daysForThisTask)
 					case "過去問":
-						taskContent = fmt.Sprintf("過去問%d年分解く(%d/%d日目)", taskCounter, day, daysForThisTask)
+						taskContent = fmt.Sprintf("過去問1年分解く(%d/%d日目)", day, daysForThisTask)
 					case "その他":
-						taskContent = fmt.Sprintf("その他%dページする(%d/%d日目)", taskCounter, day, daysForThisTask)
+						taskContent = fmt.Sprintf("その他1ページする(%d/%d日目)", day, daysForThisTask)
 					}
 
 					subTaskID := uuid.New().String()
@@ -347,7 +347,6 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		userID := ctxUserID.(string)
 
-		// タイムゾーンをJSTに指定して現在日付を取得
 		jst, err := time.LoadLocation("Asia/Tokyo")
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "タイムゾーンの読み込みに失敗しました"})
@@ -411,7 +410,6 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-// 追加した DeleteTaskHandler
 func DeleteTaskHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		taskID := c.Param("task_id")
