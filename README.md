@@ -380,7 +380,7 @@ S = D + P
     "end_date": "YYYY-MM-DD",
     "buffer_days": "buffer_day（予備日数）",
     "vegetable_name": "vegetable_name",
-    "growth_stage": "0〜9",
+    "growth_stage": "-1〜11",
     "image_url": "url"
   }
 ]

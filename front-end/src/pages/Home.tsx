@@ -315,7 +315,7 @@ const Home: React.FC = () => {
                         {task.task_content}
                       </span>
                       {!isCheckable && !task.is_completed && (
-                        <span style={{ fontSize: '12px', color: '#e53935', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>
+                        <span style={{ fontSize: '12px', color: '#333', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>
                           ※最終日のみチェック可能
                         </span>
                       )}

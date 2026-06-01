@@ -223,8 +223,9 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 
 		newGrowthStage := currentGrowthStage
 		if totalSubtasks > 0 {
-			ratio := float64(completedSubtasks) / float64(totalSubtasks)
-			newGrowthStage = int(math.Ceil(ratio*9)) + 1
+			newGrowthStage = 1 + int(math.Round(
+				float64(completedSubtasks)*9/float64(totalSubtasks),
+			))
 		}
 
 		if newGrowthStage > currentGrowthStage {
