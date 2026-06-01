@@ -21,7 +21,6 @@ const Home: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
-  
   const [systemMessage, setSystemMessage] = useState<string | null>(null);
   
   const navigate = useNavigate();
@@ -124,7 +123,7 @@ const Home: React.FC = () => {
             return {
               ...task,
               is_completed: true,
-              growth_stage: data.new_growth_stage !== undefined ? data.new_growth_stage : (task.growth_stage < 10 ? task.growth_stage + 1 : 10)
+              growth_stage: data.growth_stage
             };
           }
           return task;
@@ -234,7 +233,7 @@ const Home: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '24px', alignItems: 'stretch' }}>
+      <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
         
         <section style={{ 
           flex: 6, 
@@ -243,7 +242,6 @@ const Home: React.FC = () => {
           justifyContent: 'center',
           minHeight: '400px'
         }}>
-
           <VegetableField 
             subtasks={subtasks} 
             systemMessage={systemMessage}
@@ -258,7 +256,8 @@ const Home: React.FC = () => {
           borderRadius: '12px', 
           backgroundColor: '#fff',
           boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-          minHeight: '400px'
+          maxHeight: '500px',
+          overflowY: 'auto'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', borderBottom: '3px solid #4caf50', paddingBottom: '10px', marginBottom: '20px' }}>
             <h2 style={{ margin: 0, color: '#333' }}>

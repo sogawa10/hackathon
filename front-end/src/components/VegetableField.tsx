@@ -55,9 +55,7 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
   const field: (TodaySubtask | null)[] = Array(25).fill(null);
   
   const [recentCompleted, setRecentCompleted] = useState<Set<string>>(new Set());
-  
   const [growthMsgs, setGrowthMsgs] = useState<{ [subTaskId: string]: string }>({});
-  
   const [isClearingSystemMessage, setIsClearingSystemMessage] = useState(false);
 
   const prevSubtasksRef = useRef<(TodaySubtask | null)[]>([]);
@@ -85,10 +83,12 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
             return next;
           });
         }, 1000);
-      }
 
-      if (prevTask && prevTask.growth_stage < task.growth_stage && task.growth_stage > 0) {
-        newGrowthMsgs[task.sub_task_id] = `${task.vegetable_name || '野菜'}が成長しました！`;
+        if (prevTask.growth_stage < task.growth_stage && task.growth_stage > 0) {
+          newGrowthMsgs[task.sub_task_id] = `${task.vegetable_name || '野菜'}が一段階成長しました！✨`;
+        } else {
+          newGrowthMsgs[task.sub_task_id] = `${task.vegetable_name || '野菜'}に栄養が届きました！💧`;
+        }
         hasNewGrowth = true;
 
         setTimeout(() => {
@@ -209,7 +209,7 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
 
       <div style={{
         position: 'absolute',
-        top: '-100px',
+        top: '40px',
         left: '50%',
         transform: 'translateX(-50%)',
         backgroundColor: 'rgba(76, 175, 80, 0.95)',
