@@ -9,6 +9,7 @@ interface TodaySubtask {
   is_completed: boolean;
   vegetable_name: string;
   growth_stage: number;
+  is_checkable?: boolean;
 }
 
 interface VegetableFieldProps {
@@ -24,7 +25,7 @@ const PLACEMENT_ORDER: number[] = [
 const GRID_POSITIONS: { [key: number]: { top: string; left: string } } = {
   0:  { top: '28%', left: '50.5%' },
   1:  { top: '33.5%', left: '41%' },
-  2:  { top: '39.5%', left: '31.5%' },
+  2:  { top: '38.5%', left: '31.5%' },
   3:  { top: '44%', left: '22%' },
   4:  { top: '49.25%', left: '12.5%' },
   5:  { top: '34.25%', left: '60%' },
@@ -36,13 +37,13 @@ const GRID_POSITIONS: { [key: number]: { top: string; left: string } } = {
   11: { top: '44.75%', left: '60%' },
   12: { top: '49.5%', left: '50.5%' },
   13: { top: '54.5%', left: '41%' },
-  14: { top: '61%', left: '31.5%' },
+  14: { top: '60%', left: '31.5%' },
   15: { top: '44.25%', left: '79%' },
   16: { top: '49.5%', left: '69.5%' },
   17: { top: '55.5%', left: '60%' },
   18: { top: '60.25%', left: '50.5%' },
   19: { top: '65.25%', left: '41%' },
-  20: { top: '50.5%', left: '88.5%' },
+  20: { top: '49.5%', left: '88.5%' },
   21: { top: '55%', left: '79%' },
   22: { top: '60.25%', left: '69.5%' },
   23: { top: '66.5%', left: '60%' },
@@ -188,10 +189,16 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
       path = `/野菜${size}/(${stage})_${jpName}.png`;
       label = `LV-${stage}`;
       bgColor = 'rgba(0,0,0,0.6)';
-    } else {
+    } else if (stage >= 11) {
       path = `/野菜${size}/収穫_${jpName}.png`;
       label = '🎉収穫!';
       bgColor = '#81c784';
+    } else {
+      path = `/種が埋まっている土.png`;
+      label = '種';
+      bgColor = '#8d6e63';
+      scaleMultiplier = 0.2;
+      bottomOffset = '-18px'; 
     }
 
     return { path, size, jpName, label, bgColor, scaleMultiplier, bottomOffset };

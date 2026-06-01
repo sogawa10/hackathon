@@ -115,20 +115,8 @@ const Home: React.FC = () => {
         throw new Error('タスクの完了に失敗しました');
       }
 
-      const data = await res.json();
+      await fetchTodaySubtasks(false);
 
-      setSubtasks((prev) =>
-        prev.map((task) => {
-          if (task && task.sub_task_id === subTaskId) {
-            return {
-              ...task,
-              is_completed: true,
-              growth_stage: data.growth_stage
-            };
-          }
-          return task;
-        })
-      );
     } catch (err: any) {
       console.error(err);
       alert('エラーが発生しました。通信環境を確認してください。');
@@ -233,7 +221,7 @@ const Home: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: '24px', alignItems: 'stretch' }}>
         
         <section style={{ 
           flex: 6, 
@@ -256,8 +244,7 @@ const Home: React.FC = () => {
           borderRadius: '12px', 
           backgroundColor: '#fff',
           boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-          maxHeight: '500px',
-          overflowY: 'auto'
+          minHeight: '400px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', borderBottom: '3px solid #4caf50', paddingBottom: '10px', marginBottom: '20px' }}>
             <h2 style={{ margin: 0, color: '#333' }}>
@@ -281,50 +268,61 @@ const Home: React.FC = () => {
             <p style={{ color: '#888', textAlign: 'center', marginTop: '40px' }}>今日のタスクはありません。</p>
           ) : (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {validTasks.map((task) => (
-                <li
-                  key={task.sub_task_id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    padding: '16px 0',
-                    borderBottom: '1px solid #f0f0f0',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={task.is_completed}
-                    disabled={task.is_completed} 
-                    onChange={() => handleToggleComplete(task.sub_task_id, task.is_completed)}
-                    style={{ 
-                      marginRight: '16px', 
-                      width: '24px', 
-                      height: '24px', 
-                      cursor: task.is_completed ? 'not-allowed' : 'pointer', 
-                      flexShrink: 0, 
-                      marginTop: '2px',
-                      opacity: task.is_completed ? 0.5 : 1 
+              {validTasks.map((task) => {
+                const match = task.task_content.match(/\((\d+)\/(\d+)日目\)$/);
+                const isFraction = match !== null;
+                const isCheckable = isFraction ? match[1] === match[2] : true;
+
+                return (
+                  <li
+                    key={task.sub_task_id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      padding: '16px 0',
+                      borderBottom: '1px solid #f0f0f0',
                     }}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <span style={{ fontSize: '12px', color: '#fff', backgroundColor: '#81c784', padding: '2px 8px', borderRadius: '12px', display: 'inline-block', marginBottom: '6px' }}>
-                      {task.task_type}
-                    </span>
-                    <strong style={{ 
-                      display: 'block',
-                      fontSize: '16px',
-                      textDecoration: task.is_completed ? 'line-through' : 'none', 
-                      color: task.is_completed ? '#aaa' : '#333',
-                      marginBottom: '4px'
-                    }}>
-                      {task.task_title}
-                    </strong>
-                    <span style={{ fontSize: '14px', color: task.is_completed ? '#aaa' : '#666' }}>
-                      {task.task_content}
-                    </span>
-                  </div>
-                </li>
-              ))}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={task.is_completed}
+                      disabled={task.is_completed || !isCheckable} 
+                      onChange={() => handleToggleComplete(task.sub_task_id, task.is_completed)}
+                      style={{ 
+                        marginRight: '16px', 
+                        width: '24px', 
+                        height: '24px', 
+                        cursor: (task.is_completed || !isCheckable) ? 'not-allowed' : 'pointer', 
+                        flexShrink: 0, 
+                        marginTop: '2px',
+                        opacity: (task.is_completed || !isCheckable) ? 0.5 : 1 
+                      }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: '12px', color: '#fff', backgroundColor: '#81c784', padding: '2px 8px', borderRadius: '12px', display: 'inline-block', marginBottom: '6px' }}>
+                        {task.task_type}
+                      </span>
+                      <strong style={{ 
+                        display: 'block',
+                        fontSize: '16px',
+                        textDecoration: task.is_completed ? 'line-through' : 'none', 
+                        color: task.is_completed ? '#aaa' : '#333',
+                        marginBottom: '4px'
+                      }}>
+                        {task.task_title}
+                      </strong>
+                      <span style={{ fontSize: '14px', color: task.is_completed ? '#aaa' : '#666' }}>
+                        {task.task_content}
+                      </span>
+                      {!isCheckable && !task.is_completed && (
+                        <span style={{ fontSize: '12px', color: '#e53935', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>
+                          ※最終日のみチェック可能
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
