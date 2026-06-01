@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"time"
@@ -138,10 +139,10 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 		taskID := uuid.New().String()
 
 		queryInsertTask := `
-			INSERT INTO "TASKS" (
-				"task_id", "user_id", "task_type", "task_title", 
-				"start_date", "end_date", "total_count", "lap_count", "buffer_days", "growth_stage"
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+            INSERT INTO "TASKS" (
+                "task_id", "user_id", "task_type", "task_title", 
+                "start_date", "end_date", "total_count", "lap_count", "buffer_days", "growth_stage"
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
 		_, err = tx.Exec(queryInsertTask, taskID, userID, req.TaskType, req.TaskTitle, req.StartDate, req.EndDate, req.TotalCount, req.LapCount, bufferDays, 0)
 		if err != nil {
@@ -157,8 +158,8 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 		}
 
 		queryInsertSubTask := `
-			INSERT INTO "SUB_TASKS" ("sub_task_id", "task_id", "scheduled_date", "task_content", "is_completed") 
-			VALUES ($1, $2, $3, $4, $5)`
+            INSERT INTO "SUB_TASKS" ("sub_task_id", "task_id", "scheduled_date", "task_content", "is_completed") 
+            VALUES ($1, $2, $3, $4, $5)`
 
 		isFractionMode := totalAmount < validDays
 
@@ -183,13 +184,13 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 
 					switch req.TaskType {
 					case "問題集":
-						taskContent = fmt.Sprintf("問題集%d問解く(%d/%d日目)", taskCounter, day, daysForThisTask)
+						taskContent = fmt.Sprintf("問題集1問解く(%d/%d日目)", day, daysForThisTask)
 					case "単語帳":
-						taskContent = fmt.Sprintf("単語帳%d単語覚える(%d/%d日目)", taskCounter, day, daysForThisTask)
+						taskContent = fmt.Sprintf("単語帳1単語覚える(%d/%d日目)", day, daysForThisTask)
 					case "過去問":
-						taskContent = fmt.Sprintf("過去問%d年分解く(%d/%d日目)", taskCounter, day, daysForThisTask)
+						taskContent = fmt.Sprintf("過去問1年分解く(%d/%d日目)", day, daysForThisTask)
 					case "その他":
-						taskContent = fmt.Sprintf("その他%dページする(%d/%d日目)", taskCounter, day, daysForThisTask)
+						taskContent = fmt.Sprintf("その他1ページする(%d/%d日目)", day, daysForThisTask)
 					}
 
 					subTaskID := uuid.New().String()
@@ -296,14 +297,14 @@ func AssignVegetableHandler(db *sql.DB) gin.HandlerFunc {
 		}
 
 		queryUpdateVegetable := `
-			UPDATE "TASKS"
-			SET "vegetable_id" = (
-				SELECT "vegetable_id"
-				FROM "VEGETABLES"
-				WHERE "vegetable_name" = $1
-			)
-			WHERE "task_id" = $2
-		`
+            UPDATE "TASKS"
+            SET "vegetable_id" = (
+                SELECT "vegetable_id"
+                FROM "VEGETABLES"
+                WHERE "vegetable_name" = $1
+            )
+            WHERE "task_id" = $2
+        `
 		result, err := db.Exec(queryUpdateVegetable, req.VegetableName, taskID)
 
 		if err != nil {
@@ -346,16 +347,23 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		userID := ctxUserID.(string)
 
+		jst, err := time.LoadLocation("Asia/Tokyo")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "タイムゾーンの読み込みに失敗しました"})
+			return
+		}
+		todayStr := time.Now().In(jst).Format("2006-01-02")
+
 		query := `
-			SELECT 
-				t.task_id, t.task_type, t.task_title, t.total_count, t.lap_count, 
-				t.start_date, t.end_date, t.vegetable_name, t.growth_stage,
-				(SELECT COUNT(*) FROM "SUB_TASKS" s WHERE s.task_id = t.task_id AND s.scheduled_date < CURRENT_DATE AND s.is_completed = false) AS missed_days
-			FROM "TASKS" t
-			WHERE t.user_id = $1
-			ORDER BY t.start_date DESC
-		`
-		rows, err := db.Query(query, userID)
+            SELECT 
+                t.task_id, t.task_type, t.task_title, t.total_count, t.lap_count, 
+                t.start_date, t.end_date, t.vegetable_name, t.growth_stage,
+                (SELECT COUNT(*) FROM "SUB_TASKS" s WHERE s.task_id = t.task_id AND s.scheduled_date < $2 AND s.is_completed = false) AS missed_days
+            FROM "TASKS" t
+            WHERE t.user_id = $1
+            ORDER BY t.start_date DESC
+        `
+		rows, err := db.Query(query, userID, todayStr)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラーが発生しました"})
 			return
@@ -399,5 +407,37 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, tasks)
+	}
+}
+
+func DeleteTaskHandler(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		taskID := c.Param("task_id")
+		if taskID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "task_id が指定されていません"})
+			return
+		}
+
+		query := `DELETE FROM "TASKS" WHERE task_id = $1`
+		result, err := db.Exec(query, taskID)
+		if err != nil {
+			log.Printf("タスク削除エラー: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラーが発生しました"})
+			return
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			log.Printf("RowsAffected エラー: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "サーバー内部エラー"})
+			return
+		}
+
+		if rowsAffected == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "指定されたタスクが見つかりません"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "タスクを正常に削除しました"})
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"math"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +12,7 @@ import (
 
 type TodaySubtaskResponse struct {
 	SubTaskID     string `json:"sub_task_id"`
+	TaskID        string `json:"task_id"`
 	ScheduledDate string `json:"scheduled_date"`
 	TaskType      string `json:"task_type"`
 	TaskTitle     string `json:"task_title"`
@@ -18,6 +20,7 @@ type TodaySubtaskResponse struct {
 	IsCompleted   bool   `json:"is_completed"`
 	VegetableName string `json:"vegetable_name"`
 	GrowthStage   int    `json:"growth_stage"`
+	IsCheckable   bool   `json:"is_checkable"`
 }
 
 type CompleteSubTaskRequest struct {
@@ -25,7 +28,7 @@ type CompleteSubTaskRequest struct {
 }
 
 type CompleteSubTaskResponse struct {
-	HasGrown bool `json:"has_grown"`
+	GrowthStage int `json:"growth_stage"`
 }
 
 func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
@@ -37,9 +40,17 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		userID := ctxUserID.(string)
 
+		jst, err := time.LoadLocation("Asia/Tokyo")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "タイムゾーンの読み込みに失敗しました"})
+			return
+		}
+		todayStr := time.Now().In(jst).Format("2006-01-02")
+
 		query := `
       SELECT
         s.sub_task_id,
+        t.task_id,
         s.scheduled_date,
         t.task_type,
         t.task_title,
@@ -53,15 +64,15 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
           SELECT COUNT(*)
           FROM "SUB_TASKS" past
           WHERE past.task_id = t.task_id
-            AND past.scheduled_date < CURRENT_DATE
+            AND past.scheduled_date < $2
             AND past.is_completed = false
         ) AS missed_days
-			FROM "SUB_TASKS" s
-			INNER JOIN "TASKS" t ON s.task_id = t.task_id
-			INNER JOIN "VEGETABLES" v ON t.vegetable_id = v.vegetable_id
-			WHERE t.user_id = $1 AND s.scheduled_date = CURRENT_DATE
-		`
-		rows, err := db.Query(query, userID)
+            FROM "SUB_TASKS" s
+            INNER JOIN "TASKS" t ON s.task_id = t.task_id
+            INNER JOIN "VEGETABLES" v ON t.vegetable_id = v.vegetable_id
+            WHERE t.user_id = $1 AND s.scheduled_date = $2
+        `
+		rows, err := db.Query(query, userID, todayStr)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラーが発生しました"})
 			return
@@ -73,27 +84,42 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 		for rows.Next() {
 			var s TodaySubtaskResponse
 			var vegName sql.NullString
-			var startDate, endDate time.Time
+			var scDate, startDate, endDate time.Time
 			var missedDays int
 
 			if err := rows.Scan(
-				&s.SubTaskID, &s.ScheduledDate, &s.TaskType, &s.TaskTitle,
+				&s.SubTaskID, &s.TaskID, &scDate, &s.TaskType, &s.TaskTitle,
 				&s.TaskContent, &s.IsCompleted, &vegName, &s.GrowthStage,
 				&startDate, &endDate, &missedDays,
 			); err != nil {
 				continue
 			}
 
+			s.ScheduledDate = scDate.Format("2006-01-02")
+
 			duration := endDate.Sub(startDate)
 			days := int(duration.Hours()/24) + 1
 			originalBufferDays := int(math.Ceil(float64(days) * 0.1))
 
 			if originalBufferDays-missedDays < 0 {
+				if s.GrowthStage != -1 {
+					db.Exec(`UPDATE "TASKS" SET growth_stage = -1 WHERE task_id = $1`, s.TaskID)
+				}
 				continue
 			}
 
 			if vegName.Valid {
 				s.VegetableName = vegName.String
+			}
+
+			s.IsCheckable = true
+
+			re := regexp.MustCompile(`\((\d+)/(\d+)日目\)$`)
+			matches := re.FindStringSubmatch(s.TaskContent)
+			if len(matches) == 3 {
+				if matches[1] != matches[2] {
+					s.IsCheckable = false
+				}
 			}
 
 			subtasks = append(subtasks, s)
@@ -128,14 +154,16 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 		var taskID string
 		var isAlreadyCompleted bool
 		var currentGrowthStage int
+		var targetDate, startDate, endDate time.Time
+		var taskContent string
 
 		queryGetInfo := `
-			SELECT s.task_id, s.is_completed, t.growth_stage 
-			FROM "SUB_TASKS" s
-			JOIN "TASKS" t ON s.task_id = t.task_id
-			WHERE s.sub_task_id = $1 AND t.user_id = $2
-		`
-		err = tx.QueryRow(queryGetInfo, req.SubTaskID, userID).Scan(&taskID, &isAlreadyCompleted, &currentGrowthStage)
+            SELECT s.task_id, s.is_completed, t.growth_stage, s.scheduled_date, t.start_date, t.end_date, s.task_content
+            FROM "SUB_TASKS" s
+            JOIN "TASKS" t ON s.task_id = t.task_id
+            WHERE s.sub_task_id = $1 AND t.user_id = $2
+        `
+		err = tx.QueryRow(queryGetInfo, req.SubTaskID, userID).Scan(&taskID, &isAlreadyCompleted, &currentGrowthStage, &targetDate, &startDate, &endDate, &taskContent)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				c.JSON(http.StatusNotFound, gin.H{"error": "指定されたサブタスクが見つからないか、権限がありません"})
@@ -146,12 +174,29 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 		}
 
 		if isAlreadyCompleted {
-			c.JSON(http.StatusOK, CompleteSubTaskResponse{HasGrown: false})
+			c.JSON(http.StatusOK, CompleteSubTaskResponse{
+				GrowthStage: currentGrowthStage,
+			})
 			return
 		}
 
-		queryUpdateSub := `UPDATE "SUB_TASKS" SET is_completed = true WHERE sub_task_id = $1`
-		_, err = tx.Exec(queryUpdateSub, req.SubTaskID)
+		re := regexp.MustCompile(`\((\d+)/(\d+)日目\)$`)
+		matches := re.FindStringSubmatch(taskContent)
+
+		if len(matches) == 3 {
+			if matches[1] != matches[2] {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "このタスクは最終日にしか完了チェックできません"})
+				return
+			}
+
+			baseContent := taskContent[:len(taskContent)-len(matches[0])]
+			queryUpdateSub := `UPDATE "SUB_TASKS" SET is_completed = true WHERE task_id = $1 AND task_content LIKE $2`
+			_, err = tx.Exec(queryUpdateSub, taskID, baseContent+"%")
+		} else {
+			queryUpdateSub := `UPDATE "SUB_TASKS" SET is_completed = true WHERE sub_task_id = $1`
+			_, err = tx.Exec(queryUpdateSub, req.SubTaskID)
+		}
+
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "タスクの更新に失敗しました"})
 			return
@@ -160,8 +205,13 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 		var totalSubtasks, completedSubtasks int
 		queryProgress := `
 			SELECT 
-				COUNT(*),
-				COUNT(CASE WHEN is_completed = true THEN 1 END)
+				COUNT(*) FILTER (
+					WHERE task_content <> '予備日（調整期間）'
+				),
+				COUNT(*) FILTER (
+					WHERE is_completed = true
+					AND task_content <> '予備日（調整期間）'
+				)
 			FROM "SUB_TASKS"
 			WHERE task_id = $1
 		`
@@ -171,12 +221,11 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		newGrowthStage := 0
+		newGrowthStage := currentGrowthStage
 		if totalSubtasks > 0 {
-			newGrowthStage = (completedSubtasks * 9) / totalSubtasks
+			ratio := float64(completedSubtasks) / float64(totalSubtasks)
+			newGrowthStage = int(math.Ceil(ratio*9)) + 1
 		}
-
-		hasGrown := false
 
 		if newGrowthStage > currentGrowthStage {
 			queryGrow := `UPDATE "TASKS" SET growth_stage = $1 WHERE task_id = $2`
@@ -185,7 +234,6 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "野菜の成長更新に失敗しました"})
 				return
 			}
-			hasGrown = true
 		}
 
 		if err := tx.Commit(); err != nil {
@@ -194,7 +242,7 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, CompleteSubTaskResponse{
-			HasGrown: hasGrown,
+			GrowthStage: newGrowthStage,
 		})
 	}
 }
