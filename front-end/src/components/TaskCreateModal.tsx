@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 type TaskCreateModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onTaskCreated?: () => void;
+
+  onTaskCreated?: (message?: string) => void;
 };
 
 type TaskType = '単語帳' | '問題集' | '過去問' | 'その他';
@@ -146,14 +147,14 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
         throw new Error(errorData.error || '野菜の割り当てに失敗しました');
       }
 
-      // 💡 追加: 登録日（今日）とタスク開始日が同じかどうかでポップアップを出し分ける！
+      let msg = '';
       if (startDate === getTodayString()) {
-        alert(`${vegetableName}の種を畑に植えました！🌱\nさっそく今日のToDoを進めて育てましょう！`);
+        msg = `${vegetableName}の種を畑に植えました！🌱\nさっそく今日のToDoを進めて育てましょう！`;
       } else {
-        alert(`${vegetableName}の種をゲットしました！🎁\n開始日の ${startDate} になったら自動的に畑に植えられます！`);
+        msg = `${vegetableName}の種をゲットしました！🎁\n開始日の ${startDate} になったら自動的に畑に植えられます！`;
       }
 
-      if (onTaskCreated) onTaskCreated();
+      if (onTaskCreated) onTaskCreated(msg);
       onClose();
     } catch (err: any) {
       setErrorMsg(err.message || '野菜の割り当てに失敗しました');
@@ -173,10 +174,10 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
 
   const getTitlePlaceholder = () => {
     switch (taskType) {
-      case '問題集': return '例: 青チャート 数学ⅠA';
-      case '単語帳': return '例: システム英単語';
-      case '過去問': return '例: 同志社大 理工学部 学部個別 数学';
-      default: return '例: 授業ノートを暗記する';
+      case '問題集': return '例: 基本情報技術者試験 過去問';
+      case '単語帳': return '例: シスタン';
+      case '過去問': return '例: 同志社大 情報工学方式';
+      default: return '例: React公式ドキュメント';
     }
   };
 
@@ -199,8 +200,10 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
       <div style={{
         backgroundColor: '#fff', borderRadius: '16px', padding: '30px',
         width: '90%', maxWidth: '500px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-        position: 'relative'
+        position: 'relative',
+        overflow: 'hidden'
       }}>
+        
         <button 
           onClick={onClose}
           style={{
@@ -212,9 +215,7 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
         {step === 1 && (
           <>
             <h2 style={{ textAlign: 'center', color: '#333', marginTop: 0 }}>🌱 新しいタスクを作る</h2>
-            
             <form onSubmit={handleTaskSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              
               <div>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>タスクの種類</label>
                 <select 
