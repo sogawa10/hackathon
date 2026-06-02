@@ -75,7 +75,6 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 			taskRows.Close()
 
 			for _, taskID := range activeTaskIDs {
-				// 過去の未完了タスク（サボり）を取得
 				missedSubQuery := `
 					SELECT scheduled_date 
 					FROM "SUB_TASKS" 
@@ -105,17 +104,14 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 					continue
 				}
 
-				// 後ろに「予備日」がいくつ残っているか確認
 				var remainingBuffers int
 				tx.QueryRow(`SELECT COUNT(*) FROM "SUB_TASKS" WHERE task_id = $1 AND task_content LIKE '予備日%' AND is_completed = false`, taskID).Scan(&remainingBuffers)
 
-				// 予備日を使い果たしていたら枯らす
 				if missedCount > remainingBuffers {
 					tx.Exec(`UPDATE "TASKS" SET growth_stage = -1 WHERE task_id = $1`, taskID)
 					continue
 				}
 
-				// ① 一番後ろの「予備日」を、サボった日数分だけ削除する
 				deleteBufferQuery := `
 					DELETE FROM "SUB_TASKS"
 					WHERE sub_task_id IN (
@@ -127,7 +123,6 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 				`
 				tx.Exec(deleteBufferQuery, taskID, missedCount)
 
-				// ② 未完了のタスク（サボった分を含む全て）を、サボった日数分だけ後ろにズラす
 				shiftQuery := `
 					UPDATE "SUB_TASKS"
 					SET scheduled_date = scheduled_date + ($1 * INTERVAL '1 day')
@@ -135,7 +130,6 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 				`
 				tx.Exec(shiftQuery, missedCount, taskID)
 
-				// ③ ズラしたことで空いた過去の日付に「予備日（消費済み）」を挿入する
 				insertQuery := `
 					INSERT INTO "SUB_TASKS" (sub_task_id, task_id, scheduled_date, task_content, is_completed)
 					VALUES (gen_random_uuid(), $1, $2, '予備日（消費済み）', true)
