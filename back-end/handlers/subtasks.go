@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"database/sql"
-	"math"
 	"net/http"
 	"regexp"
 	"time"
@@ -47,31 +46,117 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		todayStr := time.Now().In(jst).Format("2006-01-02")
 
+		updateQuery := `
+			UPDATE "TASKS" 
+			SET growth_stage = 1 
+			WHERE user_id = $1 AND growth_stage = 0 AND start_date <= $2
+		`
+		if _, err := db.Exec(updateQuery, userID, todayStr); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "タスク状態の自動更新に失敗しました"})
+			return
+		}
+
+		tx, err := db.Begin()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "トランザクションの開始に失敗しました"})
+			return
+		}
+
+		activeTasksQuery := `SELECT task_id FROM "TASKS" WHERE user_id = $1 AND growth_stage NOT IN (-1, 11)`
+		taskRows, err := tx.Query(activeTasksQuery, userID)
+		if err == nil {
+			var activeTaskIDs []string
+			for taskRows.Next() {
+				var tid string
+				if err := taskRows.Scan(&tid); err == nil {
+					activeTaskIDs = append(activeTaskIDs, tid)
+				}
+			}
+			taskRows.Close()
+
+			for _, taskID := range activeTaskIDs {
+				// 過去の未完了タスク（サボり）を取得
+				missedSubQuery := `
+					SELECT scheduled_date 
+					FROM "SUB_TASKS" 
+					WHERE task_id = $1 AND is_completed = false AND scheduled_date < $2
+					ORDER BY scheduled_date ASC
+				`
+				missedRows, err := tx.Query(missedSubQuery, taskID, todayStr)
+				if err != nil {
+					continue
+				}
+
+				var firstMissedDate time.Time
+				missedCount := 0
+
+				for missedRows.Next() {
+					var sDate time.Time
+					if err := missedRows.Scan(&sDate); err == nil {
+						if missedCount == 0 {
+							firstMissedDate = sDate
+						}
+						missedCount++
+					}
+				}
+				missedRows.Close()
+
+				if missedCount == 0 {
+					continue
+				}
+
+				// 後ろに「予備日」がいくつ残っているか確認
+				var remainingBuffers int
+				tx.QueryRow(`SELECT COUNT(*) FROM "SUB_TASKS" WHERE task_id = $1 AND task_content LIKE '予備日%' AND is_completed = false`, taskID).Scan(&remainingBuffers)
+
+				// 予備日を使い果たしていたら枯らす
+				if missedCount > remainingBuffers {
+					tx.Exec(`UPDATE "TASKS" SET growth_stage = -1 WHERE task_id = $1`, taskID)
+					continue
+				}
+
+				// ① 一番後ろの「予備日」を、サボった日数分だけ削除する
+				deleteBufferQuery := `
+					DELETE FROM "SUB_TASKS"
+					WHERE sub_task_id IN (
+						SELECT sub_task_id FROM "SUB_TASKS"
+						WHERE task_id = $1 AND task_content LIKE '予備日%' AND is_completed = false
+						ORDER BY scheduled_date DESC
+						LIMIT $2
+					)
+				`
+				tx.Exec(deleteBufferQuery, taskID, missedCount)
+
+				// ② 未完了のタスク（サボった分を含む全て）を、サボった日数分だけ後ろにズラす
+				shiftQuery := `
+					UPDATE "SUB_TASKS"
+					SET scheduled_date = scheduled_date + ($1 * INTERVAL '1 day')
+					WHERE task_id = $2 AND is_completed = false
+				`
+				tx.Exec(shiftQuery, missedCount, taskID)
+
+				// ③ ズラしたことで空いた過去の日付に「予備日（消費済み）」を挿入する
+				insertQuery := `
+					INSERT INTO "SUB_TASKS" (sub_task_id, task_id, scheduled_date, task_content, is_completed)
+					VALUES (gen_random_uuid(), $1, $2, '予備日（消費済み）', true)
+				`
+				for i := 0; i < missedCount; i++ {
+					insertDate := firstMissedDate.AddDate(0, 0, i).Format("2006-01-02")
+					tx.Exec(insertQuery, taskID, insertDate)
+				}
+			}
+		}
+		tx.Commit()
+
 		query := `
-      SELECT
-        s.sub_task_id,
-        t.task_id,
-        s.scheduled_date,
-        t.task_type,
-        t.task_title,
-        s.task_content,
-        s.is_completed,
-        v.vegetable_name,
-        t.growth_stage,
-        t.start_date,
-        t.end_date,
-        (
-          SELECT COUNT(*)
-          FROM "SUB_TASKS" past
-          WHERE past.task_id = t.task_id
-            AND past.scheduled_date < $2
-            AND past.is_completed = false
-        ) AS missed_days
-            FROM "SUB_TASKS" s
-            INNER JOIN "TASKS" t ON s.task_id = t.task_id
-            INNER JOIN "VEGETABLES" v ON t.vegetable_id = v.vegetable_id
-            WHERE t.user_id = $1 AND s.scheduled_date = $2
-        `
+			SELECT
+				s.sub_task_id, t.task_id, s.scheduled_date, t.task_type, t.task_title, 
+				s.task_content, s.is_completed, v.vegetable_name, t.growth_stage
+			FROM "SUB_TASKS" s
+			INNER JOIN "TASKS" t ON s.task_id = t.task_id
+			INNER JOIN "VEGETABLES" v ON t.vegetable_id = v.vegetable_id
+			WHERE t.user_id = $1 AND s.scheduled_date = $2 AND t.growth_stage != -1
+		`
 		rows, err := db.Query(query, userID, todayStr)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラーが発生しました"})
@@ -84,34 +169,19 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 		for rows.Next() {
 			var s TodaySubtaskResponse
 			var vegName sql.NullString
-			var scDate, startDate, endDate time.Time
-			var missedDays int
+			var scDate time.Time
 
 			if err := rows.Scan(
 				&s.SubTaskID, &s.TaskID, &scDate, &s.TaskType, &s.TaskTitle,
 				&s.TaskContent, &s.IsCompleted, &vegName, &s.GrowthStage,
-				&startDate, &endDate, &missedDays,
 			); err != nil {
 				continue
 			}
 
 			s.ScheduledDate = scDate.Format("2006-01-02")
-
-			duration := endDate.Sub(startDate)
-			days := int(duration.Hours()/24) + 1
-			originalBufferDays := int(math.Ceil(float64(days) * 0.1))
-
-			if originalBufferDays-missedDays < 0 {
-				if s.GrowthStage != -1 {
-					db.Exec(`UPDATE "TASKS" SET growth_stage = -1 WHERE task_id = $1`, s.TaskID)
-				}
-				continue
-			}
-
 			if vegName.Valid {
 				s.VegetableName = vegName.String
 			}
-
 			s.IsCheckable = true
 
 			re := regexp.MustCompile(`\((\d+)/(\d+)日目\)$`)
@@ -121,11 +191,10 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 					s.IsCheckable = false
 				}
 			}
-
 			subtasks = append(subtasks, s)
 		}
-
 		c.JSON(http.StatusOK, subtasks)
+	
 	}
 }
 
