@@ -354,16 +354,6 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		todayStr := time.Now().In(jst).Format("2006-01-02")
 
-		updateQuery := `
-			UPDATE "TASKS" 
-			SET growth_stage = 1 
-			WHERE user_id = $1 AND growth_stage = 0 AND start_date <= $2
-		`
-		if _, err := db.Exec(updateQuery, userID, todayStr); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "タスク状態の自動更新に失敗しました"})
-			return
-		}
-
 		query := `
             SELECT 
                 t.task_id, t.task_type, t.task_title, t.total_count, t.lap_count, 
