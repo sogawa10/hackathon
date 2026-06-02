@@ -380,8 +380,7 @@ S = D + P
     "end_date": "YYYY-MM-DD",
     "buffer_days": "buffer_day（予備日数）",
     "vegetable_name": "vegetable_name",
-    "growth_stage": "-1〜11",
-    "image_url": "url"
+    "growth_stage": "-1〜11"
   }
 ]
 ```
@@ -407,7 +406,6 @@ S = D + P
     "task_id": "UUID",
     "vegetable_name": "vegetable_name",
     "vegetable_size": "S | M | L",
-    "image_url": "image_url",
     "harvested_at": "YYYY-MM-DD"
   }
 ]
