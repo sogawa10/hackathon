@@ -441,3 +441,92 @@ func DeleteTaskHandler(db *sql.DB) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"message": "タスクを正常に削除しました"})
 	}
 }
+
+type HarvestRequest struct {
+	TaskID string `json:"task_id" binding:"required"`
+}
+
+type HarvestResponse struct {
+	HarvestID     string `json:"harvest_id"`
+	VegetableName string `json:"vegetable_name"`
+	Size          string `json:"size"`
+}
+
+
+// 野菜の名前からサイズを判定するヘルパー関数
+func getVegetableSize(name string) string {
+	switch name {
+	case "プチトマト", "オクラ", "枝豆", "シイタケ", "ネギ":
+		return "S"
+	case "赤パプリカ", "ピーマン", "なす", "キュウリ", "タケノコ":
+		return "M"
+	case "キャベツ", "かぼちゃ", "トウモロコシ", "ブロッコリー", "カリフラワー":
+		return "L"
+	default:
+		return "Unknown"
+	}
+}
+
+func HarvestTaskHandler(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctxUserID, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "認証情報が見つかりません"})
+			return
+		}
+		userID := ctxUserID.(string)
+
+		var req HarvestRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "リクエストの形式が不正です"})
+			return
+		}
+
+		tx, err := db.Begin()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラー"})
+			return
+		}
+		defer tx.Rollback()
+
+		var vegName sql.NullString
+		queryCheck := `
+			SELECT v.vegetable_name 
+			FROM "TASKS" t
+			LEFT JOIN "VEGETABLES" v ON t.vegetable_id = v.vegetable_id
+			WHERE t.task_id = $1 AND t.user_id = $2 AND t.growth_stage = 10
+		`
+		err = tx.QueryRow(queryCheck, req.TaskID, userID).Scan(&vegName)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "収穫できるタスクが見つからないか、まだ収穫できる状態ではありません"})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "データ取得エラー"})
+			}
+			return
+		}
+
+		queryUpdate := `UPDATE "TASKS" SET growth_stage = 11 WHERE task_id = $1`
+		_, err = tx.Exec(queryUpdate, req.TaskID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "収穫処理に失敗しました"})
+			return
+		}
+
+		if err := tx.Commit(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "データの確定に失敗しました"})
+			return
+		}
+
+		vegetableNameStr := ""
+		if vegName.Valid {
+			vegetableNameStr = vegName.String
+		}
+
+		c.JSON(http.StatusOK, HarvestResponse{
+			HarvestID:     req.TaskID, 
+			VegetableName: vegetableNameStr,
+			Size:          getVegetableSize(vegetableNameStr),
+		})
+	}
+}
