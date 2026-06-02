@@ -194,7 +194,7 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 			subtasks = append(subtasks, s)
 		}
 		c.JSON(http.StatusOK, subtasks)
-	
+
 	}
 }
 
