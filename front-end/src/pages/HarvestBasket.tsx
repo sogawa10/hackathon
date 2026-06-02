@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Layout from '../components/Layout';
 
 type HarvestedVegetable = {
   harvest_id: string;
@@ -191,180 +192,161 @@ const HarvestBasket: React.FC = () => {
     return `/野菜${size}/収穫_${jpName}.png`;
   };
 
-  if (loading) return <div style={{ padding: 20, textAlign: 'center' }}>読み込み中…</div>;
-  if (error) return <div style={{ padding: 20, color: 'red', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>;
+  if (loading) return <Layout><div style={{ padding: 20, textAlign: 'center' }}>読み込み中…</div></Layout>;
+  if (error) return <Layout><div style={{ padding: 20, color: 'red', textAlign: 'center', fontWeight: 'bold' }}>{error}</div></Layout>;
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto', padding: '20px' }}>
-      
-      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '30px' }}>
-        <h1 style={{ margin: 0, color: '#333' }}>収穫かご</h1>
-        <button 
-          onClick={() => window.location.href = '/'}
-          style={{
-            position: 'absolute',
-            right: 0,
-            padding: '10px 20px',
-            backgroundColor: '#4caf50',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '8px',
-            fontWeight: 'bold',
-            fontSize: '15px',
-            cursor: 'pointer',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            transition: 'background-color 0.2s'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#45a049'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#4caf50'}
-        >
-          畑ページへ
-        </button>
-      </div>
-
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        backgroundColor: '#fff',
-        borderRadius: '12px',
-        padding: '40px 20px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-      }}>
+    <Layout>
+      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
         
-        <div style={{
-          position: 'relative',
-          width: '600px',
-          height: '450px',
-          display: 'flex',
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '30px' }}>
+          <h1 style={{ margin: 0, color: '#333' }}>収穫かご</h1>
+        </div>
+
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
           justifyContent: 'center',
-          overflow: 'hidden'
+          backgroundColor: '#fff',
+          borderRadius: '12px',
+          padding: '40px 20px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
         }}>
           
           <div style={{
-            position: 'absolute',
-            top: '125px',
-            left: 0,
-            width: '100%',
-            height: '400px',
+            position: 'relative',
+            width: '600px',
+            height: '450px',
+            display: 'flex',
+            justifyContent: 'center',
+            overflow: 'hidden'
           }}>
             
-            <img 
-              src="/VegeTASK_籠(後).png" 
-              alt="籠の背面"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                zIndex: 10
-              }}
-            />
-
             <div style={{
               position: 'absolute',
-              top: 0,
+              top: '125px',
               left: 0,
               width: '100%',
-              height: '100%',
-              zIndex: 20,
-              overflow: 'visible'
+              height: '400px',
             }}>
-              {harvests.length === 0 ? (
-                <p style={{ color: '#fff', fontWeight: 'bold', textShadow: '1px 1px 2px rgba(0,0,0,0.5)', textAlign: 'center', marginTop: '35%' }}>
-                  まだ収穫された野菜はありません
-                </p>
-              ) : (
-                harvests.map((veg) => {
-                  const isDragging = draggingId === veg.harvest_id;
-                  
-                  return (
-                    <img 
-                      key={veg.harvest_id}
-                      title={`${veg.vegetable_name} (収穫日: ${veg.harvested_at})`}
-                      src={veg.image_url || getFallbackImagePath(veg.vegetable_name, veg.vegetable_size)}
-                      alt={veg.vegetable_name}
-                      draggable={false}
-                      style={{
-                        position: 'absolute',
-                        left: `${veg.screenX}px`,
-                        top: `${veg.screenY}px`,
-                        zIndex: isDragging ? 99999 : veg.zIndex,
-                        cursor: isDragging ? 'grabbing' : 'grab',
-                        width: 'auto',
-                        height: 'auto',
-                        maxWidth: 'none',
-                        maxHeight: 'none',
-                        imageRendering: 'pixelated',
-                        touchAction: 'none',
-                        filter: isDragging 
-                          ? `drop-shadow(0px 20px 15px rgba(0,0,0,0.4))` 
-                          : `drop-shadow(0px 3px 4px rgba(0,0,0,0.4))`,
-                        transition: isDragging 
-                          ? 'none' 
-                          : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s',
-                        transform: isDragging
-                          ? `translate(-50%, calc(-100% - 20px)) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale * 1.15})`
-                          : `translate(-50%, -100%) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale})`,
-                        transformOrigin: 'bottom center'
-                      }}
-                      onPointerDown={(e) => handlePointerDown(e, veg.harvest_id)}
-                      onPointerMove={(e) => handlePointerMove(e, veg.harvest_id)}
-                      onPointerUp={(e) => handlePointerUp(e, veg.harvest_id)}
-                      onMouseEnter={(e) => {
-                        if (draggingId) return;
-                        e.currentTarget.style.transform = `translate(-50%, calc(-100% - 15px)) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale * 1.15})`;
-                        e.currentTarget.style.zIndex = '9999';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (draggingId) return;
-                        e.currentTarget.style.transform = `translate(-50%, -100%) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale})`;
-                        e.currentTarget.style.zIndex = String(veg.zIndex);
-                      }}
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        const fallback = getFallbackImagePath(veg.vegetable_name, veg.vegetable_size);
-                        if (!target.src.includes(fallback)) {
-                          target.src = fallback;
-                        } else {
-                          target.style.display = 'none';
-                        }
-                      }}
-                    />
-                  );
-                })
-              )}
-            </div>
+              
+              <img 
+                src="/VegeTASK_籠(後).png" 
+                alt="籠の背面"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  zIndex: 10
+                }}
+              />
 
-            <img 
-              src="/VegeTASK_籠(前).png" 
-              alt="籠の前面"
-              style={{
+              <div style={{
                 position: 'absolute',
                 top: 0,
                 left: 0,
                 width: '100%',
                 height: '100%',
-                objectFit: 'contain',
-                zIndex: 10000,
-                pointerEvents: 'none'
-              }}
-            />
+                zIndex: 20,
+                overflow: 'visible'
+              }}>
+                {harvests.length === 0 ? (
+                  <p style={{ color: '#fff', fontWeight: 'bold', textShadow: '1px 1px 2px rgba(0,0,0,0.5)', textAlign: 'center', marginTop: '35%' }}>
+                    まだ収穫された野菜はありません
+                  </p>
+                ) : (
+                  harvests.map((veg) => {
+                    const isDragging = draggingId === veg.harvest_id;
+                    
+                    return (
+                      <img 
+                        key={veg.harvest_id}
+                        title={`${veg.vegetable_name} (収穫日: ${veg.harvested_at})`}
+                        src={veg.image_url || getFallbackImagePath(veg.vegetable_name, veg.vegetable_size)}
+                        alt={veg.vegetable_name}
+                        draggable={false}
+                        style={{
+                          position: 'absolute',
+                          left: `${veg.screenX}px`,
+                          top: `${veg.screenY}px`,
+                          zIndex: isDragging ? 99999 : veg.zIndex,
+                          cursor: isDragging ? 'grabbing' : 'grab',
+                          width: 'auto',
+                          height: 'auto',
+                          maxWidth: 'none',
+                          maxHeight: 'none',
+                          imageRendering: 'pixelated',
+                          touchAction: 'none',
+                          filter: isDragging 
+                            ? `drop-shadow(0px 20px 15px rgba(0,0,0,0.4))` 
+                            : `drop-shadow(0px 3px 4px rgba(0,0,0,0.4))`,
+                          transition: isDragging 
+                            ? 'none' 
+                            : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s',
+                          transform: isDragging
+                            ? `translate(-50%, calc(-100% - 20px)) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale * 1.15})`
+                            : `translate(-50%, -100%) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale})`,
+                          transformOrigin: 'bottom center'
+                        }}
+                        onPointerDown={(e) => handlePointerDown(e, veg.harvest_id)}
+                        onPointerMove={(e) => handlePointerMove(e, veg.harvest_id)}
+                        onPointerUp={(e) => handlePointerUp(e, veg.harvest_id)}
+                        onMouseEnter={(e) => {
+                          if (draggingId) return;
+                          e.currentTarget.style.transform = `translate(-50%, calc(-100% - 15px)) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale * 1.15})`;
+                          e.currentTarget.style.zIndex = '9999';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (draggingId) return;
+                          e.currentTarget.style.transform = `translate(-50%, -100%) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale})`;
+                          e.currentTarget.style.zIndex = String(veg.zIndex);
+                        }}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          const fallback = getFallbackImagePath(veg.vegetable_name, veg.vegetable_size);
+                          if (!target.src.includes(fallback)) {
+                            target.src = fallback;
+                          } else {
+                            target.style.display = 'none';
+                          }
+                        }}
+                      />
+                    );
+                  })
+                )}
+              </div>
+
+              <img 
+                src="/VegeTASK_籠(前).png" 
+                alt="籠の前面"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  zIndex: 10000,
+                  pointerEvents: 'none'
+                }}
+              />
+            </div>
           </div>
-        </div>
 
-        <div style={{ marginTop: '20px', textAlign: 'center' }}>
-          <h3 style={{ margin: '0 0 10px 0', color: '#4caf50' }}>これまでの成果</h3>
-          <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#555' }}>
-            合計収穫数: <span style={{ fontSize: '24px', color: '#ff9800' }}>{harvests.length}</span> 個
-          </p>
-        </div>
+          <div style={{ marginTop: '20px', textAlign: 'center' }}>
+            <h3 style={{ margin: '0 0 10px 0', color: '#4caf50' }}>これまでの成果</h3>
+            <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#555' }}>
+              合計収穫数: <span style={{ fontSize: '24px', color: '#ff9800' }}>{harvests.length}</span> 個
+            </p>
+          </div>
 
+        </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

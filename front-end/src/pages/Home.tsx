@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import VegetableField from '../components/VegetableField';
-import TaskCreateModal from '../components/TaskCreateModal';
+import Layout from '../components/Layout';
 
 type TodaySubtask = {
   sub_task_id: string;
@@ -13,33 +13,32 @@ type TodaySubtask = {
   is_completed: boolean;
   vegetable_name: string;
   growth_stage: number;
+  is_checkable?: boolean;
 };
 
 const Home: React.FC = () => {
   const [subtasks, setSubtasks] = useState<(TodaySubtask | null)[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [systemMessage, setSystemMessage] = useState<string | null>(null);
+  const [harvestingTask, setHarvestingTask] = useState<TodaySubtask | null>(null);
   
-  const navigate = useNavigate();
-
+  const location = useLocation();
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    navigate('/login', { replace: true });
-  };
+  useEffect(() => {
+    const state = location.state as { systemMessage?: string } | null;
+    if (state?.systemMessage) {
+      setSystemMessage(state.systemMessage);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   const fetchTodaySubtasks = async (isInitial = false) => {
     if (isInitial) setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
-      if (!token) {
-        throw new Error('認証トークンが見つかりません。再ログインしてください。');
-      }
+      if (!token) throw new Error('認証トークンが見つかりません');
 
       const res = await fetch(`${API_BASE_URL}/api/subtasks/today`, {
         method: 'GET',
@@ -49,15 +48,7 @@ const Home: React.FC = () => {
         },
       });
 
-      if (res.status === 401) {
-        alert('セッションの有効期限が切れました。再度ログインしてください。');
-        handleLogout();
-        return;
-      }
-
-      if (!res.ok) {
-        throw new Error('データの取得に失敗しました');
-      }
+      if (!res.ok) throw new Error('データの取得に失敗しました');
 
       const data = await res.json();
       const notifiedWithered = JSON.parse(localStorage.getItem('notified_withered') || '[]');
@@ -81,13 +72,8 @@ const Home: React.FC = () => {
           setSubtasks(prev => prev.filter(t => t && t.growth_stage !== -1));
         }, 1200); 
       }
-
     } catch (err: any) {
-      if (err.message.includes('認証トークン')) {
-        handleLogout();
-      } else {
-        setError(err.message || 'エラーが発生しました');
-      }
+      setError(err.message);
     } finally {
       if (isInitial) setLoading(false);
     }
@@ -95,7 +81,19 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     fetchTodaySubtasks(true);
-  }, [API_BASE_URL, navigate]);
+  }, [API_BASE_URL]);
+
+  useEffect(() => {
+    const handleTaskCreated = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        setSystemMessage(customEvent.detail);
+      }
+      fetchTodaySubtasks(false);
+    };
+    window.addEventListener('taskCreated', handleTaskCreated);
+    return () => window.removeEventListener('taskCreated', handleTaskCreated);
+  }, []);
 
   const handleToggleComplete = async (subTaskId: string, currentStatus: boolean) => {
     if (currentStatus) return;
@@ -111,234 +109,173 @@ const Home: React.FC = () => {
         body: JSON.stringify({ sub_task_id: subTaskId }),
       });
 
-      if (!res.ok) {
-        throw new Error('タスクの完了に失敗しました');
+      if (!res.ok) throw new Error('タスクの完了に失敗しました');
+
+      const data = await res.json();
+      let updatedGrowthStage: number | undefined = undefined;
+      
+      const parseGrowthStage = (obj: any) => {
+        if (!obj) return undefined;
+        if (typeof obj.growth_stage === 'number') return obj.growth_stage;
+        if (typeof obj.growth_stage === 'string') return parseInt(obj.growth_stage, 10);
+        if (typeof obj.GrowthStage === 'number') return obj.GrowthStage;
+        if (typeof obj.GrowthStage === 'string') return parseInt(obj.GrowthStage, 10);
+        return undefined;
+      };
+
+      if (Array.isArray(data) && data.length > 0) {
+        updatedGrowthStage = parseGrowthStage(data[0]);
+      } else {
+        updatedGrowthStage = parseGrowthStage(data);
       }
 
-      await fetchTodaySubtasks(false);
-
+      setSubtasks((prev) =>
+        prev.map((task) => {
+          if (task && task.sub_task_id === subTaskId) {
+            return {
+              ...task,
+              is_completed: true,
+              growth_stage: updatedGrowthStage !== undefined && !isNaN(updatedGrowthStage) ? updatedGrowthStage : task.growth_stage
+            };
+          }
+          return task;
+        })
+      );
     } catch (err: any) {
       console.error(err);
-      alert('エラーが発生しました。通信環境を確認してください。');
+      alert('エラーが発生しました');
     }
   };
 
-  if (loading) return <div style={{ padding: 20 }}>読み込み中…</div>;
-  if (error) return <div style={{ padding: 20, color: 'red' }}>{error}</div>;
+  const getVegetableInfoForOverlay = (vegName: string) => {
+    let size = 'L';
+    let jpName = 'かぼちゃ';
+    if (vegName === 'kabocha' || vegName === 'pumpkin' || vegName === 'L') { jpName = 'かぼちゃ'; size = 'L'; }
+    else if (vegName === 'cabbage') { jpName = 'キャベツ'; size = 'L'; }
+    else if (vegName === 'corn') { jpName = 'トウモロコシ'; size = 'L'; }
+    else if (vegName === 'broccoli') { jpName = 'ブロッコリー'; size = 'L'; }
+    else if (vegName === 'cauliflower') { jpName = 'カリフラワー'; size = 'L'; }
+    else if (['赤パプリカ', 'ピーマン', 'なす', 'キュウリ', 'タケノコ', 'M'].includes(vegName)) { jpName = vegName === 'M' ? 'なす' : vegName; size = 'M'; }
+    else if (['プチトマト', 'オクラ', '枝豆', 'シイタケ', 'ネギ', 'S'].includes(vegName)) { jpName = vegName === 'S' ? 'プチトマト' : vegName; size = 'S'; }
+    return { size, jpName };
+  };
+
+  const handleHarvestSubmit = async () => {
+    if (!harvestingTask) return;
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${API_BASE_URL}/api/tasks/harvest`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ task_id: harvestingTask.task_id }),
+      });
+
+      if (!res.ok) throw new Error('収穫に失敗しました');
+
+      setSubtasks((prev) =>
+        prev.map((task) =>
+          task && task.sub_task_id === harvestingTask.sub_task_id
+            ? { ...task, growth_stage: 11 } // 畑から消すために11（非表示）にする
+            : task
+        )
+      );
+    } catch (err: any) {
+      console.error(err);
+      alert('収穫通信エラーが発生しました。');
+    }
+    setHarvestingTask(null);
+  };
+
+  if (loading) return <Layout><div>読み込み中…</div></Layout>;
+  if (error) return <Layout><div style={{ color: 'red' }}>{error}</div></Layout>;
 
   const validTasks = subtasks.filter((t): t is TodaySubtask => t !== null);
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto', padding: '20px' }}>
-      
-      <div style={{ position: 'relative', marginBottom: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <button
-          onClick={() => navigate('/basket')}
+    <Layout>
+      {harvestingTask && (
+        <div 
+          onClick={handleHarvestSubmit}
           style={{
-            position: 'absolute',
-            left: 0,
-            padding: '10px 16px',
-            backgroundColor: '#ff9800',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-            transition: 'background-color 0.2s',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
+            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)', zIndex: 99999,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', animation: 'fadeIn 0.3s ease-out'
           }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f57c00'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ff9800'}
         >
-          <span>🧺</span> 籠ページへ
-        </button>
+          <style>{`
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes popZoom { 0% { transform: scale(0.5); opacity: 0; } 80% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
+          `}</style>
+          <img 
+            src={`/野菜${getVegetableInfoForOverlay(harvestingTask.vegetable_name).size}/収穫_${getVegetableInfoForOverlay(harvestingTask.vegetable_name).jpName}.png`}
+            alt={harvestingTask.vegetable_name}
+            style={{ width: '280px', height: 'auto', imageRendering: 'pixelated', animation: 'popZoom 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
+          />
+          <h1 style={{ color: '#fff', fontSize: '32px', marginTop: '30px', textShadow: '0 4px 8px rgba(0,0,0,0.5)', animation: 'popZoom 0.8s ease-out' }}>
+            {getVegetableInfoForOverlay(harvestingTask.vegetable_name).jpName}を収穫しました！🎉
+          </h1>
+          <p style={{ color: '#ccc', marginTop: '15px', fontSize: '16px', animation: 'fadeIn 1s ease-out' }}>
+            画面をクリックしてかごにしまう
+          </p>
+        </div>
+      )}
 
-        <h1 style={{ margin: 0, color: '#333' }}>VegeTASK ホーム</h1>
+      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+        <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+          
+          <section style={{ flex: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+            <VegetableField 
+              subtasks={subtasks} 
+              systemMessage={systemMessage}
+              onClearSystemMessage={() => setSystemMessage(null)}
+              onHarvestClick={setHarvestingTask}
+            />
+          </section>
 
-        <div style={{ position: 'absolute', right: 0 }}>
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '28px',
-              cursor: 'pointer',
-              color: '#333',
-              padding: '4px 8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            ☰
-          </button>
-
-          {isMenuOpen && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              right: 0,
-              marginTop: '8px',
-              backgroundColor: '#fff',
-              border: '1px solid #e0e0e0',
-              borderRadius: '8px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              minWidth: '160px',
-              zIndex: 100,
-              overflow: 'hidden'
-            }}>
-              <div 
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  navigate('/tasks'); 
-                }}
-                style={{ 
-                  padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', 
-                  color: '#333', fontSize: '14px', fontWeight: 'bold', transition: 'background-color 0.2s' 
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                📋 タスク一覧
-              </div>
-              <div 
-                onClick={handleLogout}
-                style={{ 
-                  padding: '12px 16px', cursor: 'pointer', color: '#e53935', 
-                  fontSize: '14px', fontWeight: 'bold', transition: 'background-color 0.2s' 
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#ffebee'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                🚪 ログアウト
-              </div>
+          <section style={{ flex: 4, padding: '20px', border: '1px solid #e0e0e0', borderRadius: '12px', backgroundColor: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', maxHeight: '500px', overflowY: 'auto' }}>
+            <div style={{ borderBottom: '3px solid #4caf50', paddingBottom: '10px', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, color: '#333' }}>今日のToDo</h2>
             </div>
-          )}
+            
+            {validTasks.length === 0 ? (
+              <p style={{ color: '#888', textAlign: 'center', marginTop: '40px' }}>今日のタスクはありません。</p>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {validTasks.map((task) => {
+                  const match = task.task_content.match(/\((\d+)\/(\d+)日目\)$/);
+                  const isFraction = match !== null;
+                  const isCheckable = isFraction ? match[1] === match[2] : true;
+
+                  return (
+                    <li key={task.sub_task_id} style={{ display: 'flex', alignItems: 'flex-start', padding: '16px 0', borderBottom: '1px solid #f0f0f0' }}>
+                      <input
+                        type="checkbox"
+                        checked={task.is_completed}
+                        disabled={task.is_completed || !isCheckable} 
+                        onChange={() => handleToggleComplete(task.sub_task_id, task.is_completed)}
+                        style={{ marginRight: '16px', width: '24px', height: '24px', cursor: (task.is_completed || !isCheckable) ? 'not-allowed' : 'pointer', flexShrink: 0, marginTop: '2px', opacity: (task.is_completed || !isCheckable) ? 0.5 : 1 }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontSize: '12px', color: '#fff', backgroundColor: '#81c784', padding: '2px 8px', borderRadius: '12px', display: 'inline-block', marginBottom: '6px' }}>{task.task_type}</span>
+                        <strong style={{ display: 'block', fontSize: '16px', textDecoration: task.is_completed ? 'line-through' : 'none', color: task.is_completed ? '#aaa' : '#333', marginBottom: '4px' }}>{task.task_title}</strong>
+                        <span style={{ fontSize: '14px', color: task.is_completed ? '#aaa' : '#666' }}>{task.task_content}</span>
+                        {!isCheckable && !task.is_completed && (
+                          <span style={{ fontSize: '12px', color: '#e53935', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>※最終日のみチェック可能</span>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
         </div>
       </div>
-
-      <div style={{ display: 'flex', gap: '24px', alignItems: 'stretch' }}>
-        
-        <section style={{ 
-          flex: 6, 
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '400px'
-        }}>
-          <VegetableField 
-            subtasks={subtasks} 
-            systemMessage={systemMessage}
-            onClearSystemMessage={() => setSystemMessage(null)}
-          />
-        </section>
-
-        <section style={{ 
-          flex: 4, 
-          padding: '20px', 
-          border: '1px solid #e0e0e0', 
-          borderRadius: '12px', 
-          backgroundColor: '#fff',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-          minHeight: '400px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', borderBottom: '3px solid #4caf50', paddingBottom: '10px', marginBottom: '20px' }}>
-            <h2 style={{ margin: 0, color: '#333' }}>
-              今日のToDo
-            </h2>
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              style={{ 
-                marginLeft: '15px', width: '32px', height: '32px', borderRadius: '50%', 
-                backgroundColor: '#ff9800', color: '#fff', border: 'none', 
-                fontSize: '22px', fontWeight: 'bold', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-              }}
-            >
-              ＋
-            </button>
-          </div>
-          
-          {validTasks.length === 0 ? (
-            <p style={{ color: '#888', textAlign: 'center', marginTop: '40px' }}>今日のタスクはありません。</p>
-          ) : (
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {validTasks.map((task) => {
-                const match = task.task_content.match(/\((\d+)\/(\d+)日目\)$/);
-                const isFraction = match !== null;
-                const isCheckable = isFraction ? match[1] === match[2] : true;
-
-                return (
-                  <li
-                    key={task.sub_task_id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      padding: '16px 0',
-                      borderBottom: '1px solid #f0f0f0',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={task.is_completed}
-                      disabled={task.is_completed || !isCheckable} 
-                      onChange={() => handleToggleComplete(task.sub_task_id, task.is_completed)}
-                      style={{ 
-                        marginRight: '16px', 
-                        width: '24px', 
-                        height: '24px', 
-                        cursor: (task.is_completed || !isCheckable) ? 'not-allowed' : 'pointer', 
-                        flexShrink: 0, 
-                        marginTop: '2px',
-                        opacity: (task.is_completed || !isCheckable) ? 0.5 : 1 
-                      }}
-                    />
-                    <div style={{ flex: 1 }}>
-                      <span style={{ fontSize: '12px', color: '#fff', backgroundColor: '#81c784', padding: '2px 8px', borderRadius: '12px', display: 'inline-block', marginBottom: '6px' }}>
-                        {task.task_type}
-                      </span>
-                      <strong style={{ 
-                        display: 'block',
-                        fontSize: '16px',
-                        textDecoration: task.is_completed ? 'line-through' : 'none', 
-                        color: task.is_completed ? '#aaa' : '#333',
-                        marginBottom: '4px'
-                      }}>
-                        {task.task_title}
-                      </strong>
-                      <span style={{ fontSize: '14px', color: task.is_completed ? '#aaa' : '#666' }}>
-                        {task.task_content}
-                      </span>
-                      {!isCheckable && !task.is_completed && (
-                        <span style={{ fontSize: '12px', color: '#333', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>
-                          ※最終日のみチェック可能
-                        </span>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-      </div>
-      
-      <TaskCreateModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onTaskCreated={(msg) => {
-          setIsModalOpen(false);
-          if (msg) setSystemMessage(msg);
-          fetchTodaySubtasks(false); 
-        }}
-      />
-    </div>
+    </Layout>
   );
 };
 

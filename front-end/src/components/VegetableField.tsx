@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 
 interface TodaySubtask {
   sub_task_id: string;
+  task_id: string;
   scheduled_date: string;
   task_type: string;
   task_title: string;
@@ -16,6 +17,7 @@ interface VegetableFieldProps {
   subtasks: (TodaySubtask | null)[];
   systemMessage?: string | null;
   onClearSystemMessage?: () => void;
+  onHarvestClick?: (task: TodaySubtask) => void;
 }
 
 const PLACEMENT_ORDER: number[] = [
@@ -52,12 +54,13 @@ const GRID_POSITIONS: { [key: number]: { top: string; left: string } } = {
 
 const ASSET_SCALE = 0.2;
 
-const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMessage, onClearSystemMessage }) => {
+const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMessage, onClearSystemMessage, onHarvestClick }) => {
   const field: (TodaySubtask | null)[] = Array(25).fill(null);
   
   const [recentCompleted, setRecentCompleted] = useState<Set<string>>(new Set());
   const [growthMsgs, setGrowthMsgs] = useState<{ [subTaskId: string]: string }>({});
   const [isClearingSystemMessage, setIsClearingSystemMessage] = useState(false);
+  const [hoveredTask, setHoveredTask] = useState<string | null>(null);
 
   const prevSubtasksRef = useRef<(TodaySubtask | null)[]>([]);
 
@@ -118,11 +121,8 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
     
     subtasks.forEach((task, index) => {
       if (!task) return;
-      
       if (subtasks.length === 25) {
-        if (task) {
-          field[index] = task;
-        }
+        if (task) field[index] = task;
       } else {
         unassignedTasks.push(task);
       }
@@ -131,7 +131,6 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
     if (subtasks.length !== 25) {
       unassignedTasks.forEach((task) => {
         const availableSlot = PLACEMENT_ORDER.find(gridIndex => field[gridIndex] === null);
-        
         if (availableSlot !== undefined) {
           field[availableSlot] = task;
         }
@@ -144,28 +143,13 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
     let size = 'L';
     let jpName = 'かぼちゃ';
 
-    if (vegName === 'kabocha' || vegName === 'pumpkin' || vegName === 'L') {
-      jpName = 'かぼちゃ';
-      size = 'L';
-    } else if (vegName === 'cabbage') {
-      jpName = 'キャベツ';
-      size = 'L';
-    } else if (vegName === 'corn') {
-      jpName = 'トウモロコシ';
-      size = 'L';
-    } else if (vegName === 'broccoli') {
-      jpName = 'ブロッコリー';
-      size = 'L';
-    } else if (vegName === 'cauliflower') {
-      jpName = 'カリフラワー';
-      size = 'L';
-    } else if (['赤パプリカ', 'ピーマン', 'なす', 'キュウリ', 'タケノコ', 'M'].includes(vegName)) {
-      jpName = vegName === 'M' ? 'なす' : vegName;
-      size = 'M';
-    } else if (['プチトマト', 'オクラ', '枝豆', 'シイタケ', 'ネギ', 'S'].includes(vegName)) {
-      jpName = vegName === 'S' ? 'プチトマト' : vegName;
-      size = 'S';
-    }
+    if (vegName === 'kabocha' || vegName === 'pumpkin' || vegName === 'L') { jpName = 'かぼちゃ'; size = 'L'; }
+    else if (vegName === 'cabbage') { jpName = 'キャベツ'; size = 'L'; }
+    else if (vegName === 'corn') { jpName = 'トウモロコシ'; size = 'L'; }
+    else if (vegName === 'broccoli') { jpName = 'ブロッコリー'; size = 'L'; }
+    else if (vegName === 'cauliflower') { jpName = 'カリフラワー'; size = 'L'; }
+    else if (['赤パプリカ', 'ピーマン', 'なす', 'キュウリ', 'タケノコ', 'M'].includes(vegName)) { jpName = vegName === 'M' ? 'なす' : vegName; size = 'M'; }
+    else if (['プチトマト', 'オクラ', '枝豆', 'シイタケ', 'ネギ', 'S'].includes(vegName)) { jpName = vegName === 'S' ? 'プチトマト' : vegName; size = 'S'; }
 
     const stage = task.growth_stage;
     let path = '';
@@ -178,27 +162,28 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
     if (stage === -1) {
       path = `/野菜${size}/枯れ_${jpName}.png`;
       label = '枯れ';
-      bgColor = 'rgba(0,0,0,0.6)';
+      bgColor = '#795548';
     } else if (stage === 0) {
-      path = `/種が埋まっている土.png`;
-      label = '種  ';
-      bgColor = 'rgba(0,0,0,0.6)';
-      scaleMultiplier = 0.15;
-      bottomOffset = '-14px'; 
-    } else if (stage >= 1 && stage <= 10) {
-      path = `/野菜${size}/(${stage})_${jpName}.png`;
-      label = `LV-${stage}`;
-      bgColor = 'rgba(0,0,0,0.6)';
-    } else if (stage >= 11) {
-      path = `/野菜${size}/収穫_${jpName}.png`;
-      label = '🎉収穫!';
-      bgColor = '#81c784';
-    } else {
       path = `/種が埋まっている土.png`;
       label = '種';
       bgColor = '#8d6e63';
       scaleMultiplier = 0.2;
       bottomOffset = '-18px'; 
+    } else if (stage >= 1 && stage <= 10) {
+
+      path = `/野菜${size}/(${stage})_${jpName}.png`;
+      
+      if (stage === 10) {
+        label = '✨収穫する✨';
+        bgColor = '#ff9800';
+      } else {
+        label = `LV-${stage}`;
+        bgColor = 'rgba(0,0,0,0.6)';
+      }
+    } else {
+      path = '';
+      label = '';
+      bgColor = 'transparent';
     }
 
     return { path, size, jpName, label, bgColor, scaleMultiplier, bottomOffset };
@@ -211,6 +196,10 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
         @keyframes popUpFadeIn {
           0% { opacity: 0; transform: translate(-50%, 10px); }
           100% { opacity: 1; transform: translate(-50%, 0); }
+        }
+        @keyframes bounceHarvest {
+          0%, 100% { transform: translateX(-50%) scale(var(--target-scale)) translateY(0); filter: drop-shadow(0 0 4px rgba(255,215,0,0.6)); }
+          50% { transform: translateX(-50%) scale(var(--target-scale)) translateY(-8px); filter: drop-shadow(0 0 12px rgba(255,215,0,1)); }
         }
       `}</style>
 
@@ -267,6 +256,8 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
           return (
             <div 
               key={index}
+              onMouseEnter={() => setHoveredTask(task.sub_task_id)}
+              onMouseLeave={() => setHoveredTask(null)}
               style={{
                 position: 'absolute',
                 top: pos.top,
@@ -278,7 +269,7 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'flex-end',
-                zIndex: index
+                zIndex: hoveredTask === task.sub_task_id ? 99 : index
               }}
             >
               <div style={{ position: 'relative', width: '100%', flex: 1 }}>
@@ -315,42 +306,79 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
                   </div>
                 )}
 
-                <img 
-                  key={path}
-                  src={path} 
-                  alt={task.task_title || '野菜'}
-                  style={{ 
-                    position: 'absolute',
-                    bottom: bottomOffset,
-                    left: '50%',
-                    transform: `translateX(-50%) scale(${ASSET_SCALE * scaleMultiplier})`, 
-                    transformOrigin: 'bottom center',
-                    width: 'auto',
-                    height: 'auto',
-                    imageRendering: 'pixelated',
-                    opacity: task.growth_stage === -1 ? 0 : (isAnimating ? 0.4 : 1),
-                    transition: 'opacity 1s ease',
-                  }} 
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                  }}
-                />
+                {hoveredTask === task.sub_task_id && !growthMsg && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '100%',
+                      left: '50%',
+                      backgroundColor: '#ff9800',
+                      color: '#fff',
+                      border: '2px solid #fff',
+                      padding: '6px 12px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      whiteSpace: 'nowrap',
+                      zIndex: 20,
+                      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+                      pointerEvents: 'none',
+                      animation: 'popUpFadeIn 0.2s ease-out forwards',
+                    }}
+                  >
+                    {task.task_title}
+                  </div>
+                )}
+
+                {path && (
+                  <img 
+                    key={path}
+                    src={path} 
+                    alt={task.task_title || '野菜'}
+                    onClick={(e) => {
+                      if (task.growth_stage === 10 && onHarvestClick) {
+                        e.stopPropagation();
+                        onHarvestClick(task);
+                      }
+                    }}
+                    style={{ 
+                      position: 'absolute',
+                      bottom: bottomOffset,
+                      left: '50%',
+                      '--target-scale': ASSET_SCALE * scaleMultiplier,
+                      transform: `translateX(-50%) scale(${ASSET_SCALE * scaleMultiplier})`, 
+                      transformOrigin: 'bottom center',
+                      width: 'auto',
+                      height: 'auto',
+                      imageRendering: 'pixelated',
+                      opacity: task.growth_stage === -1 ? 0 : (isAnimating ? 0.4 : 1),
+                      transition: 'opacity 1s ease',
+                      cursor: task.growth_stage === 10 ? 'pointer' : 'default',
+                      animation: task.growth_stage === 10 ? 'bounceHarvest 2s infinite' : 'none'
+                    } as React.CSSProperties} 
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                )}
               </div>
-              <span style={{ 
-                fontSize: '8px', 
-                color: '#fff', 
-                backgroundColor: bgColor, 
-                padding: '1px 3px', 
-                borderRadius: '3px',
-                zoom: 0.8,
-                whiteSpace: 'nowrap',
-                marginTop: '2px',
-                position: 'relative',
-                zIndex: 2
-              }}>
-                {label}
-              </span>
+              {label && (
+                <span style={{ 
+                  fontSize: '8px', 
+                  color: '#fff', 
+                  backgroundColor: bgColor, 
+                  padding: '1px 3px', 
+                  borderRadius: '3px',
+                  zoom: 0.8,
+                  whiteSpace: 'nowrap',
+                  marginTop: '2px',
+                  position: 'relative',
+                  zIndex: 2
+                }}>
+                  {label}
+                </span>
+              )}
             </div>
           );
         })}
