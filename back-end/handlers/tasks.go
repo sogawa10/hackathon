@@ -452,7 +452,6 @@ type HarvestResponse struct {
 	Size          string `json:"size"`
 }
 
-
 // 野菜の名前からサイズを判定するヘルパー関数
 func getVegetableSize(name string) string {
 	switch name {
@@ -524,7 +523,7 @@ func HarvestTaskHandler(db *sql.DB) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, HarvestResponse{
-			HarvestID:     req.TaskID, 
+			HarvestID:     req.TaskID,
 			VegetableName: vegetableNameStr,
 			Size:          getVegetableSize(vegetableNameStr),
 		})

@@ -420,5 +420,4 @@ S = D + P
 | ホームページ | 畑の状態を見る <br> 今日のToDoを見る <br> ToDo完了で野菜を成長させる <br> 収穫可能になった野菜を収穫できる | `GET /api/subtasks/today` <br> `PATCH /api/subtasks` <br> `POST /api/tasks/harvest` |
 | タスク作成ページ | 新しいタスクを登録する <br> 作成時に野菜を選択し，種をもらう | `POST /api/tasks` <br> `POST /api/vegetable` |
 | タスク一覧ページ | 作成済みタスクを一覧で見る <br> 各タスクを選択すると，タスク詳細ページへ遷移できる | `GET /api/tasks` |
-| タスク詳細ページ | 1件のタスクの詳しい情報を見る <br> タスクを削除することもできる | `DELETE /api/tasks/{task_id}` |
 | 収穫かごページ | 収穫済み野菜がかごに溜まっていくGUI | `GET /api/harvest_basket` |
