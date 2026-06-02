@@ -61,6 +61,7 @@ func main() {
 		authGroup.GET("/api/tasks", handlers.GetTasksHandler(db))
 		authGroup.DELETE("/api/tasks/:task_id", handlers.DeleteTaskHandler(db))
 		authGroup.POST("/api/tasks/harvest", handlers.HarvestTaskHandler(db))
+		authGroup.GET("/api/harvest_basket", handlers.GetHarvestBasketHandler(db))
 	}
 
 	fmt.Println("VegeTask サーバーがポート3000番で起動しました。")

@@ -530,3 +530,63 @@ func HarvestTaskHandler(db *sql.DB) gin.HandlerFunc {
 		})
 	}
 }
+
+type HarvestBasketResponse struct {
+	HarvestID     string `json:"harvest_id"`
+	TaskID        string `json:"task_id"`
+	VegetableName string `json:"vegetable_name"`
+	VegetableSize string `json:"vegetable_size"`
+	HarvestedAt   string `json:"harvested_at"`
+}
+
+func GetHarvestBasketHandler(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctxUserID, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "認証情報が見つかりません"})
+			return
+		}
+		userID := ctxUserID.(string)
+
+		query := `
+			SELECT t.task_id, v.vegetable_name, t.end_date
+			FROM "TASKS" t
+			LEFT JOIN "VEGETABLES" v ON t.vegetable_id = v.vegetable_id
+			WHERE t.user_id = $1 AND t.growth_stage = 11
+			ORDER BY t.end_date DESC
+		`
+		rows, err := db.Query(query, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "収穫済み野菜の取得に失敗しました"})
+			return
+		}
+		defer rows.Close()
+
+		var basket []HarvestBasketResponse
+		for rows.Next() {
+			var h HarvestBasketResponse
+			var vegName sql.NullString
+			var endDate time.Time
+
+			if err := rows.Scan(&h.TaskID, &vegName, &endDate); err != nil {
+				continue
+			}
+
+			h.HarvestID = h.TaskID
+			h.HarvestedAt = endDate.Format("2006-01-02")
+
+			if vegName.Valid {
+				h.VegetableName = vegName.String
+				h.VegetableSize = getVegetableSize(vegName.String)
+			}
+
+			basket = append(basket, h)
+		}
+
+		if basket == nil {
+			basket = []HarvestBasketResponse{}
+		}
+
+		c.JSON(http.StatusOK, basket)
+	}
+}
