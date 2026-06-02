@@ -223,9 +223,15 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 
 		newGrowthStage := currentGrowthStage
 		if totalSubtasks > 0 {
-			newGrowthStage = 1 + int(math.Round(
-				float64(completedSubtasks)*9/float64(totalSubtasks),
-			))
+			if completedSubtasks == totalSubtasks {
+				newGrowthStage = 10
+			} else if completedSubtasks > 0 {
+				newGrowthStage = 1 + int(
+					float64(completedSubtasks)*9/float64(totalSubtasks),
+				)
+			} else {
+				newGrowthStage = 1
+			}
 		}
 
 		if newGrowthStage > currentGrowthStage {
