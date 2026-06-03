@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
+import './HarvestBasket.css';
 
 type HarvestedVegetable = {
   harvest_id: string;
@@ -197,66 +198,26 @@ const HarvestBasket: React.FC = () => {
 
   return (
     <Layout>
-      <div style={{ maxWidth: 1000, margin: '0 auto', padding: '20px' }}>
+      <div className="basket-container">
         
-        <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '30px' }}>
-          <h1 style={{ margin: 0, color: '#333' }}>収穫かご</h1>
+        <div className="basket-title-wrapper">
+          <h1 className="basket-title">収穫かご</h1>
         </div>
 
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          backgroundColor: '#fff',
-          borderRadius: '12px',
-          padding: '40px 20px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-        }}>
+        <div className="basket-card">
           
-          <div style={{
-            position: 'relative',
-            width: '600px',
-            height: '450px',
-            display: 'flex',
-            justifyContent: 'center',
-            overflow: 'hidden'
-          }}>
-            
-            <div style={{
-              position: 'absolute',
-              top: '125px',
-              left: 0,
-              width: '100%',
-              height: '400px',
-            }}>
+          <div className="basket-area">
+            <div className="basket-stage">
               
               <img 
                 src="/VegeTASK_籠(後).png" 
                 alt="籠の背面"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                  zIndex: 10
-                }}
+                className="basket-layer-back"
               />
 
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                zIndex: 20,
-                overflow: 'visible'
-              }}>
+              <div className="basket-veg-container">
                 {harvests.length === 0 ? (
-                  <p style={{ color: '#fff', fontWeight: 'bold', textShadow: '1px 1px 2px rgba(0,0,0,0.5)', textAlign: 'center', marginTop: '35%' }}>
-                  </p>
+                  <></>
                 ) : (
                   harvests.map((veg) => {
                     const isDragging = draggingId === veg.harvest_id;
@@ -268,18 +229,12 @@ const HarvestBasket: React.FC = () => {
                         src={veg.image_url || getFallbackImagePath(veg.vegetable_name, veg.vegetable_size)}
                         alt={veg.vegetable_name}
                         draggable={false}
+                        className="basket-veg-item"
                         style={{
-                          position: 'absolute',
                           left: `${veg.screenX}px`,
                           top: `${veg.screenY}px`,
                           zIndex: isDragging ? 999999 : veg.zIndex,
                           cursor: isDragging ? 'grabbing' : 'grab',
-                          width: 'auto',
-                          height: 'auto',
-                          maxWidth: 'none',
-                          maxHeight: 'none',
-                          imageRendering: 'pixelated',
-                          touchAction: 'none',
                           filter: isDragging 
                             ? `drop-shadow(0px 20px 15px rgba(0,0,0,0.4))` 
                             : `drop-shadow(0px 3px 4px rgba(0,0,0,0.4))`,
@@ -288,8 +243,7 @@ const HarvestBasket: React.FC = () => {
                             : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s',
                           transform: isDragging
                             ? `translate(-50%, calc(-100% - 20px)) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale * 1.15})`
-                            : `translate(-50%, -100%) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale})`,
-                          transformOrigin: 'bottom center'
+                            : `translate(-50%, -100%) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale})`
                         }}
                         onPointerDown={(e) => handlePointerDown(e, veg.harvest_id)}
                         onPointerMove={(e) => handlePointerMove(e, veg.harvest_id)}
@@ -322,24 +276,15 @@ const HarvestBasket: React.FC = () => {
               <img 
                 src="/VegeTASK_籠(前).png" 
                 alt="籠の前面"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                  zIndex: 10000,
-                  pointerEvents: 'none'
-                }}
+                className="basket-layer-front"
               />
             </div>
           </div>
 
-          <div style={{ marginTop: '20px', textAlign: 'center' }}>
-            <h3 style={{ margin: '0 0 10px 0', color: '#4caf50' }}>これまでの成果</h3>
-            <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#555' }}>
-              合計収穫数: <span style={{ fontSize: '24px', color: '#ff9800' }}>{harvests.length}</span> 個
+          <div className="basket-summary">
+            <h3 className="basket-summary-title">これまでの成果</h3>
+            <p className="basket-summary-text">
+              合計収穫数: <span className="basket-summary-count">{harvests.length}</span> 個
             </p>
           </div>
 

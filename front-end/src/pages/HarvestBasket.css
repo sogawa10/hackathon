@@ -1,0 +1,130 @@
+.basket-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.basket-title-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.basket-title {
+  margin: 0;
+  color: #2e7d32;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-shadow: 0 2px 4px rgba(46, 125, 50, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.basket-title::before {
+  content: '🧺';
+  font-size: 20px;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
+}
+
+.basket-title::after {
+  content: '🧺';
+  font-size: 20px;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
+  transform: scaleX(-1);
+}
+
+.basket-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 40px 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.basket-area {
+  position: relative;
+  width: 600px;
+  height: 450px;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.basket-stage {
+  position: absolute;
+  top: 125px;
+  left: 0;
+  width: 100%;
+  height: 400px;
+}
+
+.basket-layer-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  z-index: 10;
+}
+
+.basket-layer-front {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+.basket-veg-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 20;
+  overflow: visible;
+}
+
+.basket-veg-item {
+  position: absolute;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  image-rendering: pixelated;
+  touch-action: none;
+  transform-origin: bottom center;
+}
+
+.basket-summary {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.basket-summary-title {
+  margin: 0 0 10px 0;
+  color: #4caf50;
+}
+
+.basket-summary-text {
+  font-size: 18px;
+  font-weight: bold;
+  color: #555;
+}
+
+.basket-summary-count {
+  font-size: 24px;
+  color: #ff9800;
+}
