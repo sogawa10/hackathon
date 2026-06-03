@@ -462,7 +462,6 @@ type HarvestResponse struct {
 	Size          string `json:"size"`
 }
 
-// 野菜の名前からサイズを判定するヘルパー関数
 func getVegetableSize(name string) string {
 	switch name {
 	case "プチトマト", "オクラ", "枝豆", "シイタケ", "ネギ":
