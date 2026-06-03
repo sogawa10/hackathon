@@ -1,0 +1,167 @@
+.field-container {
+  font-family: sans-serif;
+  text-align: center;
+  padding: 10px;
+  position: relative;
+}
+
+.field-title {
+  margin: 0 0 16px 0;
+  color: #2e7d32;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-shadow: 0 2px 4px rgba(46, 125, 50, 0.15);
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.field-title::before {
+  content: '🌱';
+  font-size: 20px;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
+}
+
+.field-title::after {
+  content: '🌱';
+  font-size: 20px;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
+  transform: scaleX(-1);
+}
+
+.system-toast {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(76, 175, 80, 0.95);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  z-index: 100;
+  cursor: pointer;
+  white-space: pre-wrap;
+  font-size: 14px;
+  font-weight: bold;
+  transition: opacity 0.3s ease;
+  width: max-content;
+  max-width: 90%;
+}
+
+.field-board {
+  position: relative;
+  width: 450px;
+  height: 400px;
+  margin: 0 auto;
+  background-image: url("/VegeTASK_畑.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.crop-slot {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+
+  transform: translate(-50%, -80%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.crop-wrapper {
+  position: relative;
+  width: 100%;
+  flex: 1;
+}
+
+.popup-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+  z-index: 20;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  animation: popUpFadeIn 0.2s ease-out forwards;
+}
+
+.popup-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -6px;
+  border-width: 6px;
+  border-style: solid;
+}
+
+.hover-task-name {
+  background-color: #ff9800;
+  color: #fff;
+  border: 2px solid #fff;
+  pointer-events: none;
+}
+.hover-task-name::after {
+  border-color: #ff9800 transparent transparent transparent;
+}
+
+.growth-message {
+  background-color: #fff;
+  color: #ff9800;
+  border: 2px solid #ff9800;
+  cursor: pointer;
+  z-index: 25;
+}
+.growth-message::after {
+  border-color: #ff9800 transparent transparent transparent;
+}
+
+.crop-image {
+  position: absolute;
+  left: 50%;
+  transform-origin: bottom center;
+  width: auto;
+  height: auto;
+  image-rendering: pixelated;
+  transition: opacity 1s ease;
+}
+
+.crop-label {
+  font-size: 8px;
+  color: #fff;
+  padding: 1px 3px;
+  border-radius: 3px;
+  zoom: 0.8;
+  white-space: nowrap;
+  margin-top: 2px;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+@keyframes popUpFadeIn {
+  0% { opacity: 0; transform: translate(-50%, 10px); }
+  100% { opacity: 1; transform: translate(-50%, -6px); }
+}
+
+@keyframes bounceHarvest {
+  0%, 100% { 
+    transform: translateX(-50%) scale(var(--target-scale)) translateY(0); 
+    filter: drop-shadow(0 0 4px rgba(255,215,0,0.6)); 
+  }
+  50% { 
+    transform: translateX(-50%) scale(var(--target-scale)) translateY(-8px); 
+    filter: drop-shadow(0 0 12px rgba(255,215,0,1)); 
+  }
+}

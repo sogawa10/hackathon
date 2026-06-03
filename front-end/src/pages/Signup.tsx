@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { signup } from '../services/auth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import './Auth.css';
 
 const Signup: React.FC = () => {
   const [username, setUsername] = useState<string>('');
@@ -44,39 +45,47 @@ const Signup: React.FC = () => {
   };
 
   return (
-    <div className="signup-container" style={{ maxWidth: 400, margin: '0 auto', padding: 20 }}>
-      <h2>新規登録</h2>
+    <div className="auth-container">
+      <h2 className="auth-title">新規登録</h2>
       <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <label htmlFor="username" style={{ display: 'block', marginBottom: 6 }}>ユーザー名</label>
+        <div className="auth-input-group">
+          <label htmlFor="username" className="auth-label">ユーザー名</label>
           <input
             id="username"
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
+            className="auth-input"
             placeholder="ユーザー名を入力"
           />
         </div>
 
-        <div style={{ marginBottom: 12 }}>
-          <label htmlFor="password" style={{ display: 'block', marginBottom: 6 }}>パスワード</label>
+        <div className="auth-input-group">
+          <label htmlFor="password" className="auth-label">パスワード</label>
           <input
             id="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
+            className="auth-input"
             placeholder="パスワードを入力"
           />
         </div>
 
-        {error && <div style={{ color: 'red', marginBottom: 12 }}>{error}</div>}
+        {error && <div style={{ color: 'red', marginBottom: '12px', textAlign: 'center' }}>{error}</div>}
 
-        <button type="submit" disabled={loading} style={{ padding: '8px 16px', width: '100%' }}>
+        <button type="submit" disabled={loading} className="auth-button">
           {loading ? '登録中…' : 'Sign Up'}
         </button>
       </form>
+      
+      {/* 必要に応じてログイン画面への戻るリンクを追加しても親切です */}
+      <div className="auth-link-text">
+        すでにアカウントをお持ちですか？<br />
+        <Link to="/login" className="auth-link">
+          ログインはこちら
+        </Link>
+      </div>
     </div>
   );
 };

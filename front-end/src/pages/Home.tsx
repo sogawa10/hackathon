@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import VegetableField from '../components/VegetableField';
 import Layout from '../components/Layout';
+import './Home.css';
 
 type TodaySubtask = {
   sub_task_id: string;
@@ -238,37 +239,25 @@ const Home: React.FC = () => {
   return (
     <Layout>
       {harvestingTask && (
-        <div 
-          onClick={handleHarvestSubmit}
-          style={{
-            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-            backgroundColor: 'rgba(0, 0, 0, 0.85)', zIndex: 99999,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', animation: 'fadeIn 0.3s ease-out'
-          }}
-        >
-          <style>{`
-            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            @keyframes popZoom { 0% { transform: scale(0.5); opacity: 0; } 80% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
-          `}</style>
+        <div className="harvest-overlay" onClick={handleHarvestSubmit}>
           <img 
+            className="harvest-image"
             src={`/野菜${getVegetableInfoForOverlay(harvestingTask.vegetable_name).size}/収穫_${getVegetableInfoForOverlay(harvestingTask.vegetable_name).jpName}.png`}
             alt={harvestingTask.vegetable_name}
-            style={{ width: '280px', height: 'auto', imageRendering: 'pixelated', animation: 'popZoom 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
           />
-          <h1 style={{ color: '#fff', fontSize: '32px', marginTop: '30px', textShadow: '0 4px 8px rgba(0,0,0,0.5)', animation: 'popZoom 0.8s ease-out' }}>
+          <h1 className="harvest-title">
             {getVegetableInfoForOverlay(harvestingTask.vegetable_name).jpName}を収穫しました！🎉
           </h1>
-          <p style={{ color: '#ccc', marginTop: '15px', fontSize: '16px', animation: 'fadeIn 1s ease-out' }}>
+          <p className="harvest-subtitle">
             画面をクリックしてかごにしまう
           </p>
         </div>
       )}
 
-      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-        <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+      <div className="home-container">
+        <div className="home-layout">
           
-          <section style={{ flex: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+          <section className="home-field-section">
             <VegetableField 
               subtasks={fieldTasks} 
               systemMessage={systemMessage}
@@ -277,33 +266,35 @@ const Home: React.FC = () => {
             />
           </section>
 
-          <section style={{ flex: 4, padding: '20px', border: '1px solid #e0e0e0', borderRadius: '12px', backgroundColor: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', maxHeight: '500px', overflowY: 'auto' }}>
-            <div style={{ borderBottom: '3px solid #4caf50', paddingBottom: '10px', marginBottom: '20px' }}>
-              <h2 style={{ margin: 0, color: '#333' }}>今日のToDo</h2>
+          <section className="todo-section">
+            <div className="todo-header">
+              <h2>今日のToDo</h2>
             </div>
             
             {validTasks.length === 0 ? (
-              <p style={{ color: '#888', textAlign: 'center', marginTop: '40px' }}>今日のタスクはありません。</p>
+              <p className="todo-empty">今日のタスクはありません。</p>
             ) : (
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              <ul className="todo-list">
                 {validTasks.map((task) => {
                   const isCheckable = task.is_checkable !== false;
+                  const titleClass = task.is_completed ? "todo-title completed" : "todo-title";
+                  const contentClass = task.is_completed ? "todo-content completed" : "todo-content";
 
                   return (
-                    <li key={task.sub_task_id} style={{ display: 'flex', alignItems: 'flex-start', padding: '16px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <li key={task.sub_task_id} className={`todo-item ${task.is_completed ? 'completed-row' : ''}`}>
                       <input
                         type="checkbox"
                         checked={task.is_completed}
                         disabled={task.is_completed || !isCheckable} 
                         onChange={() => handleToggleComplete(task.sub_task_id, task.is_completed)}
-                        style={{ marginRight: '16px', width: '24px', height: '24px', cursor: (task.is_completed || !isCheckable) ? 'not-allowed' : 'pointer', flexShrink: 0, marginTop: '2px', opacity: (task.is_completed || !isCheckable) ? 0.5 : 1 }}
+                        className="todo-checkbox"
                       />
-                      <div style={{ flex: 1 }}>
-                        <span style={{ fontSize: '12px', color: '#fff', backgroundColor: '#81c784', padding: '2px 8px', borderRadius: '12px', display: 'inline-block', marginBottom: '6px' }}>{task.task_type}</span>
-                        <strong style={{ display: 'block', fontSize: '16px', textDecoration: task.is_completed ? 'line-through' : 'none', color: task.is_completed ? '#aaa' : '#333', marginBottom: '4px' }}>{task.task_title}</strong>
-                        <span style={{ fontSize: '14px', color: task.is_completed ? '#aaa' : '#666' }}>{task.task_content}</span>
+                      <div className="todo-details">
+                        <span className="todo-badge">{task.task_type}</span>
+                        <strong className={titleClass}>{task.task_title}</strong>
+                        <span className={contentClass}>{task.task_content}</span>
                         {!isCheckable && !task.is_completed && (
-                          <span style={{ fontSize: '12px', color: '#e53935', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>※最終日のみチェック可能</span>
+                          <span className="todo-warning">※最終日のみチェック可能</span>
                         )}
                       </div>
                     </li>

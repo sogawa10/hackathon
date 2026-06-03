@@ -34,7 +34,7 @@ const Header: React.FC<HeaderProps> = ({ onNewTaskClick }) => {
       borderBottom: '1px solid #e0e0e0', 
       backgroundColor: '#fff' 
     }}>
-      <button onClick={() => navigate('/basket')} style={buttonStyle}>🧺 籠</button>
+      <button onClick={() => navigate('/basket')} style={buttonStyle}>🧺 かご</button>
       <button onClick={onNewTaskClick} style={buttonStyle}>➕ 新規タスク登録</button>
       <button onClick={() => navigate('/home')} style={buttonStyle}>🏠 ホーム</button>
       <button onClick={() => navigate('/tasks')} style={buttonStyle}>📋 タスク一覧</button>
