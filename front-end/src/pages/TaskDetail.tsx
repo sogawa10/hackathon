@@ -107,7 +107,7 @@ const TaskDetail: React.FC = () => {
             <p><strong>分量:</strong> {task.total_count} {getUnit(task.task_type)}</p>
             {task.task_type === '単語帳' && <p><strong>周回数:</strong> {task.lap_count} 周</p>}
             <p><strong>期間:</strong> {task.start_date} 〜 {task.end_date}</p>
-            <p><strong>予備日:</strong> {task.buffer_days} 日</p>
+            <p><strong>残りの予備日:</strong> {task.buffer_days} 日</p>
             <p><strong>野菜:</strong> {task.vegetable_name || '未設定'}</p>
             <p><strong>状態:</strong> {getGrowthStatusLabel(task.growth_stage)}</p>
           </div>

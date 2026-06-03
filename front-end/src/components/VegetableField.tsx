@@ -26,34 +26,34 @@ const PLACEMENT_ORDER: number[] = [
 ];
 
 const GRID_POSITIONS: { [key: number]: { top: string; left: string } } = {
-  0:  { top: '28%', left: '50.5%' },
-  1:  { top: '33.5%', left: '41%' },
-  2:  { top: '38.5%', left: '31.5%' },
-  3:  { top: '44%', left: '22%' },
-  4:  { top: '49.25%', left: '12.5%' },
-  5:  { top: '34.25%', left: '60%' },
-  6:  { top: '39%', left: '50.5%' },
-  7:  { top: '44%', left: '41%' },
-  8:  { top: '49.75%', left: '31.5%' },
-  9:  { top: '54.5%', left: '22%' },
-  10: { top: '38.5%', left: '69.5%' },
-  11: { top: '44.75%', left: '60%' },
-  12: { top: '49.5%', left: '50.5%' },
-  13: { top: '54.5%', left: '41%' },
-  14: { top: '60%', left: '31.5%' },
-  15: { top: '44.25%', left: '79%' },
-  16: { top: '49.5%', left: '69.5%' },
-  17: { top: '55.5%', left: '60%' },
-  18: { top: '60.25%', left: '50.5%' },
-  19: { top: '65.25%', left: '41%' },
-  20: { top: '49.5%', left: '88.5%' },
-  21: { top: '55%', left: '79%' },
-  22: { top: '60.25%', left: '69.5%' },
-  23: { top: '66.5%', left: '60%' },
-  24: { top: '71%', left: '50.5%' }
+  0:  { top: '28.5%', left: '50.25%' },
+  1:  { top: '33.75%', left: '40.75%' },
+  2:  { top: '39.5%', left: '31.25%' },
+  3:  { top: '44.5%', left: '21.75%' },
+  4:  { top: '49.75%', left: '12.25%' },
+  5:  { top: '33.75%', left: '59.9%' },
+  6:  { top: '39.5%', left: '50.25%' },
+  7:  { top: '44.5%', left: '40.75%' },
+  8:  { top: '49.75%', left: '31.25%' },
+  9:  { top: '55.5%', left: '21.5%' },
+  10: { top: '39.5%', left: '69.5%' },
+  11: { top: '44.5%', left: '59.9%' },
+  12: { top: '49.75%', left: '50.25%' },
+  13: { top: '55.5%', left: '40.75%' },
+  14: { top: '60.75%', left: '31.25%' },
+  15: { top: '44.5%', left: '79%' },
+  16: { top: '49.75%', left: '69.5%' },
+  17: { top: '55.5%', left: '59.9%' },
+  18: { top: '60.75%', left: '50.25%' },
+  19: { top: '66%', left: '40.75%' },
+  20: { top: '49.75%', left: '88.4%' },
+  21: { top: '55.5%', left: '78.5%' },
+  22: { top: '60.75%', left: '69.25%' },
+  23: { top: '66%', left: '59.9%' },
+  24: { top: '71.5%', left: '50.25%' }
 };
 
-const ASSET_SCALE = 0.2;
+const ASSET_SCALE = 0.3;
 const LOCAL_STORAGE_POSITIONS_KEY = 'vegetable_field_positions';
 
 const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMessage, onClearSystemMessage, onHarvestClick }) => {
@@ -217,7 +217,6 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
   return (
     <div className="field-container">
       
-      {/* システムメッセージ（水やり・成長通知など） */}
       <div 
         className="system-toast"
         style={{
@@ -259,7 +258,6 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
             >
               <div className="crop-wrapper">
                 
-                {/* 成長メッセージのポップアップ */}
                 {growthMsg && (
                   <div 
                     className="popup-tooltip growth-message"
@@ -276,14 +274,12 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
                   </div>
                 )}
 
-                {/* ホバー時のタスク名ポップアップ */}
                 {hoveredTask === task.sub_task_id && !growthMsg && (
                   <div className="popup-tooltip hover-task-name">
                     {task.task_title}
                   </div>
                 )}
 
-                {/* 野菜の画像本体 */}
                 {path && (
                   <img 
                     key={path}
@@ -312,7 +308,6 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
                 )}
               </div>
 
-              {/* LV・状態ラベル */}
               {label && (
                 <span 
                   className="crop-label" 
