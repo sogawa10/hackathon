@@ -365,13 +365,28 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 
 		query := `
-            SELECT 
-                t.task_id, t.task_type, t.task_title, t.total_count, t.lap_count, 
-                t.start_date, t.end_date, t.vegetable_name, t.growth_stage,
-                (SELECT COUNT(*) FROM "SUB_TASKS" s WHERE s.task_id = t.task_id AND s.scheduled_date < $2 AND s.is_completed = false) AS missed_days
-            FROM "TASKS" t
-            WHERE t.user_id = $1
-            ORDER BY t.start_date DESC
+			SELECT
+				t.task_id,
+				t.task_type,
+				t.task_title,
+				t.total_count,
+				t.lap_count,
+				t.start_date,
+				t.end_date,
+				v.vegetable_name,
+				t.growth_stage,
+				(
+					SELECT COUNT(*)
+					FROM "SUB_TASKS" s
+					WHERE s.task_id = t.task_id
+					AND s.scheduled_date < $2
+					AND s.is_completed = false
+				) AS missed_days
+			FROM "TASKS" t
+			JOIN "VEGETABLES" v
+				ON v.vegetable_id = t.vegetable_id
+			WHERE t.user_id = $1
+			ORDER BY t.start_date DESC
         `
 		rows, err := db.Query(query, userID, todayStr)
 		if err != nil {
