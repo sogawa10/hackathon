@@ -40,20 +40,60 @@ const Home: React.FC = () => {
       const token = localStorage.getItem('access_token');
       if (!token) throw new Error('認証トークンが見つかりません');
 
-      const res = await fetch(`${API_BASE_URL}/api/subtasks/today`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      const [resToday, resTasks] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/subtasks/today`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+        fetch(`${API_BASE_URL}/api/tasks`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+      ]);
+
+      if (!resToday.ok) throw new Error('データの取得に失敗しました');
+
+      const todayData = await resToday.json();
+      const safeTodayData = Array.isArray(todayData) ? todayData : [];
+      
+      const allTasksData = resTasks.ok ? await resTasks.json() : [];
+      const safeAllTasks = Array.isArray(allTasksData) ? allTasksData : [];
+
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const todayStr = `${year}-${month}-${day}`;
+
+      const futureTasks = safeAllTasks.filter((t: any) => {
+        if (!t.start_date) return false;
+        const startDateStr = t.start_date.split('T')[0];
+        return startDateStr > todayStr && Number(t.growth_stage) === 0;
       });
 
-      if (!res.ok) throw new Error('データの取得に失敗しました');
+      const futureMockSubtasks: TodaySubtask[] = futureTasks.map((t: any) => ({
+        sub_task_id: `future-${t.task_id}`,
+        task_id: t.task_id,
+        scheduled_date: t.start_date,
+        task_type: t.task_type,
+        task_title: t.task_title,
+        task_content: '開始日までお待ちください',
+        is_completed: false,
+        vegetable_name: t.vegetable_name || 'かぼちゃ',
+        growth_stage: 0,
+        is_checkable: false,
+      }));
 
-      const data = await res.json();
+      const combinedData = [...safeTodayData, ...futureMockSubtasks];
       const notifiedWithered = JSON.parse(localStorage.getItem('notified_withered') || '[]');
 
-      const initialTasks = data.filter((t: TodaySubtask) => {
+      const initialTasks = combinedData.filter((t: TodaySubtask) => {
         if (t && t.growth_stage === -1 && notifiedWithered.includes(t.task_id)) {
           return false; 
         }
@@ -150,11 +190,11 @@ const Home: React.FC = () => {
   const getVegetableInfoForOverlay = (vegName: string) => {
     let size = 'L';
     let jpName = 'かぼちゃ';
-    if (vegName === 'kabocha' || vegName === 'pumpkin' || vegName === 'L') { jpName = 'かぼちゃ'; size = 'L'; }
-    else if (vegName === 'cabbage') { jpName = 'キャベツ'; size = 'L'; }
-    else if (vegName === 'corn') { jpName = 'トウモロコシ'; size = 'L'; }
-    else if (vegName === 'broccoli') { jpName = 'ブロッコリー'; size = 'L'; }
-    else if (vegName === 'cauliflower') { jpName = 'カリフラワー'; size = 'L'; }
+    if (['かぼちゃ', 'kabocha', 'pumpkin', 'L'].includes(vegName)) { jpName = 'かぼちゃ'; size = 'L'; }
+    else if (['キャベツ', 'cabbage'].includes(vegName)) { jpName = 'キャベツ'; size = 'L'; }
+    else if (['トウモロコシ', 'corn'].includes(vegName)) { jpName = 'トウモロコシ'; size = 'L'; }
+    else if (['ブロッコリー', 'broccoli'].includes(vegName)) { jpName = 'ブロッコリー'; size = 'L'; }
+    else if (['カリフラワー', 'cauliflower'].includes(vegName)) { jpName = 'カリフラワー'; size = 'L'; }
     else if (['赤パプリカ', 'ピーマン', 'なす', 'キュウリ', 'タケノコ', 'M'].includes(vegName)) { jpName = vegName === 'M' ? 'なす' : vegName; size = 'M'; }
     else if (['プチトマト', 'オクラ', '枝豆', 'シイタケ', 'ネギ', 'S'].includes(vegName)) { jpName = vegName === 'S' ? 'プチトマト' : vegName; size = 'S'; }
     return { size, jpName };
@@ -178,7 +218,7 @@ const Home: React.FC = () => {
       setSubtasks((prev) =>
         prev.map((task) =>
           task && task.sub_task_id === harvestingTask.sub_task_id
-            ? { ...task, growth_stage: 11 } // 畑から消すために11（非表示）にする
+            ? { ...task, growth_stage: 11 }
             : task
         )
       );
@@ -192,7 +232,8 @@ const Home: React.FC = () => {
   if (loading) return <Layout><div>読み込み中…</div></Layout>;
   if (error) return <Layout><div style={{ color: 'red' }}>{error}</div></Layout>;
 
-  const validTasks = subtasks.filter((t): t is TodaySubtask => t !== null);
+  const validTasks = subtasks.filter((t): t is TodaySubtask => t !== null && !t.sub_task_id.startsWith('future-'));
+  const fieldTasks = subtasks.filter(t => t && t.growth_stage !== 11);
 
   return (
     <Layout>
@@ -229,7 +270,7 @@ const Home: React.FC = () => {
           
           <section style={{ flex: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
             <VegetableField 
-              subtasks={subtasks} 
+              subtasks={fieldTasks} 
               systemMessage={systemMessage}
               onClearSystemMessage={() => setSystemMessage(null)}
               onHarvestClick={setHarvestingTask}
@@ -246,9 +287,7 @@ const Home: React.FC = () => {
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {validTasks.map((task) => {
-                  const match = task.task_content.match(/\((\d+)\/(\d+)日目\)$/);
-                  const isFraction = match !== null;
-                  const isCheckable = isFraction ? match[1] === match[2] : true;
+                  const isCheckable = task.is_checkable !== false;
 
                   return (
                     <li key={task.sub_task_id} style={{ display: 'flex', alignItems: 'flex-start', padding: '16px 0', borderBottom: '1px solid #f0f0f0' }}>

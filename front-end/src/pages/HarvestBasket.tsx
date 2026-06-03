@@ -166,19 +166,19 @@ const HarvestBasket: React.FC = () => {
     let size = vegSize || 'L';
     let jpName = 'かぼちゃ';
 
-    if (vegName === 'kabocha' || vegName === 'pumpkin' || vegName === 'L') {
+    if (['かぼちゃ', 'kabocha', 'pumpkin', 'L'].includes(vegName)) {
       jpName = 'かぼちゃ';
       size = 'L';
-    } else if (vegName === 'cabbage') {
+    } else if (['キャベツ', 'cabbage'].includes(vegName)) {
       jpName = 'キャベツ';
       size = 'L';
-    } else if (vegName === 'corn') {
+    } else if (['トウモロコシ', 'corn'].includes(vegName)) {
       jpName = 'トウモロコシ';
       size = 'L';
-    } else if (vegName === 'broccoli') {
+    } else if (['ブロッコリー', 'broccoli'].includes(vegName)) {
       jpName = 'ブロッコリー';
       size = 'L';
-    } else if (vegName === 'cauliflower') {
+    } else if (['カリフラワー', 'cauliflower'].includes(vegName)) {
       jpName = 'カリフラワー';
       size = 'L';
     } else if (['赤パプリカ', 'ピーマン', 'なす', 'キュウリ', 'タケノコ', 'M'].includes(vegName)) {
@@ -197,9 +197,9 @@ const HarvestBasket: React.FC = () => {
 
   return (
     <Layout>
-      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+      <div style={{ maxWidth: 1000, margin: '0 auto', padding: '20px' }}>
         
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '30px' }}>
+        <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '30px' }}>
           <h1 style={{ margin: 0, color: '#333' }}>収穫かご</h1>
         </div>
 
@@ -256,7 +256,6 @@ const HarvestBasket: React.FC = () => {
               }}>
                 {harvests.length === 0 ? (
                   <p style={{ color: '#fff', fontWeight: 'bold', textShadow: '1px 1px 2px rgba(0,0,0,0.5)', textAlign: 'center', marginTop: '35%' }}>
-                    まだ収穫された野菜はありません
                   </p>
                 ) : (
                   harvests.map((veg) => {
@@ -273,7 +272,7 @@ const HarvestBasket: React.FC = () => {
                           position: 'absolute',
                           left: `${veg.screenX}px`,
                           top: `${veg.screenY}px`,
-                          zIndex: isDragging ? 99999 : veg.zIndex,
+                          zIndex: isDragging ? 999999 : veg.zIndex,
                           cursor: isDragging ? 'grabbing' : 'grab',
                           width: 'auto',
                           height: 'auto',

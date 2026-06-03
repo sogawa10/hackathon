@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 type TaskCreateModalProps = {
   isOpen: boolean;
   onClose: () => void;
-
   onTaskCreated?: (message?: string) => void;
 };
 
@@ -151,10 +150,12 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
       if (startDate === getTodayString()) {
         msg = `${vegetableName}の種を畑に植えました！🌱\nさっそく今日のToDoを進めて育てましょう！`;
       } else {
-        msg = `${vegetableName}の種をゲットしました！🎁\n開始日の ${startDate} になったら自動的に畑に植えられます！`;
+        msg = `${vegetableName}の種を畑に植えました！🌱\n開始日の ${startDate} になるまで大切に見守りましょう！`;
       }
 
       if (onTaskCreated) onTaskCreated(msg);
+      window.dispatchEvent(new CustomEvent('taskCreated', { detail: msg }));
+      
       onClose();
     } catch (err: any) {
       setErrorMsg(err.message || '野菜の割り当てに失敗しました');

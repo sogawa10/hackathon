@@ -53,6 +53,7 @@ const GRID_POSITIONS: { [key: number]: { top: string; left: string } } = {
 };
 
 const ASSET_SCALE = 0.2;
+const LOCAL_STORAGE_POSITIONS_KEY = 'vegetable_field_positions';
 
 const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMessage, onClearSystemMessage, onHarvestClick }) => {
   const field: (TodaySubtask | null)[] = Array(25).fill(null);
@@ -117,37 +118,63 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
   }, [systemMessage]);
 
   if (Array.isArray(subtasks)) {
-    const unassignedTasks: TodaySubtask[] = [];
-    
-    subtasks.forEach((task, index) => {
-      if (!task) return;
-      if (subtasks.length === 25) {
-        if (task) field[index] = task;
-      } else {
-        unassignedTasks.push(task);
+    let taskPositions: { [taskId: string]: number } = {};
+    try {
+      const storedPositions = localStorage.getItem(LOCAL_STORAGE_POSITIONS_KEY);
+      if (storedPositions) {
+        taskPositions = JSON.parse(storedPositions);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    const currentTaskIds = new Set(subtasks.map(t => t?.task_id).filter(Boolean));
+    let positionsChanged = false;
+
+    Object.keys(taskPositions).forEach(taskId => {
+      if (!currentTaskIds.has(taskId)) {
+        delete taskPositions[taskId];
+        positionsChanged = true;
       }
     });
 
-    if (subtasks.length !== 25) {
-      unassignedTasks.forEach((task) => {
-        const availableSlot = PLACEMENT_ORDER.find(gridIndex => field[gridIndex] === null);
+    const usedSlots = new Set(Object.values(taskPositions));
+
+    subtasks.forEach(task => {
+      if (!task) return;
+      if (taskPositions[task.task_id] === undefined) {
+        const availableSlot = PLACEMENT_ORDER.find(slot => !usedSlots.has(slot));
         if (availableSlot !== undefined) {
-          field[availableSlot] = task;
+          taskPositions[task.task_id] = availableSlot;
+          usedSlots.add(availableSlot);
+          positionsChanged = true;
         }
-      });
+      }
+    });
+
+    if (positionsChanged) {
+      localStorage.setItem(LOCAL_STORAGE_POSITIONS_KEY, JSON.stringify(taskPositions));
     }
+
+    subtasks.forEach(task => {
+      if (!task) return;
+      const pos = taskPositions[task.task_id];
+      if (pos !== undefined) {
+        field[pos] = task;
+      }
+    });
   }
 
   const getVegetableInfo = (task: TodaySubtask) => {
-    let vegName = task.vegetable_name || 'kabocha';
+    let vegName = task.vegetable_name || 'かぼちゃ';
     let size = 'L';
     let jpName = 'かぼちゃ';
 
-    if (vegName === 'kabocha' || vegName === 'pumpkin' || vegName === 'L') { jpName = 'かぼちゃ'; size = 'L'; }
-    else if (vegName === 'cabbage') { jpName = 'キャベツ'; size = 'L'; }
-    else if (vegName === 'corn') { jpName = 'トウモロコシ'; size = 'L'; }
-    else if (vegName === 'broccoli') { jpName = 'ブロッコリー'; size = 'L'; }
-    else if (vegName === 'cauliflower') { jpName = 'カリフラワー'; size = 'L'; }
+    if (['かぼちゃ', 'kabocha', 'pumpkin', 'L'].includes(vegName)) { jpName = 'かぼちゃ'; size = 'L'; }
+    else if (['キャベツ', 'cabbage'].includes(vegName)) { jpName = 'キャベツ'; size = 'L'; }
+    else if (['トウモロコシ', 'corn'].includes(vegName)) { jpName = 'トウモロコシ'; size = 'L'; }
+    else if (['ブロッコリー', 'broccoli'].includes(vegName)) { jpName = 'ブロッコリー'; size = 'L'; }
+    else if (['カリフラワー', 'cauliflower'].includes(vegName)) { jpName = 'カリフラワー'; size = 'L'; }
     else if (['赤パプリカ', 'ピーマン', 'なす', 'キュウリ', 'タケノコ', 'M'].includes(vegName)) { jpName = vegName === 'M' ? 'なす' : vegName; size = 'M'; }
     else if (['プチトマト', 'オクラ', '枝豆', 'シイタケ', 'ネギ', 'S'].includes(vegName)) { jpName = vegName === 'S' ? 'プチトマト' : vegName; size = 'S'; }
 
@@ -169,17 +196,14 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
       bgColor = '#8d6e63';
       scaleMultiplier = 0.2;
       bottomOffset = '-18px'; 
-    } else if (stage >= 1 && stage <= 10) {
-
+    } else if (stage >= 1 && stage <= 9) {
       path = `/野菜${size}/(${stage})_${jpName}.png`;
-      
-      if (stage === 10) {
-        label = '✨収穫する✨';
-        bgColor = '#ff9800';
-      } else {
-        label = `LV-${stage}`;
-        bgColor = 'rgba(0,0,0,0.6)';
-      }
+      label = `LV-${stage}`;
+      bgColor = 'rgba(0,0,0,0.6)';
+    } else if (stage === 10) {
+      path = `/野菜${size}/(${stage})_${jpName}.png`;
+      label = '✨収穫する✨';
+      bgColor = '#ff9800';
     } else {
       path = '';
       label = '';
