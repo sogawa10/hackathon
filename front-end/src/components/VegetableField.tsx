@@ -205,24 +205,20 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
     
     if (stage === -1) {
       path = `/野菜${size}/枯れ_${jpName}.png`;
-      //label = '枯れ';
       bgColor = '#795548';
       statusText = '枯れ';
     } else if (stage === 0) {
       path = `/種が埋まっている土.png`;
-      //label = '種';
       bgColor = '#8d6e63';
       scaleMultiplier = 0.2;
       bottomOffsetBase = -18; 
       statusText = '種';
     } else if (stage >= 1 && stage <= 9) {
       path = `/野菜${size}/(${stage})_${jpName}.png`;
-      //label = `LV-${stage}`;
       bgColor = 'rgba(0,0,0,0.6)';
       statusText = `LV-${stage}`;
     } else if (stage === 10) {
       path = `/野菜${size}/(${stage})_${jpName}.png`;
-      //label = '✨収穫する✨';
       bgColor = '#ff9800';
       statusText = '✨収穫する✨';
     } else {
