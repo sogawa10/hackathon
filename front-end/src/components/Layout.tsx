@@ -20,11 +20,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         onClose={() => setIsModalOpen(false)} 
         onTaskCreated={(msg) => {
           setIsModalOpen(false);
-          // タスク作成後、ホーム画面にいる場合はリロードせずにリストを更新
+
           if (location.pathname === '/home' || location.pathname === '/') {
             window.dispatchEvent(new CustomEvent('taskCreated', { detail: msg }));
           } else {
-            // 他の画面にいる場合はホーム画面に遷移してメッセージを表示
+
             navigate('/home', { state: { systemMessage: msg } });
           }
         }}

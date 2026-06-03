@@ -48,6 +48,8 @@ const Tasks: React.FC = () => {
 
         const data = await res.json();
 
+        console.log("取得したタスク一覧:", data);
+
         setTasks(data || []);
       } catch (err: any) {
         setError(err.message || 'エラーが発生しました');
@@ -58,31 +60,6 @@ const Tasks: React.FC = () => {
 
     fetchTasks();
   }, [API_BASE_URL, navigate]);
-
-  const handleDelete = async (taskId: string, taskTitle: string) => {
-    if (!window.confirm(`「${taskTitle}」を本当に削除しますか？\n※この操作は取り消せません。`)) {
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch(`${API_BASE_URL}/api/tasks/${taskId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error('タスクの削除に失敗しました');
-      }
-
-      setTasks((prev) => prev.filter((task) => task.task_id !== taskId));
-      
-    } catch (err: any) {
-      alert(err.message || 'エラーが発生しました');
-    }
-  };
 
   return (
     <Layout>
@@ -106,52 +83,45 @@ const Tasks: React.FC = () => {
             {tasks.map(task => (
               <div 
                 key={task.task_id} 
+                onClick={() => navigate(`/tasks/${task.task_id}`)}
                 style={{
                   border: '1px solid #e0e0e0', borderRadius: '12px', padding: '20px', 
                   backgroundColor: '#fff', boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                  display: 'flex', alignItems: 'center', gap: '20px',
+                  cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.1)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)';
+                  e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: '12px', color: '#fff', backgroundColor: '#81c784', padding: '4px 10px', borderRadius: '12px', display: 'inline-block', marginBottom: '8px' }}>
+                <div style={{ width: '80px', flexShrink: 0 }}>
+                  <span style={{ fontSize: '12px', color: '#fff', backgroundColor: '#81c784', padding: '4px 10px', borderRadius: '12px', display: 'inline-block' }}>
                     {task.task_type}
                   </span>
+                </div>
+
+                <div style={{ flex: 1 }}>
                   <h3 style={{ margin: '0 0 8px 0', color: '#333', fontSize: '18px' }}>{task.task_title}</h3>
                   <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>
                     期間: {task.start_date.split('T')[0]} 〜 {task.end_date.split('T')[0]} / 全{task.total_count}単位
                   </p>
                 </div>
                 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                  <div style={{ textAlign: 'center', backgroundColor: '#f9fbe7', padding: '10px 20px', borderRadius: '8px', minWidth: '80px' }}>
-                    <div style={{ fontSize: '24px' }}>🌱</div>
-                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#558b2f' }}>{task.vegetable_name || '未設定'}</div>
+                <div style={{ 
+                  textAlign: 'center', 
+                  backgroundColor: '#f9fbe7', 
+                  padding: '12px 20px', 
+                  borderRadius: '8px', 
+                  minWidth: '100px'
+                }}>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#558b2f' }}>
+                    {task.vegetable_name || '未設定'}
                   </div>
-                  
-                  <button
-                    onClick={() => handleDelete(task.task_id, task.task_title)}
-                    style={{
-                      backgroundColor: '#fff',
-                      color: '#e53935',
-                      border: '1px solid #ffcdd2',
-                      borderRadius: '8px',
-                      padding: '8px 12px',
-                      cursor: 'pointer',
-                      fontWeight: 'bold',
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#ffebee';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#fff';
-                    }}
-                  >
-                    🗑️ 削除
-                  </button>
                 </div>
               </div>
             ))}
