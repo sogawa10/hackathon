@@ -19,8 +19,6 @@ type VisualHarvest = HarvestedVegetable & {
   scale: number;
 };
 
-const ASSET_SCALE = 0.45;
-
 function mulberry32(a: number) {
   return function() {
     let t = a += 0x6D2B79F5;
@@ -57,12 +55,12 @@ const HarvestBasket: React.FC = () => {
 
         const rand = mulberry32(12345);
 
-        const cx = 300; 
-        const cy = 250; 
-        const rx = 180;
-        const rz = 50;
-        const min_dist = 40;
-        const stack_h = 20;
+        const cx = 50; 
+        const cy = 60; 
+        const rx = 35;
+        const rz = 12;
+        const min_dist = 8;
+        const stack_h = 5;
 
         const placed: { x: number, z: number, y: number }[] = [];
         
@@ -74,7 +72,7 @@ const HarvestBasket: React.FC = () => {
 
           const nx = x / rx;
           const nz = z / rz;
-          let y = 15 * (nx * nx + nz * nz);
+          let y = 8 * (nx * nx + nz * nz);
 
           for (const p of placed) {
             const dx = x - p.x;
@@ -82,7 +80,7 @@ const HarvestBasket: React.FC = () => {
             const dist = Math.sqrt(dx * dx + dz * dz);
             
             if (dist < min_dist) {
-              const height_boost = stack_h - (dist / min_dist) * 8;
+              const height_boost = stack_h - (dist / min_dist) * (stack_h * 0.8);
               y = Math.max(y, p.y + height_boost);
             }
           }
@@ -90,7 +88,7 @@ const HarvestBasket: React.FC = () => {
 
           const screenX = cx + x;
           const screenY = cy + z - y;
-          const zIndex = Math.floor(screenY);
+          const zIndex = Math.floor(screenY * 100);
           const rotation = rand() * 60 - 30;
 
           return { 
@@ -122,15 +120,22 @@ const HarvestBasket: React.FC = () => {
   const handlePointerMove = (e: React.PointerEvent<HTMLImageElement>, id: string) => {
     if (draggingId !== id) return;
     
-    const cx = 300; 
-    const cy = 250; 
-    const rx = 175;
-    const rz = 55;
+    const parent = e.currentTarget.parentElement;
+    const width = parent ? parent.offsetWidth : window.innerWidth;
+    const height = parent ? parent.offsetHeight : window.innerHeight;
+
+    const moveX = (e.movementX / width) * 100;
+    const moveY = (e.movementY / height) * 100;
+
+    const cx = 50; 
+    const cy = 60; 
+    const rx = 35;
+    const rz = 12;
 
     setHarvests(prev => prev.map(veg => {
       if (veg.harvest_id === id) {
-        let nextX = veg.screenX + e.movementX;
-        let nextY = veg.screenY + e.movementY;
+        let nextX = veg.screenX + moveX;
+        let nextY = veg.screenY + moveY;
 
         nextX = Math.max(cx - rx, Math.min(cx + rx, nextX));
 
@@ -139,7 +144,7 @@ const HarvestBasket: React.FC = () => {
         const maxY = cy + maxDy; 
         nextY = Math.min(maxY, nextY);
 
-        const minY = 90;
+        const minY = 20;
         nextY = Math.max(minY, nextY);
 
         return {
@@ -159,7 +164,7 @@ const HarvestBasket: React.FC = () => {
     
     setHarvests(prev => prev.map(veg => ({
       ...veg,
-      zIndex: Math.floor(veg.screenY)
+      zIndex: Math.floor(veg.screenY * 100)
     })));
   };
 
@@ -231,8 +236,9 @@ const HarvestBasket: React.FC = () => {
                         draggable={false}
                         className="basket-veg-item"
                         style={{
-                          left: `${veg.screenX}px`,
-                          top: `${veg.screenY}px`,
+                          left: `${veg.screenX}%`,
+                          top: `${veg.screenY}%`,
+                          width: `${12 * veg.scale}%`,
                           zIndex: isDragging ? 999999 : veg.zIndex,
                           cursor: isDragging ? 'grabbing' : 'grab',
                           filter: isDragging 
@@ -242,20 +248,20 @@ const HarvestBasket: React.FC = () => {
                             ? 'none' 
                             : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s',
                           transform: isDragging
-                            ? `translate(-50%, calc(-100% - 20px)) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale * 1.15})`
-                            : `translate(-50%, -100%) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale})`
+                            ? `translate(-50%, calc(-100% - 2vw)) rotate(${veg.rotation}deg) scale(1.15)`
+                            : `translate(-50%, -100%) rotate(${veg.rotation}deg)`
                         }}
                         onPointerDown={(e) => handlePointerDown(e, veg.harvest_id)}
                         onPointerMove={(e) => handlePointerMove(e, veg.harvest_id)}
                         onPointerUp={(e) => handlePointerUp(e, veg.harvest_id)}
                         onMouseEnter={(e) => {
                           if (draggingId) return;
-                          e.currentTarget.style.transform = `translate(-50%, calc(-100% - 15px)) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale * 1.15})`;
+                          e.currentTarget.style.transform = `translate(-50%, calc(-100% - 1.5vw)) rotate(${veg.rotation}deg) scale(1.15)`;
                           e.currentTarget.style.zIndex = '9999';
                         }}
                         onMouseLeave={(e) => {
                           if (draggingId) return;
-                          e.currentTarget.style.transform = `translate(-50%, -100%) rotate(${veg.rotation}deg) scale(${ASSET_SCALE * veg.scale})`;
+                          e.currentTarget.style.transform = `translate(-50%, -100%) rotate(${veg.rotation}deg)`;
                           e.currentTarget.style.zIndex = String(veg.zIndex);
                         }}
                         onError={(e) => {

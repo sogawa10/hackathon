@@ -205,13 +205,15 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
         overflow: 'hidden'
       }}>
         
-        <button 
-          onClick={onClose}
-          style={{
-            position: 'absolute', top: '15px', right: '15px',
-            background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#888'
-          }}
-        >×</button>
+        {step === 1 && (
+          <button 
+            onClick={onClose}
+            style={{
+              position: 'absolute', top: '15px', right: '15px',
+              background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#888'
+            }}
+          >×</button>
+        )}
 
         {step === 1 && (
           <>

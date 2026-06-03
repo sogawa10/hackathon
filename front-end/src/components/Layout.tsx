@@ -54,9 +54,18 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
       <Header onNewTaskClick={handleNewTaskClick} />
-      <main style={{ flex: 1, padding: '20px' }}>
+      
+      <main style={{ 
+        flex: 1, 
+        width: '100%', 
+        padding: '2vh 2vw', 
+        boxSizing: 'border-box',
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
         {children}
       </main>
       
