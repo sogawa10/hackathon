@@ -26,31 +26,31 @@ const PLACEMENT_ORDER: number[] = [
 ];
 
 const GRID_POSITIONS: { [key: number]: { top: string; left: string } } = {
-  0:  { top: '28.5%', left: '50.25%' },
-  1:  { top: '33.75%', left: '40.75%' },
-  2:  { top: '39.5%', left: '31.25%' },
-  3:  { top: '44.5%', left: '21.75%' },
-  4:  { top: '49.75%', left: '12.25%' },
-  5:  { top: '33.75%', left: '59.9%' },
-  6:  { top: '39.5%', left: '50.25%' },
-  7:  { top: '44.5%', left: '40.75%' },
-  8:  { top: '49.75%', left: '31.25%' },
-  9:  { top: '55.5%', left: '21.5%' },
-  10: { top: '39.5%', left: '69.5%' },
-  11: { top: '44.5%', left: '59.9%' },
-  12: { top: '49.75%', left: '50.25%' },
-  13: { top: '55.5%', left: '40.75%' },
-  14: { top: '60.75%', left: '31.25%' },
-  15: { top: '44.5%', left: '79%' },
-  16: { top: '49.75%', left: '69.5%' },
-  17: { top: '55.5%', left: '59.9%' },
-  18: { top: '60.75%', left: '50.25%' },
-  19: { top: '66%', left: '40.75%' },
-  20: { top: '49.75%', left: '88.4%' },
-  21: { top: '55.5%', left: '78.5%' },
-  22: { top: '60.75%', left: '69.25%' },
-  23: { top: '66%', left: '59.9%' },
-  24: { top: '71.5%', left: '50.25%' }
+  0:  { top: '24.5%', left: '50.25%' },
+  1:  { top: '29.75%', left: '40.75%' },
+  2:  { top: '35.5%', left: '31.25%' },
+  3:  { top: '40.5%', left: '21.75%' },
+  4:  { top: '45.75%', left: '12.25%' },
+  5:  { top: '29.75%', left: '59.9%' },
+  6:  { top: '35.5%', left: '50.25%' },
+  7:  { top: '40.5%', left: '40.75%' },
+  8:  { top: '45.75%', left: '31.25%' },
+  9:  { top: '51.5%', left: '21.5%' },
+  10: { top: '35.5%', left: '69.5%' },
+  11: { top: '40.5%', left: '59.9%' },
+  12: { top: '45.75%', left: '50.25%' },
+  13: { top: '51.5%', left: '40.75%' },
+  14: { top: '56.75%', left: '31.25%' },
+  15: { top: '40.5%', left: '79%' },
+  16: { top: '45.75%', left: '69.5%' },
+  17: { top: '51.5%', left: '59.9%' },
+  18: { top: '56.75%', left: '50.25%' },
+  19: { top: '62%', left: '40.75%' },
+  20: { top: '45.75%', left: '88.4%' },
+  21: { top: '51.5%', left: '78.5%' },
+  22: { top: '56.75%', left: '69.25%' },
+  23: { top: '62%', left: '59.9%' },
+  24: { top: '67.5%', left: '50.25%' }
 };
 
 const ASSET_SCALE = 0.3;
@@ -64,7 +64,22 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
   const [isClearingSystemMessage, setIsClearingSystemMessage] = useState(false);
   const [hoveredTask, setHoveredTask] = useState<string | null>(null);
 
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [boardScale, setBoardScale] = useState(1);
+
   const prevSubtasksRef = useRef<(TodaySubtask | null)[]>([]);
+
+  useEffect(() => {
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        setBoardScale(entry.contentRect.height / 600);
+      }
+    });
+    if (boardRef.current) {
+      observer.observe(boardRef.current);
+    }
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const newGrowthMsgs = { ...growthMsgs };
@@ -185,33 +200,34 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
     let bgColor = '';
     
     let scaleMultiplier = 1; 
-    let bottomOffset = '0px'; 
-
+    let bottomOffsetBase = 0; 
+    let statusText = ''; 
+    
     if (stage === -1) {
       path = `/野菜${size}/枯れ_${jpName}.png`;
-      label = '枯れ';
       bgColor = '#795548';
+      statusText = '枯れ';
     } else if (stage === 0) {
       path = `/種が埋まっている土.png`;
-      label = '種';
       bgColor = '#8d6e63';
       scaleMultiplier = 0.2;
-      bottomOffset = '-18px'; 
+      bottomOffsetBase = -18; 
+      statusText = '種';
     } else if (stage >= 1 && stage <= 9) {
       path = `/野菜${size}/(${stage})_${jpName}.png`;
-      label = `LV-${stage}`;
       bgColor = 'rgba(0,0,0,0.6)';
+      statusText = `LV-${stage}`;
     } else if (stage === 10) {
       path = `/野菜${size}/(${stage})_${jpName}.png`;
-      label = '✨収穫する✨';
       bgColor = '#ff9800';
+      statusText = '✨収穫する✨';
     } else {
       path = '';
-      label = '';
+      //label = '';
       bgColor = 'transparent';
     }
 
-    return { path, size, jpName, label, bgColor, scaleMultiplier, bottomOffset };
+    return { path, size, jpName, label, bgColor, scaleMultiplier, bottomOffsetBase, statusText };
   };
 
   return (
@@ -235,14 +251,17 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
 
       <h3 className="field-title">マイベジタブル畑</h3>
 
-      <div className="field-board">
+      <div className="field-board" ref={boardRef}>
         {field.map((task, index) => {
           if (!task || task.vegetable_name === undefined) return null;
 
-          const { path, label, bgColor, scaleMultiplier, bottomOffset } = getVegetableInfo(task);
+          const { path, label, bgColor, scaleMultiplier, bottomOffsetBase, statusText } = getVegetableInfo(task);
           const pos = GRID_POSITIONS[index] || { top: '50%', left: '50%' };
           const isAnimating = recentCompleted.has(task.sub_task_id);
           const growthMsg = growthMsgs[task.sub_task_id];
+
+          const currentScale = ASSET_SCALE * scaleMultiplier * boardScale;
+          const bottomOffset = `${bottomOffsetBase * boardScale}px`;
 
           return (
             <div 
@@ -275,8 +294,35 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
                 )}
 
                 {hoveredTask === task.sub_task_id && !growthMsg && (
-                  <div className="popup-tooltip hover-task-name">
-                    {task.task_title}
+                  <div 
+                    className="popup-tooltip hover-task-name"
+                    style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      alignItems: 'center', 
+                      gap: '6px', 
+                      padding: '8px 12px',
+                      backgroundColor: '#ffffff',
+                      color: '#333333',
+                      border: '2px solid #ff9800'
+                    }}
+                  >
+                    {statusText && (
+                      <span style={{ 
+                        backgroundColor: bgColor === 'rgba(0,0,0,0.6)' ? '#4caf50' : bgColor, 
+                        color: '#fff', 
+                        padding: '4px 10px', 
+                        borderRadius: '12px', 
+                        fontSize: '11px', 
+                        fontWeight: 'bold',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      }}>
+                        {statusText}
+                      </span>
+                    )}
+                    <span style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                      {task.task_title}
+                    </span>
                   </div>
                 )}
 
@@ -294,8 +340,8 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
                     }}
                     style={{ 
                       bottom: bottomOffset,
-                      '--target-scale': ASSET_SCALE * scaleMultiplier,
-                      transform: `translateX(-50%) scale(${ASSET_SCALE * scaleMultiplier})`, 
+                      '--target-scale': currentScale,
+                      transform: `translateX(-50%) scale(${currentScale})`, 
                       opacity: task.growth_stage === -1 ? 0 : (isAnimating ? 0.4 : 1),
                       cursor: task.growth_stage === 10 ? 'pointer' : 'default',
                       animation: task.growth_stage === 10 ? 'bounceHarvest 2s infinite' : 'none'

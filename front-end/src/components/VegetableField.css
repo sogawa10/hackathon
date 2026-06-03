@@ -3,6 +3,7 @@
   text-align: center;
   padding: 10px;
   position: relative;
+  width: 100%;
 }
 
 .field-title {
@@ -53,8 +54,8 @@
 
 .field-board {
   position: relative;
-  width: 675px;
-  height: 600px;
+  height: 60vh;
+  aspect-ratio: 9 / 8;
   margin: 0 auto;
   background-image: url("/VegeTASK_畑.png");
   background-size: contain;
@@ -64,8 +65,8 @@
 
 .crop-slot {
   position: absolute;
-  width: 60px;
-  height: 60px;
+  width: 8.888%;
+  height: 10%;
   transform: translate(-50%, -80%);
   display: flex;
   flex-direction: column;

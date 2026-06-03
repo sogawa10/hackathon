@@ -91,9 +91,25 @@ const Tasks: React.FC = () => {
     return { label: '進行中🌱', color: '#2e7d32', bgColor: '#e8f5e9' };
   };
 
+  const getTaskTypeColor = (type: string, isWithered: boolean) => {
+    if (isWithered) return '#9e9e9e';
+    switch (type) {
+      case '問題集':
+        return '#ff9800'; 
+      case '単語帳':
+        return '#81c784'; 
+      case '過去問':
+        return '#ec5e54'; 
+      case 'その他':
+        return '#46dbe6c9'; 
+      default:
+        return '#81c784';
+    }
+  };
+
   return (
     <Layout>
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ width: '100%', padding: '0 2vw', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '30px' }}>
           <h1 style={{ margin: 0, color: '#333', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '1.2em' }}>📋</span> タスク一覧
@@ -141,7 +157,7 @@ const Tasks: React.FC = () => {
                   }}
                 >
                   <div style={{ width: '80px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', color: '#fff', backgroundColor: isWithered ? '#9e9e9e' : '#81c784', padding: '4px 10px', borderRadius: '12px', display: 'inline-block', textAlign: 'center' }}>
+                    <span style={{ fontSize: '12px', color: '#fff', backgroundColor: getTaskTypeColor(task.task_type, isWithered), padding: '4px 10px', borderRadius: '12px', display: 'inline-block', textAlign: 'center' }}>
                       {task.task_type}
                     </span>
                     <span style={{ fontSize: '11px', color: status.color, backgroundColor: status.bgColor, padding: '4px', borderRadius: '8px', display: 'inline-block', textAlign: 'center', fontWeight: 'bold' }}>
