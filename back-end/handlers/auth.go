@@ -126,7 +126,8 @@ func generateTokens(userID string) (string, string, error) {
 	secret := []byte(os.Getenv("JWT_SECRET"))
 	accessTokenClaims := jwt.MapClaims{
 		"user_id": userID,
-		"exp":     time.Now().Add(time.Hour * 1).Unix(),
+		// 現在時刻の取得
+		"exp": time.Now().Add(time.Hour * 1).Unix(),
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessTokenClaims)
 	accessTokenString, err := accessToken.SignedString(secret)
@@ -135,7 +136,8 @@ func generateTokens(userID string) (string, string, error) {
 	}
 	refreshTokenClaims := jwt.MapClaims{
 		"user_id": userID,
-		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(),
+		// 現在時刻の取得
+		"exp": time.Now().Add(time.Hour * 24 * 7).Unix(),
 	}
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshTokenClaims)
 	refreshTokenString, err := refreshToken.SignedString(secret)
