@@ -253,8 +253,8 @@ func CompleteSubTaskHandler(db *sql.DB) gin.HandlerFunc {
 			}
 
 			baseContent := taskContent[:len(taskContent)-len(matches[0])]
-			queryUpdateSub := `UPDATE "SUB_TASKS" SET is_completed = true WHERE task_id = $1 AND task_content LIKE $2`
-			_, err = tx.Exec(queryUpdateSub, taskID, baseContent+"%")
+			queryUpdateSub := `UPDATE "SUB_TASKS" SET is_completed = true WHERE task_id = $1 AND task_content LIKE $2 AND scheduled_date <= $3`
+			_, err = tx.Exec(queryUpdateSub, taskID, baseContent+"%", targetDate)
 		} else {
 			queryUpdateSub := `UPDATE "SUB_TASKS" SET is_completed = true WHERE sub_task_id = $1`
 			_, err = tx.Exec(queryUpdateSub, req.SubTaskID)
