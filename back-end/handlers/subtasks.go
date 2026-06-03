@@ -46,6 +46,8 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		todayStr := time.Now().In(jst).Format("2006-01-02")
 
+		reCheckable := regexp.MustCompile(`\((\d+)/(\d+)日目\)$`)
+
 		updateQuery := `
 			UPDATE "TASKS" 
 			SET growth_stage = 1 
@@ -76,7 +78,7 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 
 			for _, taskID := range activeTaskIDs {
 				missedSubQuery := `
-					SELECT scheduled_date 
+					SELECT scheduled_date, task_content
 					FROM "SUB_TASKS" 
 					WHERE task_id = $1 AND is_completed = false AND scheduled_date < $2
 					ORDER BY scheduled_date ASC
@@ -91,11 +93,22 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 
 				for missedRows.Next() {
 					var sDate time.Time
-					if err := missedRows.Scan(&sDate); err == nil {
-						if missedCount == 0 {
-							firstMissedDate = sDate
+					var tContent string
+					if err := missedRows.Scan(&sDate, &tContent); err == nil {
+						isCheckable := true
+						matches := reCheckable.FindStringSubmatch(tContent)
+						if len(matches) == 3 {
+							if matches[1] != matches[2] {
+								isCheckable = false
+							}
 						}
-						missedCount++
+
+						if isCheckable {
+							if missedCount == 0 {
+								firstMissedDate = sDate
+							}
+							missedCount++
+						}
 					}
 				}
 				missedRows.Close()
@@ -177,9 +190,7 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 				s.VegetableName = vegName.String
 			}
 			s.IsCheckable = true
-
-			re := regexp.MustCompile(`\((\d+)/(\d+)日目\)$`)
-			matches := re.FindStringSubmatch(s.TaskContent)
+			matches := reCheckable.FindStringSubmatch(s.TaskContent)
 			if len(matches) == 3 {
 				if matches[1] != matches[2] {
 					s.IsCheckable = false
@@ -188,7 +199,6 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 			subtasks = append(subtasks, s)
 		}
 		c.JSON(http.StatusOK, subtasks)
-
 	}
 }
 
