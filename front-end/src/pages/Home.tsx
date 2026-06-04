@@ -99,7 +99,30 @@ const Home: React.FC = () => {
         is_checkable: false,
       }));
 
-      const combinedData = [...safeTodayData, ...futureMockSubtasks];
+      const todayTaskIds = new Set(safeTodayData.map((t: any) => t.task_id));
+
+      const harvestableTasks = safeAllTasks.filter((t: any) => {
+        return Number(t.growth_stage) === 10 && !todayTaskIds.has(t.task_id);
+      });
+
+      const harvestableMockSubtasks: TodaySubtask[] = harvestableTasks.map((t: any) => ({
+        sub_task_id: `harvest-${t.task_id}`,
+        task_id: t.task_id,
+        scheduled_date: t.end_date || t.start_date || todayStr,
+        task_type: t.task_type,
+        task_title: t.task_title,
+        task_content: '収穫できます',
+        is_completed: false,
+        vegetable_name: t.vegetable_name || 'かぼちゃ',
+        growth_stage: 10,
+        is_checkable: false,
+      }));
+
+      const combinedData = [
+        ...safeTodayData,
+        ...futureMockSubtasks,
+        ...harvestableMockSubtasks,
+      ];
 
       const storedNotified = localStorage.getItem('notified_withered');
       let notifiedWithered: string[] = [];
@@ -138,7 +161,7 @@ const Home: React.FC = () => {
         }));
         setTimeout(() => {
           setWitheredTasks(mappedWithered);
-        }, 1200); 
+        }, 200); 
       }
 
     } catch (err: any) {
@@ -269,7 +292,13 @@ const Home: React.FC = () => {
   if (loading) return <Layout><div>読み込み中…</div></Layout>;
   if (error) return <Layout><div style={{ color: 'red' }}>{error}</div></Layout>;
 
-  const validTasks = subtasks.filter((t): t is TodaySubtask => t !== null && !t.sub_task_id.startsWith('future-'));
+  const validTasks = subtasks.filter(
+  (t): t is TodaySubtask =>
+    t !== null &&
+    !t.sub_task_id.startsWith('future-') &&
+    !t.sub_task_id.startsWith('harvest-')
+);
+
   const fieldTasks = subtasks.filter(t => t && t.growth_stage !== 11);
 
   return (
