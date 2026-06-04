@@ -67,6 +67,7 @@ const Home: React.FC = () => {
       const allTasksData = resTasks.ok ? await resTasks.json() : [];
       const safeAllTasks = Array.isArray(allTasksData) ? allTasksData : [];
 
+      // 現在時刻の取得
       const mockDate = import.meta.env.VITE_MOCK_TODAY;
       let todayStr = '';
       if (mockDate) {
