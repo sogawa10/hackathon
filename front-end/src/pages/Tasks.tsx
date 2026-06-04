@@ -81,10 +81,21 @@ const Tasks: React.FC = () => {
       return { label: '収穫済🧺', color: '#e65100', bgColor: '#fff3e0' };
     }
 
-    const today = new Date().toISOString().split('T')[0];
-    const startDate = task.start_date.split('T')[0];
+    const mockDate = import.meta.env.VITE_MOCK_TODAY;
+    let todayStr = '';
+    if (mockDate) {
+      todayStr = mockDate;
+    } else {
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      todayStr = `${year}-${month}-${day}`;
+    }
 
-    if (startDate > today) {
+    const startDateStr = task.start_date.split('T')[0];
+
+    if (startDateStr > todayStr) {
       return { label: '開始前⏳', color: '#1565c0', bgColor: '#e3f2fd' };
     }
 
