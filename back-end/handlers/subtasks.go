@@ -250,7 +250,7 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 			INNER JOIN "VEGETABLES" v ON t.vegetable_id = v.vegetable_id
 			WHERE t.user_id = $1
 			  AND s.scheduled_date = $2
-			  AND t.growth_stage != -1
+			  AND t.growth_stage NOT IN (-1, 11)
 		`
 
 		rows, err := db.Query(query, userID, todayStr)
