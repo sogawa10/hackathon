@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -68,107 +69,190 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "トランザクションの開始に失敗しました"})
 			return
 		}
+		defer tx.Rollback()
 
-		activeTasksQuery := `SELECT task_id FROM "TASKS" WHERE user_id = $1 AND growth_stage NOT IN (-1, 11)`
+		activeTasksQuery := `
+			SELECT task_id
+			FROM "TASKS"
+			WHERE user_id = $1
+			  AND growth_stage NOT IN (-1, 11)
+		`
+
 		taskRows, err := tx.Query(activeTasksQuery, userID)
-		if err == nil {
-			var activeTaskIDs []string
-			for taskRows.Next() {
-				var tid string
-				if err := taskRows.Scan(&tid); err == nil {
-					activeTaskIDs = append(activeTaskIDs, tid)
-				}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "タスク取得に失敗しました"})
+			return
+		}
+
+		var activeTaskIDs []string
+		for taskRows.Next() {
+			var tid string
+			if err := taskRows.Scan(&tid); err == nil {
+				activeTaskIDs = append(activeTaskIDs, tid)
 			}
-			taskRows.Close()
+		}
+		taskRows.Close()
 
-			for _, taskID := range activeTaskIDs {
-				missedSubQuery := `
-					SELECT scheduled_date, task_content
-					FROM "SUB_TASKS" 
-					WHERE task_id = $1 AND is_completed = false AND scheduled_date < $2
-					ORDER BY scheduled_date ASC
-				`
-				missedRows, err := tx.Query(missedSubQuery, taskID, todayStr)
-				if err != nil {
+		for _, taskID := range activeTaskIDs {
+			missedSubQuery := `
+				SELECT scheduled_date, task_content
+				FROM "SUB_TASKS" 
+				WHERE task_id = $1
+				  AND is_completed = false
+				  AND scheduled_date < $2
+				  AND task_content NOT LIKE '予備日%'
+				ORDER BY scheduled_date ASC
+			`
+
+			missedRows, err := tx.Query(missedSubQuery, taskID, todayStr)
+			if err != nil {
+				continue
+			}
+
+			var firstMissedDate time.Time
+			requiredBufferDays := 0
+
+			for missedRows.Next() {
+				var sDate time.Time
+				var tContent string
+
+				if err := missedRows.Scan(&sDate, &tContent); err != nil {
 					continue
 				}
 
-				var firstMissedDate time.Time
-				missedCount := 0
+				matches := reCheckable.FindStringSubmatch(tContent)
 
-				for missedRows.Next() {
-					var sDate time.Time
-					var tContent string
-					if err := missedRows.Scan(&sDate, &tContent); err == nil {
-						isCheckable := true
-						matches := reCheckable.FindStringSubmatch(tContent)
-						if len(matches) == 3 {
-							if matches[1] != matches[2] {
-								isCheckable = false
-							}
-						}
+				if len(matches) == 3 {
+					current, err1 := strconv.Atoi(matches[1])
+					total, err2 := strconv.Atoi(matches[2])
 
-						if isCheckable {
-							if missedCount == 0 {
-								firstMissedDate = sDate
-							}
-							missedCount++
-						}
+					if err1 != nil || err2 != nil || total <= 0 {
+						continue
 					}
-				}
-				missedRows.Close()
 
-				if missedCount == 0 {
+					if current != total {
+						continue
+					}
+
+					startDate := sDate.AddDate(0, 0, -(total - 1))
+
+					if requiredBufferDays == 0 || startDate.Before(firstMissedDate) {
+						firstMissedDate = startDate
+					}
+
+					requiredBufferDays += total
 					continue
 				}
 
-				var remainingBuffers int
-				tx.QueryRow(`SELECT COUNT(*) FROM "SUB_TASKS" WHERE task_id = $1 AND task_content LIKE '予備日%' AND is_completed = false`, taskID).Scan(&remainingBuffers)
-
-				if missedCount > remainingBuffers {
-					tx.Exec(`UPDATE "TASKS" SET growth_stage = -1 WHERE task_id = $1`, taskID)
-					continue
+				if requiredBufferDays == 0 || sDate.Before(firstMissedDate) {
+					firstMissedDate = sDate
 				}
 
+				requiredBufferDays++
+			}
+			missedRows.Close()
+
+			if requiredBufferDays == 0 {
+				continue
+			}
+
+			var remainingBuffers int
+			if err := tx.QueryRow(`
+				SELECT COUNT(*)
+				FROM "SUB_TASKS"
+				WHERE task_id = $1
+				  AND task_content = '予備日（調整期間）'
+				  AND is_completed = false
+			`, taskID).Scan(&remainingBuffers); err != nil {
+				continue
+			}
+
+			consumedBufferDays := requiredBufferDays
+			if consumedBufferDays > remainingBuffers {
+				consumedBufferDays = remainingBuffers
+			}
+
+			if consumedBufferDays > 0 {
 				deleteBufferQuery := `
 					DELETE FROM "SUB_TASKS"
 					WHERE sub_task_id IN (
-						SELECT sub_task_id FROM "SUB_TASKS"
-						WHERE task_id = $1 AND task_content LIKE '予備日%' AND is_completed = false
+						SELECT sub_task_id
+						FROM "SUB_TASKS"
+						WHERE task_id = $1
+						  AND task_content = '予備日（調整期間）'
+						  AND is_completed = false
 						ORDER BY scheduled_date DESC
 						LIMIT $2
 					)
 				`
-				tx.Exec(deleteBufferQuery, taskID, missedCount)
+				if _, err := tx.Exec(deleteBufferQuery, taskID, consumedBufferDays); err != nil {
+					continue
+				}
 
 				shiftQuery := `
 					UPDATE "SUB_TASKS"
 					SET scheduled_date = scheduled_date + ($1 * INTERVAL '1 day')
-					WHERE task_id = $2 AND is_completed = false
+					WHERE task_id = $2
+					  AND is_completed = false
 				`
-				tx.Exec(shiftQuery, missedCount, taskID)
+				if _, err := tx.Exec(shiftQuery, consumedBufferDays, taskID); err != nil {
+					continue
+				}
 
 				insertQuery := `
-					INSERT INTO "SUB_TASKS" (sub_task_id, task_id, scheduled_date, task_content, is_completed)
+					INSERT INTO "SUB_TASKS" (
+						sub_task_id,
+						task_id,
+						scheduled_date,
+						task_content,
+						is_completed
+					)
 					VALUES (gen_random_uuid(), $1, $2, '予備日（消費済み）', true)
 				`
-				for i := 0; i < missedCount; i++ {
+
+				for i := 0; i < consumedBufferDays; i++ {
 					insertDate := firstMissedDate.AddDate(0, 0, i).Format("2006-01-02")
-					tx.Exec(insertQuery, taskID, insertDate)
+					if _, err := tx.Exec(insertQuery, taskID, insertDate); err != nil {
+						continue
+					}
+				}
+			}
+
+			if requiredBufferDays > remainingBuffers {
+				if _, err := tx.Exec(`
+					UPDATE "TASKS"
+					SET growth_stage = -1
+					WHERE task_id = $1
+				`, taskID); err != nil {
+					continue
 				}
 			}
 		}
-		tx.Commit()
+
+		if err := tx.Commit(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "データの確定に失敗しました"})
+			return
+		}
 
 		query := `
 			SELECT
-				s.sub_task_id, t.task_id, s.scheduled_date, t.task_type, t.task_title, 
-				s.task_content, s.is_completed, v.vegetable_name, t.growth_stage
+				s.sub_task_id,
+				t.task_id,
+				s.scheduled_date,
+				t.task_type,
+				t.task_title,
+				s.task_content,
+				s.is_completed,
+				v.vegetable_name,
+				t.growth_stage
 			FROM "SUB_TASKS" s
 			INNER JOIN "TASKS" t ON s.task_id = t.task_id
 			INNER JOIN "VEGETABLES" v ON t.vegetable_id = v.vegetable_id
-			WHERE t.user_id = $1 AND s.scheduled_date = $2 AND t.growth_stage != -1
+			WHERE t.user_id = $1
+			  AND s.scheduled_date = $2
+			  AND t.growth_stage != -1
 		`
+
 		rows, err := db.Query(query, userID, todayStr)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラーが発生しました"})
@@ -184,25 +268,34 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 			var scDate time.Time
 
 			if err := rows.Scan(
-				&s.SubTaskID, &s.TaskID, &scDate, &s.TaskType, &s.TaskTitle,
-				&s.TaskContent, &s.IsCompleted, &vegName, &s.GrowthStage,
+				&s.SubTaskID,
+				&s.TaskID,
+				&scDate,
+				&s.TaskType,
+				&s.TaskTitle,
+				&s.TaskContent,
+				&s.IsCompleted,
+				&vegName,
+				&s.GrowthStage,
 			); err != nil {
 				continue
 			}
 
 			s.ScheduledDate = scDate.Format("2006-01-02")
+
 			if vegName.Valid {
 				s.VegetableName = vegName.String
 			}
+
 			s.IsCheckable = true
 			matches := reCheckable.FindStringSubmatch(s.TaskContent)
-			if len(matches) == 3 {
-				if matches[1] != matches[2] {
-					s.IsCheckable = false
-				}
+			if len(matches) == 3 && matches[1] != matches[2] {
+				s.IsCheckable = false
 			}
+
 			subtasks = append(subtasks, s)
 		}
+
 		c.JSON(http.StatusOK, subtasks)
 	}
 }

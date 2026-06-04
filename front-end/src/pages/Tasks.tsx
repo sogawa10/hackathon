@@ -81,6 +81,7 @@ const Tasks: React.FC = () => {
       return { label: '収穫済🧺', color: '#e65100', bgColor: '#fff3e0' };
     }
 
+    // 現在時刻の取得
     const mockDate = import.meta.env.VITE_MOCK_TODAY;
     let todayStr = '';
     if (mockDate) {
