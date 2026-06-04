@@ -125,7 +125,8 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 				var remainingBuffers int
 				tx.QueryRow(`SELECT COUNT(*) FROM "SUB_TASKS" WHERE task_id = $1 AND task_content LIKE '予備日%' AND is_completed = false`, taskID).Scan(&remainingBuffers)
 
-				if missedCount > remainingBuffers {
+				newBufferCount := remainingBuffers - missedCount
+				if newBufferCount < 0 {
 					tx.Exec(`UPDATE "TASKS" SET growth_stage = -1 WHERE task_id = $1`, taskID)
 					continue
 				}
