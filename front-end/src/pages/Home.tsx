@@ -23,6 +23,7 @@ const Home: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [systemMessage, setSystemMessage] = useState<string | null>(null);
   const [harvestingTask, setHarvestingTask] = useState<TodaySubtask | null>(null);
+  const [witheredTasks, setWitheredTasks] = useState<TodaySubtask[]>([]);
   
   const location = useLocation();
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -99,7 +100,19 @@ const Home: React.FC = () => {
       }));
 
       const combinedData = [...safeTodayData, ...futureMockSubtasks];
-      const notifiedWithered = JSON.parse(localStorage.getItem('notified_withered') || '[]');
+
+      const storedNotified = localStorage.getItem('notified_withered');
+      let notifiedWithered: string[] = [];
+      
+      if (storedNotified) {
+        notifiedWithered = JSON.parse(storedNotified);
+      } else {
+        const allWitheredIds = safeAllTasks
+          .filter((t: any) => t.growth_stage === -1)
+          .map((t: any) => t.task_id);
+        localStorage.setItem('notified_withered', JSON.stringify(allWitheredIds));
+        notifiedWithered = allWitheredIds;
+      }
 
       const initialTasks = combinedData.filter((t: TodaySubtask) => {
         if (t && t.growth_stage === -1 && notifiedWithered.includes(t.task_id)) {
@@ -110,16 +123,24 @@ const Home: React.FC = () => {
 
       setSubtasks(initialTasks);
 
-      const newlyWithered = initialTasks.filter((t: TodaySubtask) => t && t.growth_stage === -1);
-      if (newlyWithered.length > 0) {
-        const witheredNames = newlyWithered.map((t: TodaySubtask) => t.vegetable_name).join('と');
+      const newlyWitheredTasks = safeAllTasks.filter((t: any) => t.growth_stage === -1 && !notifiedWithered.includes(t.task_id));
+      if (newlyWitheredTasks.length > 0) {
+        const mappedWithered: TodaySubtask[] = newlyWitheredTasks.map((t: any) => ({
+          sub_task_id: `withered-${t.task_id}`,
+          task_id: t.task_id,
+          scheduled_date: t.start_date || '',
+          task_type: t.task_type,
+          task_title: t.task_title,
+          task_content: '',
+          is_completed: false,
+          vegetable_name: t.vegetable_name || '野菜',
+          growth_stage: -1,
+        }));
         setTimeout(() => {
-          alert(`残念ですが、${witheredNames}が枯死して消滅しました...🍂\nタスクのスケジュールを見直してみましょう。`);
-          const updatedNotified = [...notifiedWithered, ...newlyWithered.map((t: TodaySubtask) => t.task_id)];
-          localStorage.setItem('notified_withered', JSON.stringify(updatedNotified));
-          setSubtasks(prev => prev.filter(t => t && t.growth_stage !== -1));
+          setWitheredTasks(mappedWithered);
         }, 1200); 
       }
+
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -237,6 +258,14 @@ const Home: React.FC = () => {
     setHarvestingTask(null);
   };
 
+  const handleCloseWitheredPopup = () => {
+    const notifiedWithered = JSON.parse(localStorage.getItem('notified_withered') || '[]');
+    const updatedNotified = [...notifiedWithered, ...witheredTasks.map(t => t.task_id)];
+    localStorage.setItem('notified_withered', JSON.stringify(updatedNotified));
+    setSubtasks(prev => prev.filter(t => t && t.growth_stage !== -1));
+    setWitheredTasks([]);
+  };
+
   if (loading) return <Layout><div>読み込み中…</div></Layout>;
   if (error) return <Layout><div style={{ color: 'red' }}>{error}</div></Layout>;
 
@@ -257,6 +286,23 @@ const Home: React.FC = () => {
           </h1>
           <p className="harvest-subtitle">
             画面をクリックしてかごにしまう
+          </p>
+        </div>
+      )}
+
+      {witheredTasks.length > 0 && (
+        <div className="harvest-overlay" onClick={handleCloseWitheredPopup}>
+          <div style={{ fontSize: '120px', marginBottom: '40px', animation: 'popOutImage 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards' }}>
+            🍂
+          </div>
+          <h1 className="harvest-title" style={{ textAlign: 'center', lineHeight: '1.4' }}>
+            残念ですが、<br />
+            <span style={{ color: '#ff5252' }}>{witheredTasks.map(t => t.vegetable_name || '野菜').join('と')}</span>
+            <br />が枯死して消滅しました...
+          </h1>
+          <p className="harvest-subtitle" style={{ marginTop: '20px' }}>
+            タスクのスケジュールを見直してみましょう<br />
+            （画面をクリックして閉じる）
           </p>
         </div>
       )}
