@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -353,7 +354,10 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 		// 現在時刻の取得
-		todayStr := time.Now().In(jst).Format("2006-01-02")
+		todayStr := os.Getenv("MOCK_TODAY")
+		if todayStr == "" {
+			todayStr = time.Now().In(jst).Format("2006-01-02")
+		}
 
 		updateQuery := `
 			UPDATE "TASKS" 
