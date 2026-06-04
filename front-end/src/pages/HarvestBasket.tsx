@@ -28,6 +28,8 @@ function mulberry32(a: number) {
   }
 }
 
+const LOCAL_STORAGE_BASKET_KEY = 'harvest_basket_positions';
+
 const HarvestBasket: React.FC = () => {
   const [harvests, setHarvests] = useState<VisualHarvest[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -64,7 +66,28 @@ const HarvestBasket: React.FC = () => {
 
         const placed: { x: number, z: number, y: number }[] = [];
         
+        const storedPositionsStr = localStorage.getItem(LOCAL_STORAGE_BASKET_KEY);
+        const storedPositions = storedPositionsStr ? JSON.parse(storedPositionsStr) : {};
+
         const calculatedData: VisualHarvest[] = data.map((veg) => {
+          if (storedPositions[veg.harvest_id]) {
+            const pos = storedPositions[veg.harvest_id];
+            placed.push({ 
+              x: pos.screenX - cx, 
+              z: pos.screenY - cy, 
+              y: 0 
+            });
+            
+            return {
+              ...veg,
+              screenX: pos.screenX,
+              screenY: pos.screenY,
+              zIndex: pos.zIndex,
+              rotation: pos.rotation,
+              scale: pos.scale || 1.0
+            };
+          }
+
           const r = Math.sqrt(rand()); 
           const theta = rand() * 2 * Math.PI;
           const x = r * Math.cos(theta) * rx;
@@ -100,6 +123,18 @@ const HarvestBasket: React.FC = () => {
             scale: 1.0
           };
         });
+
+        const positionsToStore: Record<string, any> = {};
+        calculatedData.forEach(v => {
+          positionsToStore[v.harvest_id] = {
+            screenX: v.screenX,
+            screenY: v.screenY,
+            zIndex: v.zIndex,
+            rotation: v.rotation,
+            scale: v.scale
+          };
+        });
+        localStorage.setItem(LOCAL_STORAGE_BASKET_KEY, JSON.stringify(positionsToStore));
 
         setHarvests(calculatedData);
         setLoading(false);
@@ -162,10 +197,31 @@ const HarvestBasket: React.FC = () => {
     setDraggingId(null);
     e.currentTarget.releasePointerCapture(e.pointerId);
     
-    setHarvests(prev => prev.map(veg => ({
-      ...veg,
-      zIndex: Math.floor(veg.screenY * 100)
-    })));
+    setHarvests(prev => {
+      const next = prev.map(veg => {
+        if (veg.harvest_id === id) {
+          return {
+            ...veg,
+            zIndex: Math.floor(veg.screenY * 100)
+          };
+        }
+        return veg;
+      });
+
+      const positionsToStore: Record<string, any> = {};
+      next.forEach(v => {
+        positionsToStore[v.harvest_id] = {
+          screenX: v.screenX,
+          screenY: v.screenY,
+          zIndex: v.zIndex,
+          rotation: v.rotation,
+          scale: v.scale
+        };
+      });
+      localStorage.setItem(LOCAL_STORAGE_BASKET_KEY, JSON.stringify(positionsToStore));
+
+      return next;
+    });
   };
 
   const getFallbackImagePath = (vegName: string, vegSize: string) => {
