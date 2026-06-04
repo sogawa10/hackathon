@@ -66,11 +66,18 @@ const Home: React.FC = () => {
       const allTasksData = resTasks.ok ? await resTasks.json() : [];
       const safeAllTasks = Array.isArray(allTasksData) ? allTasksData : [];
 
-      const d = new Date();
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const todayStr = `${year}-${month}-${day}`;
+      // 現在時刻の取得
+      const mockDate = import.meta.env.VITE_MOCK_TODAY;
+      let todayStr = '';
+      if (mockDate) {
+        todayStr = mockDate;
+      } else {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        todayStr = `${year}-${month}-${day}`;
+      }
 
       const futureTasks = safeAllTasks.filter((t: any) => {
         if (!t.start_date) return false;

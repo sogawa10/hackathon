@@ -384,8 +384,8 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 					SELECT COUNT(*)
 					FROM "SUB_TASKS" s
 					WHERE s.task_id = t.task_id
-					AND s.scheduled_date < $2
-					AND s.is_completed = false
+					AND s.task_content = '予備日（消費済み）'
+					AND s.is_completed = true
 				) AS missed_days
 			FROM "TASKS" t
 			JOIN "VEGETABLES" v
@@ -393,7 +393,7 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 			WHERE t.user_id = $1
 			ORDER BY t.start_date DESC
         `
-		rows, err := db.Query(query, userID, todayStr)
+		rows, err := db.Query(query, userID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラーが発生しました"})
 			return
