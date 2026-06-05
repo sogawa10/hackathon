@@ -42,32 +42,28 @@ const Home: React.FC = () => {
       const token = localStorage.getItem('access_token');
       if (!token) throw new Error('認証トークンが見つかりません');
 
-      const [resToday, resTasks] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/subtasks/today`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }),
-        fetch(`${API_BASE_URL}/api/tasks`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        })
-      ]);
+    const resToday = await fetch(`${API_BASE_URL}/api/subtasks/today`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!resToday.ok) throw new Error('データの取得に失敗しました');
+    const todayData = await resToday.json();
 
-      if (!resToday.ok) throw new Error('データの取得に失敗しました');
+    const resTasks = await fetch(`${API_BASE_URL}/api/tasks`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const allTasksData = resTasks.ok ? await resTasks.json() : [];
 
-      const todayData = await resToday.json();
-      const safeTodayData = Array.isArray(todayData) ? todayData : [];
-      
-      const allTasksData = resTasks.ok ? await resTasks.json() : [];
-      const safeAllTasks = Array.isArray(allTasksData) ? allTasksData : [];
+    const safeTodayData = Array.isArray(todayData) ? todayData : [];
+    const safeAllTasks = Array.isArray(allTasksData) ? allTasksData : [];
 
-      // 現在時刻の取得
       const mockDate = import.meta.env.VITE_MOCK_TODAY;
       let todayStr = '';
       if (mockDate) {
