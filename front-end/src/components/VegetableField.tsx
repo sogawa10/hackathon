@@ -12,6 +12,7 @@ interface TodaySubtask {
   vegetable_name: string;
   growth_stage: number;
   is_checkable?: boolean;
+  field_position?: number | null;
 }
 
 interface VegetableFieldProps {
@@ -54,7 +55,6 @@ const GRID_POSITIONS: { [key: number]: { top: string; left: string } } = {
 };
 
 const ASSET_SCALE = 0.3;
-const LOCAL_STORAGE_POSITIONS_KEY = 'vegetable_field_positions';
 
 const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMessage, onClearSystemMessage, onHarvestClick }) => {
   const field: (TodaySubtask | null)[] = Array(25).fill(null);
@@ -134,49 +134,29 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
   }, [systemMessage]);
 
   if (Array.isArray(subtasks)) {
-    let taskPositions: { [taskId: string]: number } = {};
-    try {
-      const storedPositions = localStorage.getItem(LOCAL_STORAGE_POSITIONS_KEY);
-      if (storedPositions) {
-        taskPositions = JSON.parse(storedPositions);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    const currentTaskIds = new Set(subtasks.map(t => t?.task_id).filter(Boolean));
-    let positionsChanged = false;
-
-    Object.keys(taskPositions).forEach(taskId => {
-      if (!currentTaskIds.has(taskId)) {
-        delete taskPositions[taskId];
-        positionsChanged = true;
-      }
-    });
-
-    const usedSlots = new Set(Object.values(taskPositions));
+    // 配置スロットはサーバー（TASKS.field_position）が正。
+    // まずサーバー値を尊重して埋め、値が無い旧タスクだけ中央寄せの
+    // 優先順位で空きマスにフォールバック配置する（保存はしない）。
+    const usedSlots = new Set<number>();
+    const placed = new Set<TodaySubtask>();
 
     subtasks.forEach(task => {
       if (!task) return;
-      if (taskPositions[task.task_id] === undefined) {
-        const availableSlot = PLACEMENT_ORDER.find(slot => !usedSlots.has(slot));
-        if (availableSlot !== undefined) {
-          taskPositions[task.task_id] = availableSlot;
-          usedSlots.add(availableSlot);
-          positionsChanged = true;
-        }
-      }
-    });
-
-    if (positionsChanged) {
-      localStorage.setItem(LOCAL_STORAGE_POSITIONS_KEY, JSON.stringify(taskPositions));
-    }
-
-    subtasks.forEach(task => {
-      if (!task) return;
-      const pos = taskPositions[task.task_id];
-      if (pos !== undefined) {
+      const pos = task.field_position;
+      if (typeof pos === 'number' && pos >= 0 && pos < 25 && !usedSlots.has(pos)) {
         field[pos] = task;
+        usedSlots.add(pos);
+        placed.add(task);
+      }
+    });
+
+    subtasks.forEach(task => {
+      if (!task || placed.has(task)) return;
+      const availableSlot = PLACEMENT_ORDER.find(slot => !usedSlots.has(slot));
+      if (availableSlot !== undefined) {
+        field[availableSlot] = task;
+        usedSlots.add(availableSlot);
+        placed.add(task);
       }
     });
   }

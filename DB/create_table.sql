@@ -28,9 +28,11 @@ CREATE TABLE "TASKS" (
     "lap_count"    INTEGER NOT NULL DEFAULT 1,
     "buffer_days"  INTEGER NOT NULL,
     "growth_stage" INTEGER NOT NULL DEFAULT 0,
+    "field_position" SMALLINT,
     CONSTRAINT "check_task_dates" CHECK ("end_date" >= "start_date"),
     CONSTRAINT "check_task_counts" CHECK ("total_count" >= 0 AND "lap_count" >= 1 AND "buffer_days" >= 1),
     CONSTRAINT "check_growth_stage" CHECK ("growth_stage" BETWEEN -1 AND 11),
+    CONSTRAINT "check_field_position" CHECK ("field_position" IS NULL OR "field_position" BETWEEN 0 AND 24),
     CONSTRAINT "check_task_type" CHECK ("task_type" IN ('問題集', '単語帳', '過去問', 'その他'))
 );
 

@@ -13,6 +13,10 @@ import (
 	"github.com/google/uuid"
 )
 
+var fieldPlacementOrder = []int{
+	12, 8, 16, 4, 20, 18, 14, 22, 24, 6, 2, 10, 0, 13, 17, 9, 21, 19, 23, 7, 11, 3, 15, 1, 5,
+}
+
 type TaskCreateRequest struct {
 	TaskType   string `json:"task_type" binding:"required"`
 	TaskTitle  string `json:"task_title" binding:"required"`
@@ -278,6 +282,17 @@ func AssignVegetableHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		ctxUserID, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "認証情報が見つかりません"})
+			return
+		}
+		userID, ok := ctxUserID.(string)
+		if !ok || userID == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "ユーザーIDの解析に失敗しました"})
+			return
+		}
+
 		var req AssignVegetableRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "リクエストの形式が不正です"})
@@ -297,6 +312,13 @@ func AssignVegetableHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		tx, err := db.Begin()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラー"})
+			return
+		}
+		defer tx.Rollback()
+
 		queryUpdateVegetable := `
             UPDATE "TASKS"
             SET "vegetable_id" = (
@@ -304,9 +326,9 @@ func AssignVegetableHandler(db *sql.DB) gin.HandlerFunc {
                 FROM "VEGETABLES"
                 WHERE "vegetable_name" = $1
             )
-            WHERE "task_id" = $2
+            WHERE "task_id" = $2 AND "user_id" = $3
         `
-		result, err := db.Exec(queryUpdateVegetable, req.VegetableName, taskID)
+		result, err := tx.Exec(queryUpdateVegetable, req.VegetableName, taskID, userID)
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "野菜の割り当てに失敗しました: " + err.Error()})
@@ -316,6 +338,61 @@ func AssignVegetableHandler(db *sql.DB) gin.HandlerFunc {
 		rowsAffected, err := result.RowsAffected()
 		if err != nil || rowsAffected == 0 {
 			c.JSON(http.StatusNotFound, gin.H{"error": "該当するタスクが見つかりませんでした"})
+			return
+		}
+
+		var currentPos sql.NullInt64
+		if err := tx.QueryRow(
+			`SELECT "field_position" FROM "TASKS" WHERE "task_id" = $1 AND "user_id" = $2 FOR UPDATE`,
+			taskID, userID,
+		).Scan(&currentPos); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "配置情報の取得に失敗しました"})
+			return
+		}
+
+		if !currentPos.Valid {
+			occupiedRows, err := tx.Query(`
+                SELECT "field_position"
+                FROM "TASKS"
+                WHERE "user_id" = $1
+                  AND "field_position" IS NOT NULL
+                  AND "growth_stage" NOT IN (-1, 11)
+            `, userID)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "配置情報の取得に失敗しました"})
+				return
+			}
+
+			occupied := make(map[int]bool)
+			for occupiedRows.Next() {
+				var p int
+				if err := occupiedRows.Scan(&p); err == nil {
+					occupied[p] = true
+				}
+			}
+			occupiedRows.Close()
+
+			slot := -1
+			for _, s := range fieldPlacementOrder {
+				if !occupied[s] {
+					slot = s
+					break
+				}
+			}
+
+			if slot >= 0 {
+				if _, err := tx.Exec(
+					`UPDATE "TASKS" SET "field_position" = $1 WHERE "task_id" = $2 AND "user_id" = $3`,
+					slot, taskID, userID,
+				); err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "配置の確定に失敗しました"})
+					return
+				}
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "データの確定に失敗しました"})
 			return
 		}
 
@@ -336,6 +413,7 @@ type TaskResponse struct {
 	BufferDays    int    `json:"buffer_days"`
 	VegetableName string `json:"vegetable_name"`
 	GrowthStage   int    `json:"growth_stage"`
+	FieldPosition *int   `json:"field_position"`
 	ImageURL      string `json:"image_url"`
 }
 
@@ -380,6 +458,7 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 				t.end_date,
 				v.vegetable_name,
 				t.growth_stage,
+				t.field_position,
 				(
 					SELECT COUNT(*)
 					FROM "SUB_TASKS" s
@@ -406,17 +485,23 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 			var t TaskResponse
 			var startDate, endDate time.Time
 			var vegName sql.NullString
+			var fieldPos sql.NullInt64
 			var missedDays int
 
 			if err := rows.Scan(
 				&t.TaskID, &t.TaskType, &t.TaskTitle, &t.TotalCount, &t.LapCount,
-				&startDate, &endDate, &vegName, &t.GrowthStage, &missedDays,
+				&startDate, &endDate, &vegName, &t.GrowthStage, &fieldPos, &missedDays,
 			); err != nil {
 				continue
 			}
 
 			if vegName.Valid {
 				t.VegetableName = vegName.String
+			}
+
+			if fieldPos.Valid {
+				p := int(fieldPos.Int64)
+				t.FieldPosition = &p
 			}
 
 			duration := endDate.Sub(startDate)
