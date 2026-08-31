@@ -34,7 +34,7 @@
 | D4 | フロントの API ベース URL | ビルド時 `VITE_API_BASE_URL=""`（空 = 同一オリジン相対 `/api`）。`services/auth.ts` にフォールバックを追加 | T04, T05 |
 | D5 | DB スキーマ管理 | マイグレーションツールは**入れない**。初期化 SQL + 手動 DROP→流し直し（チーム方針どおり）。実ユーザーデータ保持が必要になった時点で `goose` 等を再検討 | T02, T08 |
 | D6 | 公開ポート | ホストは **80 番のみ**（Nginx）。back-end(3000) / db(5432) は Compose 内部ネットワークのみ | T06 |
-| D7 | 秘密情報 | `.env` は Git 管理外のまま。`.env.example` をコミットし、実体はサーバー上で手動管理（`chmod 600`） | T01, T06, T07 |
+| D7 | 環境変数 | サーバーは **リポジトリ直下の `./.env` 1 ファイル**に集約。キー一覧は README の表に載せる。 | T01, T06, T07 |
 | D8 | `MOCK_TODAY` / `VITE_MOCK_TODAY` | 本番 env には**設定しない**（実日付を使う） | T04, T06 |
 | D9 | 本番シークレット | `JWT_SECRET` / `DB_PASS` はハッカソン用の値を流用せず、本番用に新しい値を発行 | T07 |
 
@@ -44,7 +44,7 @@
 
 | ID | タスク | 主な成果物 | 依存 | 目安 |
 |---|---|---|---|---|
-| T01 | リポジトリ整備（.gitignore / .dockerignore / .env.example） | `.gitignore`, `*/.dockerignore`, `*/.env.example` | なし | S |
+| T01 | リポジトリ整備（.gitignore / .dockerignore / README 環境変数表） | `.gitignore`, `front-end/.dockerignore`, `back-end/.dockerignore`, `README.md` | なし | S |
 | T02 | DB 初期化 SQL の順序整備 | `DB/01_create_table.sql`, `DB/02_add_vegetable.sql` | なし | S |
 | T03 | back-end Dockerfile | `back-end/Dockerfile` | T01 | M |
 | T04 | front-end Dockerfile + Nginx 設定 | `front-end/Dockerfile`, `front-end/nginx.conf` | T01 | M |
@@ -73,27 +73,46 @@ T02 ──> T08
 
 ## 3. タスク詳細
 
-### T01. リポジトリ整備（.gitignore / .dockerignore / .env.example）
+### T01. リポジトリ整備（.gitignore / .dockerignore / README 環境変数表）
 
-- **目的**: Docker 化に向けて除外設定とテンプレートを整える。ビルドコンテキストを軽くし、必要な環境変数を明文化する。
+- **目的**: Docker 化に向けて除外設定を整え、必要な環境変数を README に明文化する。`.env.example` ファイルは作らず（D7）、README の表を唯一の一覧とする。
 - **対象ファイル**:
   - `.gitignore`（ルート、既存を整理）
   - `front-end/.dockerignore`（新規）
   - `back-end/.dockerignore`（新規）
-  - `front-end/.env.example`（新規）
-  - `back-end/.env.example`（新規）
-  - `DB/.env.example`（新規、必要なら。現状 `DB/.env` は空）
+  - `README.md`（「環境変数」節を追記）
 - **作業内容**:
   - `.gitignore` に横断除外を追加: `**/node_modules`, `**/dist`, ルート `.env`。既存の `front-end/` 個別行と重複してよいが整理する。
   - `front-end/.dockerignore`: `node_modules`, `dist`, `.env`, `.env.*`, `*.log`, `.git`。
-  - `back-end/.dockerignore`: `.env`, `.env.*`, `*_test.go` は含めるか要検討（イメージには不要なので除外推奨）、`TEST_CASES.md`, `.git`。
-  - `.env.example` は**キーのみ / ダミー値**で用意:
-    - `back-end/.env.example`: `DB_HOST=db` `DB_PORT=5432` `DB_USER=vegetask_user` `DB_PASS=__change_me__` `DB_NAME=vegetask_db` `JWT_SECRET=__change_me__`（`MOCK_TODAY` は本番不要なのでコメントアウトで説明のみ）
-    - `front-end/.env.example`: `VITE_API_BASE_URL=`（空 = 同一オリジン）、`VITE_PROXY_TARGET=http://localhost:3000`（dev 専用と明記）、`VITE_MOCK_TODAY=`（dev 専用と明記）
+  - `back-end/.dockerignore`: `.env`, `.env.*`, `*_test.go` / `main_test.go`（イメージには不要なので除外推奨）、`TEST_CASES.md`, `.git`。
+  - `README.md` に「環境変数」節を追加し、以下を書く。実際の秘密値は載せない。
+    - **サーバーの `./.env`（リポジトリ直下・1 ファイル・手動作成・`chmod 600`）**
+      `docker-compose.yml` が変数展開に自動で使い、`back-end` には `env_file: ./.env` で丸ごと注入、`db` は `POSTGRES_*: ${DB_*}` で流用する。
+
+      | 変数 | 用途 | 例 / 既定 | 備考 |
+      |---|---|---|---|
+      | `DB_HOST` | 接続先 DB ホスト | `db` | Compose のサービス名 |
+      | `DB_PORT` | DB ポート | `5432` | |
+      | `DB_USER` | DB ユーザー | `vegetask_user` | `db` の `POSTGRES_USER` に流用 |
+      | `DB_PASS` | DB パスワード | （本番用に新規発行） | 秘密。`db` の `POSTGRES_PASSWORD` に流用 |
+      | `DB_NAME` | DB 名 | `vegetask_db` | `db` の `POSTGRES_DB` に流用 |
+      | `JWT_SECRET` | JWT 署名鍵 | （本番用に新規発行） | 秘密 |
+      | `MOCK_TODAY` | 「今日」を固定（開発用） | 未設定 | **本番では設定しない**。未設定だと実日付（Asia/Tokyo） |
+
+    - **front-end（ビルド時 / `docker compose build` の引数で渡す。サーバーに `.env` は不要）**
+
+      | 変数 | 用途 | 本番値 | 備考 |
+      |---|---|---|---|
+      | `VITE_API_BASE_URL` | API のベース URL | `""`（空） | 空 = 同一オリジンの相対 `/api`。JS に焼き込まれる |
+      | `VITE_PROXY_TARGET` | dev サーバのプロキシ先 | — | `npm run dev` 専用。本番ビルドでは未使用 |
+      | `VITE_MOCK_TODAY` | 「今日」を固定（開発用） | 未設定 | **本番では渡さない** |
+
+    - **`back-end/.env`（ローカルで Docker を使わず `go run` / `go test` する人向け・各自作成・任意）**
+      キーはサーバーの `./.env` と同じだが `DB_HOST=127.0.0.1` などローカル値。`.dockerignore` で除外されるためイメージにもサーバーにも入らない。
 - **完了条件（DoD）**:
   - `git status` に `.env` 実体が出ない。
-  - `.env.example` に実際の秘密値が入っていない。
-  - README か本ファイルから `.env.example` の使い方が追える。
+  - README の表だけを見て、サーバーで直下の `./.env` を手で作成できる。
+  - README に実際の秘密値が載っていない。
 - **担当**: _____ / **レビュー**: _____
 
 ---
@@ -176,10 +195,10 @@ T02 ──> T08
 ### T06. docker-compose.yml
 
 - **目的**: nginx(front) / back-end / db の 3 サービスを 1 ファイルで起動できるようにする。
-- **対象ファイル**: `docker-compose.yml`（ルート、新規）、必要なら `.env.example`（ルート、Compose 変数用）
+- **対象ファイル**: `docker-compose.yml`（ルート、新規）。参照する直下の `./.env` はサーバーで手動作成（README の表に基づく・1 ファイル）
 - **作業内容**:
-  - `services.db`: `postgres:17-alpine`。`environment` に `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`（`.env` から）。`./DB` を `/docker-entrypoint-initdb.d` に **read-only** マウント。名前付きボリューム `pgdata` を `/var/lib/postgresql/data` に。`healthcheck` は `pg_isready -U $POSTGRES_USER`。`ports` は**書かない**。
-  - `services.back-end`: `build: ./back-end`。`env_file: ./back-end/.env`（または Compose の `environment` で `DB_HOST=db` 等を明示）。`depends_on: db: condition: service_healthy`。`restart: unless-stopped`（DB ping 失敗で `log.Fatalf` するため）。`ports` は書かない。
+  - `services.db`: `postgres:17-alpine`。`environment` は `POSTGRES_USER: ${DB_USER}` / `POSTGRES_PASSWORD: ${DB_PASS}` / `POSTGRES_DB: ${DB_NAME}` と `./.env` の `DB_*` を流用（`POSTGRES_*` を別に定義しない）。`./DB` を `/docker-entrypoint-initdb.d` に **read-only** マウント。名前付きボリューム `pgdata` を `/var/lib/postgresql/data` に。`healthcheck` は `pg_isready -U $POSTGRES_USER`。`ports` は**書かない**。
+  - `services.back-end`: `build: ./back-end`。`env_file: ./.env`（直下の 1 ファイルを丸ごと注入。`DB_HOST=db` などもここから）。`depends_on: db: condition: service_healthy`。`restart: unless-stopped`（DB ping 失敗で `log.Fatalf` するため）。`ports` は書かない。
   - `services.front`: `build: { context: ./front-end, args: { VITE_API_BASE_URL: "" } }`。`ports: ["80:80"]`。`depends_on: [back-end]`。`restart: unless-stopped`。
   - すべて同一 `networks`（デフォルトブリッジで可）。サービス名 `back-end` / `db` が Nginx・Go の接続先ホスト名になる。
   - `name:`（プロジェクト名 `vegetask`）を固定し、同居する他プロジェクトと衝突させない。
@@ -199,11 +218,16 @@ T02 ──> T08
 - **対象ファイル**: `docs/server-setup.md`（新規）
 - **作業内容**: 以下を手順として記述。
   - 前提: Docker / Docker Compose 導入済み、`/opt/vegetask` に clone 済み。
-  - 初回セットアップ:
-    - `/opt/vegetask` の所有権・パーミッション方針（作業者を docker グループに追加、リポジトリは共有、`.env` は所有者のみ `chmod 600`）。
-    - `back-end/.env` を `back-end/.env.example` からコピーし、本番用 `DB_PASS` / `JWT_SECRET` を新規発行して設定（D9）。ルート `.env`（Compose 変数用）も同様。
-    - `docker compose up -d --build`。
-    - 初期化 SQL は初回のみ自動実行される旨（データボリュームが空のとき）。
+  - グループ: 全メンバーを `docker`（compose 実行）と `vegetask-dev`（リポジトリ / `.env` 共有）に所属させる。
+  - `/opt/vegetask` の共有ディレクトリ化（※現行 VPS では設定済み。サーバー再構築時に再現する手順として記載）:
+    - `chgrp -R vegetask-dev /opt/vegetask` ＋ 全ディレクトリに setgid（`find /opt/vegetask -type d -exec chmod g+s {} +`）→ 新規ファイルが `vegetask-dev` 所有になる。
+    - `apt-get install -y acl` して `setfacl -R -m g:vegetask-dev:rwX /opt/vegetask` と `setfacl -R -d -m g:vegetask-dev:rwX /opt/vegetask` → `git pull` で増えるファイルもグループ書き込み可になる（各自の umask に依存しない）。
+  - `./.env` の作成:
+    - README の「環境変数」表を見て、リポジトリ直下に `./.env` を **1 つだけ手で作成**（`DB_*` + `JWT_SECRET`）。本番用 `DB_PASS` / `JWT_SECRET` を新規発行（D9、`openssl rand -hex` など記号なし）。
+    - 作成後: `chgrp vegetask-dev .env` → `setfacl -b .env`（継承したデフォルト ACL を除去）→ `chmod 660 .env`（others から隠す）。
+    - `back-end/.env` はサーバーには作らない（ローカル非 Docker 開発専用）。
+  - `docker compose up -d --build`。
+  - 初期化 SQL は初回のみ自動実行される旨（データボリュームが空のとき）。
   - 通常の更新フロー: `git pull` → `docker compose up -d --build` → `docker compose ps` / ログ確認。
   - IP 直打ち・http のみアクセスであること、80 番のみ開放（`ufw` などの確認）。
   - ロールバック: 直前コミットへ `git checkout` して再 `up --build`。
@@ -255,7 +279,7 @@ T02 ──> T08
 - **目的**: さくら VPS へ実際に配置し、IP 直打ちで動くことを確認する。
 - **前提**: T07 手順書、T09 完了。
 - **作業内容**:
-  - `/opt/vegetask` で `git pull` → `.env` 準備 → `docker compose up -d --build`。
+  - `/opt/vegetask` で `git pull` → `./.env` の存在を確認 → `docker compose up -d --build`。
   - `http://<VPS-IP>/` で SPA 表示、主要フローを 1 周。
   - 別の Linux ユーザーでも更新フロー（`git pull` → `up --build`）が実行できることを確認。
   - ログ・再起動・ディスクを確認。
@@ -271,7 +295,7 @@ T02 ──> T08
 - **作業内容**:
   - ポート: `port := os.Getenv("PORT"); if port == "" { port = "3000" }` → `r.Run(":" + port)`。T03 の `EXPOSE` と合わせる。
   - CORS: `os.Getenv("CORS_ALLOW_ORIGINS")`（カンマ区切り）を読み、空なら現行のローカル既定にフォールバック。
-  - `.env.example` にキーを追記（T01 と整合）。
+  - README の「環境変数」表に `PORT` / `CORS_ALLOW_ORIGINS` を追記（T01 と整合）。
 - **完了条件（DoD）**: 環境変数未設定でも従来どおり動作。設定時に反映される。テスト（`main_test.go`）が通る。
 - **担当**: _____ / **レビュー**: _____
 
@@ -292,30 +316,30 @@ T02 ──> T08
 ## 4. 成果物一覧（このデプロイ作業で新規に増えるファイル）
 
 ```
-.dockerignore は各サブディレクトリに配置
-├── docker-compose.yml            (T06)
-├── .env.example                  (T06, ルート Compose 変数用 / 必要なら)
+新規追加 / 変更されるファイル
+├── docker-compose.yml            (T06, 新規)
+├── README.md                    (T01, 「環境変数」節を追記)
 ├── back-end/
-│   ├── Dockerfile                (T03)
-│   ├── .dockerignore             (T01)
-│   └── .env.example              (T01)
+│   ├── Dockerfile                (T03, 新規)
+│   └── .dockerignore             (T01, 新規)
 ├── front-end/
-│   ├── Dockerfile                (T04)
-│   ├── nginx.conf                (T04)
-│   ├── .dockerignore             (T01)
-│   └── .env.example              (T01)
+│   ├── Dockerfile                (T04, 新規)
+│   ├── nginx.conf                (T04, 新規)
+│   └── .dockerignore             (T01, 新規)
 ├── DB/
-│   ├── 01_create_table.sql       (T02, リネーム)
-│   └── 02_add_vegetable.sql      (T02, リネーム)
+│   ├── 01_create_table.sql       (T02, create_table.sql からリネーム)
+│   └── 02_add_vegetable.sql      (T02, add_vegetable.sql からリネーム)
+├── .gitignore                    (T01, 整理)
 └── docs/
     ├── deployment-plan.md        (このファイル)
-    ├── server-setup.md           (T07)
-    └── db-operations.md          (T08)
+    ├── server-setup.md           (T07, 新規)
+    └── db-operations.md          (T08, 新規)
+
 ```
 
 ## 5. 未決事項 / レビューで決めたいこと
 
-- ルート `.env`（Compose 変数用）と `back-end/.env` を分けるか、1 つに寄せるか（T06 で確定）。
+- ~~ルート `.env` と `back-end/.env` を分けるか~~ → **決定: サーバーは直下の `./.env` 1 ファイルに集約**（D7 / T01 / T06 / T07 反映済み）。
 - `back-end/.dockerignore` で `*_test.go` / `main_test.go` をイメージから除外してよいか（テストは CI で回す前提か）。
 - T11 / T12 を今回スコープに含めるか、別 PR で後追いにするか。
 - 本番 `JWT_SECRET` / `DB_PASS` の発行・共有方法（誰が発行し、どこで共有するか）。
