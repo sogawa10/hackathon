@@ -39,6 +39,15 @@ func main() {
 	}
 	fmt.Println("PostgreSQL への接続成功！")
 
+	r := SetupRouter(db)
+
+	fmt.Println("VegeTask サーバーがポート3000番で起動しました。")
+	r.Run(":3000")
+}
+
+// SetupRouter はアプリのルーティングを構築する。
+// main() とテストの両方から同じ構成を使うために切り出している。
+func SetupRouter(db *sql.DB) *gin.Engine {
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
@@ -64,6 +73,5 @@ func main() {
 		authGroup.GET("/api/harvest_basket", handlers.GetHarvestBasketHandler(db))
 	}
 
-	fmt.Println("VegeTask サーバーがポート3000番で起動しました。")
-	r.Run(":3000")
+	return r
 }
