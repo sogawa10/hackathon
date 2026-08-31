@@ -45,8 +45,6 @@ func main() {
 	r.Run(":3000")
 }
 
-// SetupRouter はアプリのルーティングを構築する。
-// main() とテストの両方から同じ構成を使うために切り出している。
 func SetupRouter(db *sql.DB) *gin.Engine {
 	r := gin.Default()
 
