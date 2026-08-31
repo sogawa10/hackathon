@@ -3,7 +3,7 @@ node_modules
 dist
 dist-ssr
 
-# 環境変数（ビルド引数で渡す。イメージに焼き込まない）
+# 環境変数
 .env
 .env.*
 
