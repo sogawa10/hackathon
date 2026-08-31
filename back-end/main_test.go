@@ -1,22 +1,5 @@
 package main
 
-// VegeTASK API 統合テスト
-//
-// 実DB（back-end/.env の接続先）に対して gin ルーターを直接叩く End-to-End テスト。
-// サーバーを別プロセスで起動する必要はない（httptest でハンドラを呼ぶ）。
-//
-// 実行:
-//   cd back-end
-//   go test -v
-//
-// 前提:
-//   - PostgreSQL が起動しており、DB/create_table.sql + DB/add_vegetable.sql 適用済み
-//   - back-end/.env に DB 接続情報がある
-//   - テスト内では "今日" を MOCK_TODAY=2026-07-02 に固定する
-//
-// テストデータは user_name が "apitest_" で始まるユーザーとして作られ、
-// テスト前後に自動削除される（他のデータには触れない）。
-
 import (
 	"bytes"
 	"database/sql"
@@ -32,7 +15,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-const mockToday = "2026-07-02" // テスト中の「今日」
+const mockToday = "2026-07-01"
 
 var (
 	testDB     *sql.DB
@@ -42,8 +25,6 @@ var (
 func TestMain(m *testing.M) {
 	_ = godotenv.Load()
 
-	// テスト開始時の MOCK_TODAY を退避し、終了時にその値へ戻す。
-	// （テスト中は日付計算を決定的にするため mockToday に固定する）
 	origMockToday, hadMockToday := os.LookupEnv("MOCK_TODAY")
 	restoreMockToday := func() {
 		if hadMockToday {
@@ -80,8 +61,6 @@ func TestMain(m *testing.M) {
 	restoreMockToday()
 	os.Exit(code)
 }
-
-// ---- ヘルパー ----
 
 func cleanupTestData() {
 	testDB.Exec(`DELETE FROM "HARVESTS" WHERE user_id IN (SELECT user_id FROM "USERS" WHERE user_name LIKE 'apitest\_%' ESCAPE '\')`)
@@ -133,10 +112,8 @@ func mustStatus(t *testing.T, rec *httptest.ResponseRecorder, want int) {
 	}
 }
 
-// テスト中の「今日」を差し替える（ハンドラは毎リクエスト os.Getenv("MOCK_TODAY") を読む）
 func setToday(s string) { os.Setenv("MOCK_TODAY", s) }
 
-// GET /api/tasks から指定タスクの1件を返す
 func getTask(t *testing.T, token, taskID string) map[string]any {
 	t.Helper()
 	rec := req(t, "GET", "/api/tasks", token, nil)
@@ -150,7 +127,6 @@ func getTask(t *testing.T, token, taskID string) map[string]any {
 	return nil
 }
 
-// GET /api/subtasks/today から指定タスクの sub_task_id を返す（無ければ ""）
 func todaySubID(t *testing.T, token, taskID string) string {
 	t.Helper()
 	rec := req(t, "GET", "/api/subtasks/today", token, nil)
@@ -163,7 +139,6 @@ func todaySubID(t *testing.T, token, taskID string) string {
 	return ""
 }
 
-// テストユーザーを作成し access_token を返す
 func newUser(t *testing.T, label string) (userID, token string) {
 	t.Helper()
 	name := fmt.Sprintf("apitest_%d_%s", time.Now().UnixNano(), label)
@@ -176,7 +151,6 @@ func newUser(t *testing.T, label string) (userID, token string) {
 	return arr[0]["user_id"].(string), arr[0]["access_token"].(string)
 }
 
-// タスク作成 → 野菜割当まで行い task_id を返す
 func newTaskWithVeg(t *testing.T, token, taskType, title string, total, lap int, start, end, veg string) string {
 	t.Helper()
 	rec := req(t, "POST", "/api/tasks", token, map[string]any{
@@ -208,13 +182,10 @@ func dbGrowthStage(t *testing.T, taskID string) int {
 	return g
 }
 
-// 日付ヘルパー（mockToday からの相対日数）
 func day(offset int) string {
 	base, _ := time.Parse("2006-01-02", mockToday)
 	return base.AddDate(0, 0, offset).Format("2006-01-02")
 }
-
-// ========================= 認証 =========================
 
 func TestAuth(t *testing.T) {
 	name := fmt.Sprintf("apitest_%d_auth", time.Now().UnixNano())
@@ -269,8 +240,6 @@ func TestAuth(t *testing.T) {
 	})
 }
 
-// ========================= タスク作成 =========================
-
 func TestTaskCreate(t *testing.T) {
 	_, token := newUser(t, "create")
 
@@ -292,7 +261,7 @@ func TestTaskCreate(t *testing.T) {
 	t.Run("1週間未満は400", func(t *testing.T) {
 		rec := req(t, "POST", "/api/tasks", token, map[string]any{
 			"task_type": "問題集", "task_title": "短すぎ", "total_count": 10,
-			"lap_count": 1, "start_date": day(0), "end_date": day(5), // 6日間
+			"lap_count": 1, "start_date": day(0), "end_date": day(5),
 		})
 		mustStatus(t, rec, 400)
 	})
@@ -312,14 +281,11 @@ func TestTaskCreate(t *testing.T) {
 		})
 		mustStatus(t, rec, 200)
 		taskID := decodeObj(t, rec)["task_id"].(string)
-		// 実施14日, 予備日 ceil(1.4)=2, 有効12日。分量 300 >= 12 → ノルマモード。
-		// SUB_TASKS は実施日数ぶん = 14 行。
 		var cnt int
 		testDB.QueryRow(`SELECT count(*) FROM "SUB_TASKS" WHERE task_id=$1`, taskID).Scan(&cnt)
 		if cnt != 14 {
 			t.Fatalf("SUB_TASKS 行数 期待14, 実際 %d", cnt)
 		}
-		// 予備日ぶん（末尾2日）が「予備日（調整期間）」になっているはず
 		var buf int
 		testDB.QueryRow(`SELECT count(*) FROM "SUB_TASKS" WHERE task_id=$1 AND task_content='予備日（調整期間）'`, taskID).Scan(&buf)
 		if buf != 2 {
@@ -340,7 +306,7 @@ func TestTaskCreate(t *testing.T) {
 	t.Run("buffer_days_は実施日数の10%切り上げ", func(t *testing.T) {
 		rec := req(t, "POST", "/api/tasks", token, map[string]any{
 			"task_type": "問題集", "task_title": "予備日確認", "total_count": 30,
-			"lap_count": 1, "start_date": day(0), "end_date": day(29), // 30日間 → ceil(3.0)=3
+			"lap_count": 1, "start_date": day(0), "end_date": day(29),
 		})
 		mustStatus(t, rec, 200)
 		taskID := decodeObj(t, rec)["task_id"].(string)
@@ -351,8 +317,6 @@ func TestTaskCreate(t *testing.T) {
 		}
 	})
 }
-
-// ========================= 野菜割当 + field_position =========================
 
 func TestVegetableAssignAndFieldPosition(t *testing.T) {
 	_, token := newUser(t, "veg")
@@ -418,8 +382,6 @@ func TestVegetableAssignAndFieldPosition(t *testing.T) {
 	})
 }
 
-// ========================= タスク一覧 =========================
-
 func TestTaskList(t *testing.T) {
 	_, token := newUser(t, "list")
 	today := newTaskWithVeg(t, token, "問題集", "list-今日開始", 40, 1, day(0), day(9), "プチトマト")
@@ -465,8 +427,6 @@ func TestTaskList(t *testing.T) {
 	})
 }
 
-// ========================= 今日のToDo =========================
-
 func TestTodaySubtasks(t *testing.T) {
 	_, token := newUser(t, "today")
 	taskID := newTaskWithVeg(t, token, "問題集", "today-task", 40, 1, day(0), day(9), "プチトマト")
@@ -497,14 +457,10 @@ func TestTodaySubtasks(t *testing.T) {
 	})
 }
 
-// ========================= サブタスク完了 & 成長 =========================
-
 func TestCompleteSubtaskAndGrowth(t *testing.T) {
 	_, token := newUser(t, "complete")
-	// 実施10日, 予備日1, 有効9日。分量40>=9 → ノルマモード。content行9 + 予備日1。
 	taskID := newTaskWithVeg(t, token, "問題集", "complete-task", 40, 1, day(0), day(9), "プチトマト")
 
-	// 今日のサブタスク（day0）を取得
 	rec := req(t, "GET", "/api/subtasks/today", token, nil)
 	arr := decodeArray(t, rec)
 	var subID string
@@ -521,7 +477,6 @@ func TestCompleteSubtaskAndGrowth(t *testing.T) {
 		rec := req(t, "PATCH", "/api/subtasks", token, map[string]string{"sub_task_id": subID})
 		mustStatus(t, rec, 200)
 		g := decodeObj(t, rec)["growth_stage"].(float64)
-		// content 9件中1件完了 → 1 + floor(1*9/9) = 2
 		if g != 2 {
 			t.Fatalf("growth_stage 期待2, 実際 %v", g)
 		}
@@ -541,8 +496,6 @@ func TestCompleteSubtaskAndGrowth(t *testing.T) {
 	})
 
 	t.Run("全content完了でgrowth_stage10", func(t *testing.T) {
-		// MOCK_TODAY 固定のため未来日のサブタスクは API では完了できない。
-		// 「日数が経過した」状況を作るため、最後の1件を除いて直接完了にする。
 		_, err := testDB.Exec(`
 			UPDATE "SUB_TASKS" SET is_completed = true
 			WHERE task_id = $1 AND task_content <> '予備日（調整期間）'
@@ -568,8 +521,6 @@ func TestCompleteSubtaskAndGrowth(t *testing.T) {
 	})
 }
 
-// ========================= 収穫 & かご & スロット解放 =========================
-
 func TestHarvestAndBasket(t *testing.T) {
 	_, token := newUser(t, "harvest")
 	taskID := newTaskWithVeg(t, token, "問題集", "harvest-task", 40, 1, day(0), day(9), "プチトマト")
@@ -579,7 +530,6 @@ func TestHarvestAndBasket(t *testing.T) {
 		mustStatus(t, rec, 400)
 	})
 
-	// 全完了させて growth_stage 10 にする
 	testDB.Exec(`UPDATE "SUB_TASKS" SET is_completed=true WHERE task_id=$1 AND task_content<>'予備日（調整期間）'`, taskID)
 	testDB.Exec(`UPDATE "TASKS" SET growth_stage=10 WHERE task_id=$1`, taskID)
 
@@ -614,15 +564,12 @@ func TestHarvestAndBasket(t *testing.T) {
 	})
 
 	t.Run("収穫でスロットが解放され次のタスクが再利用する", func(t *testing.T) {
-		// harvest-task はスロット12。収穫で growth_stage=11 → 解放。
 		newTask := newTaskWithVeg(t, token, "問題集", "harvest-after", 40, 1, day(0), day(9), "オクラ")
 		if p, _ := dbFieldPosition(t, newTask); p != 12 {
 			t.Fatalf("解放スロットの再利用 期待12, 実際 %d", p)
 		}
 	})
 }
-
-// ========================= タスク削除 =========================
 
 func TestDeleteTask(t *testing.T) {
 	_, token := newUser(t, "delete")
@@ -656,32 +603,23 @@ func TestDeleteTask(t *testing.T) {
 	})
 }
 
-// ========================= 予備日の消費・繰り越し・枯死 =========================
-//
-// このグループだけ MOCK_TODAY を日ごとに進めて複数日の経過を再現する。
-// 予備日ロジックは GET /api/subtasks/today の呼び出し時に評価される。
-
 func TestBufferConsumptionAndWithering(t *testing.T) {
-	// このテストに入った時点の値へ戻す（他テストへ影響させない）
 	savedToday := os.Getenv("MOCK_TODAY")
 	defer setToday(savedToday)
 
 	t.Run("期限内に完了すれば予備日は減らない", func(t *testing.T) {
 		setToday("2026-07-02")
 		_, token := newUser(t, "buf-ontime")
-		// 実施7日, 予備日1, 有効6日。分量12>=6 → ノルマモード（"2問解く" × 6日 + 予備日1）
 		taskID := newTaskWithVeg(t, token, "問題集", "buf-ontime", 12, 1, "2026-07-02", "2026-07-08", "プチトマト")
 
-		// 7/2 の分をその日に完了
 		sub := todaySubID(t, token, taskID)
 		if sub == "" {
 			t.Fatalf("7/2 のサブタスクが取得できない")
 		}
 		mustStatus(t, req(t, "PATCH", "/api/subtasks", token, map[string]string{"sub_task_id": sub}), 200)
 
-		// 翌日
 		setToday("2026-07-03")
-		req(t, "GET", "/api/subtasks/today", token, nil) // 予備日ロジックを走らせる
+		req(t, "GET", "/api/subtasks/today", token, nil)
 
 		task := getTask(t, token, taskID)
 		if task["buffer_days"].(float64) != 1 {
@@ -700,7 +638,6 @@ func TestBufferConsumptionAndWithering(t *testing.T) {
 		var before int
 		testDB.QueryRow(`SELECT count(*) FROM "SUB_TASKS" WHERE task_id=$1 AND scheduled_date='2026-07-08'`, taskID).Scan(&before)
 
-		// 7/2 を放置して翌日へ
 		setToday("2026-07-03")
 		req(t, "GET", "/api/subtasks/today", token, nil)
 
@@ -711,13 +648,11 @@ func TestBufferConsumptionAndWithering(t *testing.T) {
 		if task["growth_stage"].(float64) != 1 {
 			t.Fatalf("growth_stage 期待1（枯れていない）, 実際 %v", task["growth_stage"])
 		}
-		// 消費済みマーカーが1件挿入されている
 		var consumed int
 		testDB.QueryRow(`SELECT count(*) FROM "SUB_TASKS" WHERE task_id=$1 AND task_content='予備日（消費済み）' AND is_completed=true`, taskID).Scan(&consumed)
 		if consumed != 1 {
 			t.Fatalf("予備日（消費済み）マーカー 期待1, 実際 %d", consumed)
 		}
-		// 未完了サブタスクが +1 日シフトし、7/3 に「今日の分」が現れる
 		if todaySubID(t, token, taskID) == "" {
 			t.Fatalf("シフト後、7/3 に今日のサブタスクが無い")
 		}
@@ -728,14 +663,12 @@ func TestBufferConsumptionAndWithering(t *testing.T) {
 		_, token := newUser(t, "buf-wither")
 		taskID := newTaskWithVeg(t, token, "問題集", "buf-wither", 12, 1, "2026-07-02", "2026-07-08", "ネギ")
 
-		// 1日目サボり → 予備日1消費（残0）
 		setToday("2026-07-03")
 		req(t, "GET", "/api/subtasks/today", token, nil)
 		if getTask(t, token, taskID)["buffer_days"].(float64) != 0 {
 			t.Fatalf("前提: buffer_days が0になっていない")
 		}
 
-		// さらにサボり → 予備日が無いので枯死
 		setToday("2026-07-04")
 		req(t, "GET", "/api/subtasks/today", token, nil)
 
@@ -751,18 +684,15 @@ func TestBufferConsumptionAndWithering(t *testing.T) {
 	t.Run("複数日タスクは中間日をサボっても最終日まで予備日を消費しない", func(t *testing.T) {
 		setToday("2026-07-02")
 		_, token := newUser(t, "buf-fraction")
-		// 実施12日, 予備日2, 有効10日。分量5 < 10 → 分数モード。
-		// 有効10日 ÷ 5問 = 1問あたり2日。content 例: "問題集1問解く(1/2日目)" "(2/2日目)"
+
 		taskID := newTaskWithVeg(t, token, "問題集", "buf-fraction", 5, 1, "2026-07-02", "2026-07-13", "かぼちゃ")
 
-		// (1/2日目) だけ過ぎた状態（中間日）
 		setToday("2026-07-03")
 		req(t, "GET", "/api/subtasks/today", token, nil)
 		if getTask(t, token, taskID)["buffer_days"].(float64) != 2 {
 			t.Fatalf("中間日サボりで buffer_days が減った: %v", getTask(t, token, taskID)["buffer_days"])
 		}
 
-		// (2/2日目) まで過ぎた = 1問ぶん(2日)まるごと未達成 → 予備日を2消費
 		setToday("2026-07-04")
 		req(t, "GET", "/api/subtasks/today", token, nil)
 		task := getTask(t, token, taskID)
