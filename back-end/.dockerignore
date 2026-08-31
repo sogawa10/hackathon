@@ -2,7 +2,7 @@
 .env
 .env.*
 
-# テスト関連（イメージ実行には不要。テストは各自 / CI で実行）
+# テスト関連
 *_test.go
 main_test.go
 TEST_CASES.md
