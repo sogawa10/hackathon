@@ -56,6 +56,34 @@
 9. 収穫された野菜は**かご**に溜まっていく
 
 
+## 環境変数
+
+### サーバーの `./.env`（リポジトリ直下・`chmod 600`）
+
+`docker-compose.yml` が変数展開に使い、`back-end` へは `env_file` で丸ごと注入、`db` は `POSTGRES_*: ${DB_*}` で流用する。
+
+| 変数 | 用途 | 例 / 既定 | 備考 |
+|---|---|---|---|
+| `DB_HOST` | 接続先 DB ホスト | `db` | Compose のサービス名 |
+| `DB_PORT` | DB ポート | `5432` | |
+| `DB_USER` | DB ユーザー | `vegetask_user` | `db` の `POSTGRES_USER` に流用 |
+| `DB_PASS` | DB パスワード | （本番用に新規発行） | 秘密。`db` の `POSTGRES_PASSWORD` に流用 |
+| `DB_NAME` | DB 名 | `vegetask_db` | `db` の `POSTGRES_DB` に流用 |
+| `JWT_SECRET` | JWT 署名鍵 | （本番用に新規発行） | 秘密 |
+| `MOCK_TODAY` | 「今日」を固定（開発用） | 未設定 | 本番では設定しない。未設定だと実日付（Asia/Tokyo） |
+
+### front-end（ビルド時 / `docker compose build` の引数で渡す。サーバーに `.env` は不要）
+
+| 変数 | 用途 | 本番値 | 備考 |
+|---|---|---|---|
+| `VITE_API_BASE_URL` | API のベース URL | `""`（空） | 空 = 同一オリジンの相対 `/api`。JS に焼き込まれる |
+| `VITE_PROXY_TARGET` | dev サーバのプロキシ先 | — | `npm run dev` 専用。本番ビルドでは未使用 |
+| `VITE_MOCK_TODAY` | 「今日」を固定（開発用） | 未設定 | 本番では渡さない |
+
+### `back-end/.env`（Docker を使わず `go run` / `go test` する人向け・各自作成・任意）
+
+キーはサーバーの `./.env` と同じで、`DB_HOST=127.0.0.1` などローカル値にする。`.dockerignore` で除外されるため、イメージにもサーバーにも入らない。
+
 ## システムの仕様書
 
 ### タスクの種類と入力の型

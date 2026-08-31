@@ -1,0 +1,12 @@
+# 環境変数
+.env
+.env.*
+
+# テスト関連（イメージ実行には不要。テストは各自 / CI で実行）
+*_test.go
+main_test.go
+TEST_CASES.md
+
+# VCS
+.git
+.gitignore

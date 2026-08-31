@@ -1,0 +1,18 @@
+# 依存・ビルド成果物
+node_modules
+dist
+dist-ssr
+
+# 環境変数（ビルド引数で渡す。イメージに焼き込まない）
+.env
+.env.*
+
+# ログ・ローカル設定
+*.log
+*.local
+.vscode
+.idea
+
+# VCS
+.git
+.gitignore

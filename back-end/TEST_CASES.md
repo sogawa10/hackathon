@@ -14,7 +14,7 @@ go test -run TestAuth -v
 ### 前提
 
 - PostgreSQL が起動している
-- `DB/create_table.sql` + `DB/add_vegetable.sql` 適用済み（`field_position` 列が必要）
+- `DB/01_create_table.sql` + `DB/02_add_vegetable.sql` 適用済み（`field_position` 列が必要）
 - `back-end/.env` に DB 接続情報がある
 - サーバー（`go run .`）を別途起動する必要は **ない**（`httptest` でハンドラを直接呼ぶ）
 
