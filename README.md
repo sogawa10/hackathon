@@ -199,7 +199,7 @@ S = D + P
 
 **ER図**
 
-<img width="679" height="561" alt="Image" src="https://github.com/user-attachments/assets/7f97e690-82a8-461c-8874-133ca8a4e8fc" />
+<img width="679" height="581" alt="Image" src="https://github.com/user-attachments/assets/fe9728f5-4e77-400d-9633-a4079874e38e" />
 
 **補足：「growth_stage」について**
 
@@ -210,6 +210,17 @@ S = D + P
 < 1 ~ 10 > → 畑にて成長中
 
 < 11 > → 収穫済み
+
+
+**補足：「field_position」について**
+
+- 野菜を配置する畑スロットの番号。畑は 5×5 の 25 マスで，`0`〜`24` の値をとる
+
+- `null` は「まだ畑に配置されていない」状態（種をもらう前，または収穫・枯死でスロットを解放した後）
+
+- 値は野菜を初めて割り当てたとき（**POST** `api/vegetable/{task_id}`）に，中央寄せの配置順で空いているスロットへ自動で決まる。一度決まった位置は，同じタスクで野菜を選び直しても変わらない
+
+- 収穫済み（`growth_stage` 11）・枯れた（`growth_stage` -1）タスクはスロットを解放し，以降は他のタスクがそのスロットを使える
 
 
 **ユーザー登録**（**POST** `api/signup`）
@@ -279,7 +290,8 @@ S = D + P
     "task_content": "String（何問 or 何単語 など）",
     "is_completed": "Boolean",
     "vegetable_name": "vegetable_name",
-    "growth_stage": "-1〜11"
+    "growth_stage": "-1〜11",
+    "field_position": "0〜24 または null（畑スロット番号）"
   }
 ]
 ```
@@ -408,7 +420,8 @@ S = D + P
     "end_date": "YYYY-MM-DD",
     "buffer_days": "buffer_day（予備日数）",
     "vegetable_name": "vegetable_name",
-    "growth_stage": "-1〜11"
+    "growth_stage": "-1〜11",
+    "field_position": "0〜24 または null（畑スロット番号）"
   }
 ]
 ```
