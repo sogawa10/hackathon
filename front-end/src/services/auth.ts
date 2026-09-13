@@ -34,8 +34,7 @@ export async function login({ user_name, user_pass }: AuthPayload): Promise<Logi
     throw new Error(message);
   }
 
-  const json = await res.json().catch(() => []);
-  const data = Array.isArray(json) ? json[0] : json;
+  const data = await res.json().catch(() => null);
 
   if (!data || !data.access_token) {
     throw new Error('無効なレスポンスです');
@@ -61,8 +60,7 @@ export async function signup({ user_name, user_pass }: AuthPayload): Promise<Sig
     throw new Error(message);
   }
 
-  const json = await res.json().catch(() => []);
-  const data = Array.isArray(json) ? json[0] : json;
+  const data = await res.json().catch(() => null);
 
   if (!data || !data.access_token) {
     throw new Error('無効なレスポンスです');

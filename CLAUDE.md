@@ -93,7 +93,9 @@ npm run preview             # ビルド済み dist/ を配信
   サービスは `src/services/auth.ts`（login/signup）だけ。ベース URL は
   `import.meta.env.VITE_API_BASE_URL || ''` で、空文字は同一オリジンの相対 `/api` を意味する
   （本番の Nginx 構成）。新規に使うときも `|| ''` のフォールバックを残すこと。
-- バックエンドは login/signup を**要素 1 個の配列**で返す。`auth.ts` は `json[0]` で取り出す。
+- login/signup を含め、全エンドポイントのリクエスト・レスポンスは単一の JSON オブジェクト。配列を
+  返すのは複数件返却する一覧系（`GET /api/subtasks/today`、`GET /api/tasks`、
+  `GET /api/harvest_basket`）のみ。
 
 ### データベース
 
