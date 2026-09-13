@@ -1,0 +1,40 @@
+name: vegetask
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - ./DB:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  back-end:
+    build: ./back-end
+    env_file: ./.env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  front:
+    build:
+      context: ./front-end
+      args:
+        VITE_API_BASE_URL: ""
+    ports:
+      - "80:80"
+    depends_on:
+      - back-end
+    restart: unless-stopped
+
+volumes:
+  pgdata:

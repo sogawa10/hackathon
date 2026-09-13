@@ -228,24 +228,20 @@ S = D + P
 リクエスト (JSON)
 
 ```json
-[
-  {
-    "user_name": "user_name",
-    "user_pass": "user_pass"
-  }
-]
+{
+  "user_name": "user_name",
+  "user_pass": "user_pass"
+}
 ```
 
 レスポンス (JSON)
 
 ```json
-[
-  {
-    "user_id": "UUID",
-    "access_token": "access_token",
-    "refresh_token": "refresh_token"
-  }
-]
+{
+  "user_id": "UUID",
+  "access_token": "access_token",
+  "refresh_token": "refresh_token"
+}
 ```
 
 **ログイン**（**POST** `api/login`）
@@ -253,24 +249,20 @@ S = D + P
 リクエスト (JSON)
 
 ```json
-[
-  {
-    "user_name": "user_name",
-    "user_pass": "user_pass"
-  }
-]
+{
+  "user_name": "user_name",
+  "user_pass": "user_pass"
+}
 ```
 
 レスポンス (JSON)
 
 ```json
-[
-  {
-    "user_id": "UUID",
-    "access_token": "accesstoken",
-    "refresh_token": "refresh_token"
-  }
-]
+{
+  "user_id": "UUID",
+  "access_token": "accesstoken",
+  "refresh_token": "refresh_token"
+}
 ```
 
 **今日のToDo取得**（**GET** `api/subtasks/today`）
@@ -303,21 +295,17 @@ S = D + P
 リクエスト (JSON)
 
 ```json
-[
-  {
-    "sub_task_id": "UUID",
-  }
-]
+{
+  "sub_task_id": "UUID"
+}
 ```
 
 レスポンス (JSON)
 
 ```json
-[
-  {
-    "growth_stage": "-1〜11"
-  }
-]
+{
+  "growth_stage": "-1〜11"
+}
 ```
 
 **野菜の収穫**（**POST** `api/tasks/harvest`）
@@ -327,23 +315,19 @@ S = D + P
 リクエスト (JSON)
 
 ```json
-[
-  {
-    "task_id": "UUID"
-  }
-]
+{
+  "task_id": "UUID"
+}
 ```
 
 レスポンス (JSON)
 
 ```json
-[
-  {
-    "harvest_id": "UUID",
-    "vegetable_name": "vegetable_name",
-    "size": "S | M | L"
-  }
-]
+{
+  "harvest_id": "UUID",
+  "vegetable_name": "vegetable_name",
+  "size": "S | M | L"
+}
 ```
 
 **タスク登録**（**POST** `api/tasks`）
@@ -353,27 +337,23 @@ S = D + P
 リクエスト (JSON)
 
 ```json
-[
-  {
-    "task_type": "単語帳 | 問題集 | 過去問 | その他",
-    "task_title": "task_title",
-    "total_count": "total_count（問題量）",
-    "lap_count": "lap_count（周回数：デフォルトは1）",
-    "start_date": "YYYY-MM-DD",
-    "end_date": "YYYY-MM-DD"
-  }
-]
+{
+  "task_type": "単語帳 | 問題集 | 過去問 | その他",
+  "task_title": "task_title",
+  "total_count": "total_count（問題量）",
+  "lap_count": "lap_count（周回数：デフォルトは1）",
+  "start_date": "YYYY-MM-DD",
+  "end_date": "YYYY-MM-DD"
+}
 ```
 
 レスポンス (JSON)
 
 ```json
-[
-  {
-    "task_id": "UUID",
-    "size": "S | M | L"
-  }
-]
+{
+  "task_id": "UUID",
+  "size": "S | M | L"
+}
 ```
 
 **野菜をタスクに割り当てる**（**POST** `api/vegetable/{task_id}`）
@@ -385,21 +365,17 @@ S = D + P
 リクエスト (JSON)
 
 ```json
-[
-  {
-    "vegetable_name": "vegetable_name"
-  }
-]
+{
+  "vegetable_name": "vegetable_name"
+}
 ```
 
 レスポンス (JSON)
 
 ```json
-[
-  {
-    "task_id": "UUID"
-  }
-]
+{
+  "task_id": "UUID"
+}
 ```
 
 **タスク一覧取得**（**GET** `api/tasks`）

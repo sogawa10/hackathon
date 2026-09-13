@@ -144,11 +144,8 @@ func newUser(t *testing.T, label string) (userID, token string) {
 	name := fmt.Sprintf("apitest_%d_%s", time.Now().UnixNano(), label)
 	rec := req(t, "POST", "/api/signup", "", map[string]string{"user_name": name, "user_pass": "pass1234"})
 	mustStatus(t, rec, 200)
-	arr := decodeArray(t, rec)
-	if len(arr) == 0 {
-		t.Fatalf("signup レスポンスが空: %s", rec.Body.String())
-	}
-	return arr[0]["user_id"].(string), arr[0]["access_token"].(string)
+	obj := decodeObj(t, rec)
+	return obj["user_id"].(string), obj["access_token"].(string)
 }
 
 func newTaskWithVeg(t *testing.T, token, taskType, title string, total, lap int, start, end, veg string) string {
@@ -193,8 +190,8 @@ func TestAuth(t *testing.T) {
 	t.Run("signup_成功", func(t *testing.T) {
 		rec := req(t, "POST", "/api/signup", "", map[string]string{"user_name": name, "user_pass": "pass1234"})
 		mustStatus(t, rec, 200)
-		arr := decodeArray(t, rec)
-		if arr[0]["access_token"] == "" || arr[0]["user_id"] == "" {
+		obj := decodeObj(t, rec)
+		if obj["access_token"] == "" || obj["user_id"] == "" {
 			t.Fatalf("token/user_id が空: %s", rec.Body.String())
 		}
 	})
@@ -214,7 +211,7 @@ func TestAuth(t *testing.T) {
 	t.Run("login_成功", func(t *testing.T) {
 		rec := req(t, "POST", "/api/login", "", map[string]string{"user_name": name, "user_pass": "pass1234"})
 		mustStatus(t, rec, 200)
-		if decodeArray(t, rec)[0]["access_token"] == "" {
+		if decodeObj(t, rec)["access_token"] == "" {
 			t.Fatalf("access_token が空")
 		}
 	})

@@ -53,12 +53,10 @@ func SignupHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		response := []SignupResponse{
-			{
-				UserID:       newUserID,
-				AccessToken:  accessToken,
-				RefreshToken: refreshToken,
-			},
+		response := SignupResponse{
+			UserID:       newUserID,
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
 		}
 
 		c.JSON(http.StatusOK, response)
@@ -110,12 +108,10 @@ func LoginHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		response := []LoginResponse{
-			{
-				UserID:       userID,
-				AccessToken:  accessToken,
-				RefreshToken: refreshToken,
-			},
+		response := LoginResponse{
+			UserID:       userID,
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
 		}
 
 		c.JSON(http.StatusOK, response)
