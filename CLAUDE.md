@@ -117,9 +117,8 @@ npm run preview             # ビルド済み dist/ を配信
 
 ## デプロイ
 
-`docs/deployment-plan.md` が計画の正本: 1 台の VPS 上で Docker Compose、Nginx（静的 SPA 配信 +
-`/api` のリバースプロキシ）→ Go API → `postgres:17-alpine`。サーバー設定はリポジトリ直下の
-`./.env` 1 ファイルに集約し `docker-compose.yml` が参照する。`back-end/.env` はローカルで
-Docker を使わない `go run` / `go test` 専用。直近のコミットでこれらのタスク（`T0X`）の実装が
-始まっている。`Dockerfile` 群や `docker-compose.yml` はまだ全部はコミットされていない可能性が
-ある。
+さくら VPS 上で Docker Compose により稼働中（デプロイ済み）。構成の概要は `README.md` の
+「デプロイ構成」を参照。サーバー設定はリポジトリ直下の `./.env` 1 ファイルに集約し
+`docker-compose.yml` が参照する。`back-end/.env` はローカルで Docker を使わない
+`go run` / `go test` 専用。サーバー構築・更新手順は `docs/server-setup.md`、DB スキーマ変更の
+運用は `docs/db-operations.md` にある。
