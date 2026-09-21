@@ -99,7 +99,9 @@ setgid だけだと `git pull` で増えるファイルの「パーミッショ�
 docker compose up -d --build
 ```
 
-- 初回はイメージのビルドに数分かかります。
+- イメージのビルドには時間がかかります。現行の VPS（1 vCPU / メモリ 455MiB）では初回が
+  約 8 分（実測 470 秒。ほぼすべて back-end の `go build`）でした。途中で止まったように見えても
+  中断せず待ってください。
 - DB の初期化 SQL（`DB/01_create_table.sql` → `DB/02_add_vegetable.sql`）は、
   **`db` サービスのデータボリューム（`pgdata`）が空のときだけ**自動実行されます。2 回目以降の
   起動では実行されないため、スキーマを変更したい場合は `docs/db-operations.md` の手順に従って
@@ -115,6 +117,18 @@ docker compose logs -f     # 起動ログを確認（Ctrl+C で抜ける）
 ブラウザ（または `curl`）で `http://<VPS-IP>/` にアクセスして SPA が表示されること、
 `curl http://<VPS-IP>/api/tasks` が 401（未認証エラー = 経路自体は正常）を返すことを確認します。
 
+DB の初期化（スキーマとシード）が済んでいることは、野菜マスタの件数で確認できます
+（15 件が正）。
+
+```bash
+docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select count(*) from \"VEGETABLES\";"'
+```
+
+> 起動ログに `[GIN-debug]` が出るのは、`GIN_MODE` が未設定でデバッグモードで動いているためです
+> （動作には影響しません）。また、back-end のログ上の接続元 IP は Docker ブリッジのアドレス
+> （`172.18.0.1` など）になります。実際のクライアント IP を調べたい場合は Nginx 側のログを
+> 見てください。
+
 ---
 
 ## 4. 通常の更新フロー
@@ -129,6 +143,8 @@ docker compose ps
 docker compose logs -f --tail=100
 ```
 
+- back-end のソースを変更した場合は `go build` がやり直しになり、現行の VPS では 8 分前後かかります
+  （front-end のみの変更なら 20 秒程度）。
 - `./.env` は `git pull` の対象外（`.gitignore` 済み）なので、キーが増えた場合は手動で追記して
   ください。
 - DB のスキーマ自体を変更した PR がマージされた場合は、`git pull` だけでは反映されません
@@ -175,7 +191,11 @@ docker compose up -d --build
   ```
 
 - ディスク使用量は `df -h` と `docker system df` で定期的に確認してください（特に `pgdata`
-  ボリュームの肥大化）。
+  ボリュームの肥大化）。初回デプロイ直後の時点では、ビルドキャッシュが約 2GB あります。
+  ディスクが逼迫したら `docker builder prune` で回収できますが、消すと次回の back-end
+  ビルドで依存取得からやり直しになります。
+- 現行の VPS はメモリが少ない（455MiB、スワップ 2GiB）ため、ビルド中は空きメモリが
+  100MiB 程度まで減ります。ビルド中に他の重い作業をしないでください。
 
 ---
 
@@ -195,5 +215,10 @@ docker compose up -d --build
 
 - [ ] この手順書だけを見て、関与していないメンバーがクリーンな VPS 相当の環境からデプロイを
       再現できる（レビューで読み合わせ済み）。
-- [ ] `docker compose ps` で `back-end` / `db` がホストにポート公開されていないことを確認した。
-- [ ] `./.env` の権限が `660` かつ `vegetask-dev` グループのみ書き込み可であることを確認した。
+- [x] `docker compose ps` で `back-end` / `db` がホストにポート公開されていないことを確認した
+      （2026-09-21、`docs/t10-production-deploy-test.md`）。
+- [x] `./.env` の権限が `660` かつ `vegetask-dev` グループのみ書き込み可であることを確認した
+      （2026-09-21、同上）。
+- [ ] 別の Linux ユーザーで更新フロー（`git pull` → `docker compose up -d --build`）を
+      実行できることを確認した。
+- [ ] `sudo ufw status` で 80 番のみが開放されていることを確認した。
