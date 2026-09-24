@@ -108,6 +108,8 @@ CI は `on: pull_request: branches: [main]` で PR ごとに自動実行され�
 - [ ] `docker-compose.yml` で 443 番もホストに公開
 - [ ] `docs/server-setup.md` の「公開してよいポート」節を 80/443 に更新
 - [ ] `sudo ufw status` を確認し、443 を許可
+- [ ] `front-end/public/robots.txt` と `front-end/public/sitemap.xml` の URL を
+      `https://www.vegetask.net/` に更新し、`vegetask.net`（www なし）は www 付きへリダイレクト
 
 **DoD**: `https://<ドメイン>/` で SPA が表示され、`http://` アクセスが 443 へリダイレクトされる。
 ブラウザで証明書エラーが出ない。
