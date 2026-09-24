@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /api/
+
+Sitemap: http://www.vegetask.net/sitemap.xml
