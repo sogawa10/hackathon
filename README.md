@@ -90,11 +90,12 @@
 
 | コンテナ | 内容 | 待ち受け |
 |---|---|---|
-| front | Nginx + ビルド済み静的ファイル（SPA 配信 + `/api` を back-end へプロキシ） | `:80`（公開） |
+| front | Nginx + ビルド済み静的ファイル（TLS 終端・SPA 配信 + `/api` を back-end へプロキシ） | `:443` / `:80`（公開。80 は https へリダイレクト） |
 | back-end | Go/Gin の API | `:3000`（内部のみ） |
 | db | PostgreSQL 17 | `:5432`（内部のみ） |
 
-公開ポートは 80 番のみ。サーバー構築・更新手順は `docs/server-setup.md`、DB スキーマ変更の運用は
+公開 URL は `https://www.vegetask.net/`（証明書は Let's Encrypt、ホストの certbot で自動更新）。
+公開ポートは 80 / 443 番のみ。サーバー構築・更新手順は `docs/server-setup.md`、DB スキーマ変更の運用は
 `docs/db-operations.md` を参照。
 
 ## システムの仕様書

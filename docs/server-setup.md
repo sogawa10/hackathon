@@ -95,6 +95,10 @@ setgid だけだと `git pull` で増えるファイルの「パーミッショ�
 
 ## 3. 初回起動
 
+> `front` は起動時に `/etc/letsencrypt/live/www.vegetask.net/` の証明書を読み込むため、
+> **先に「3.1 HTTPS 証明書の取得」を済ませてから**起動してください（証明書が無いと
+> `front` が起動直後に落ちます）。
+
 ```bash
 docker compose up -d --build
 ```
@@ -114,8 +118,15 @@ docker compose ps          # 3 サービスとも running / healthy
 docker compose logs -f     # 起動ログを確認（Ctrl+C で抜ける）
 ```
 
-ブラウザ（または `curl`）で `http://<VPS-IP>/` にアクセスして SPA が表示されること、
-`curl http://<VPS-IP>/api/tasks` が 401（未認証エラー = 経路自体は正常）を返すことを確認します。
+ブラウザ（または `curl`）で `https://www.vegetask.net/` にアクセスして SPA が表示されること、
+`curl https://www.vegetask.net/api/tasks` が 401（未認証エラー = 経路自体は正常）を返すことを
+確認します。あわせて、`http://` や www なしのアクセスが `https://www.vegetask.net/` へ
+301 リダイレクトされることも確認します。
+
+```bash
+curl -sI http://www.vegetask.net/  | grep -i -E '^(HTTP|location)'   # 301 → https://www.vegetask.net/
+curl -sI https://vegetask.net/     | grep -i -E '^(HTTP|location)'   # 301 → https://www.vegetask.net/
+```
 
 DB の初期化（スキーマとシード）が済んでいることは、野菜マスタの件数で確認できます
 （15 件が正）。
@@ -128,6 +139,72 @@ docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc
 > （動作には影響しません）。また、back-end のログ上の接続元 IP は Docker ブリッジのアドレス
 > （`172.18.0.1` など）になります。実際のクライアント IP を調べたい場合は Nginx 側のログを
 > 見てください。
+
+### 3.1 HTTPS 証明書の取得（初回のみ）
+
+証明書は Let's Encrypt から **ホスト側の certbot**（webroot 方式）で取得し、`front` コンテナには
+`/etc/letsencrypt`（証明書）と `/var/www/certbot`（ACME チャレンジ用ファイル）を読み取り専用で
+マウントしています（`docker-compose.yml` 参照）。証明書は `www.vegetask.net` と
+`vegetask.net`（www なし、www 付きへリダイレクトするために必要）の 2 つを 1 枚でカバーします。
+
+前提:
+
+- `www.vegetask.net` と `vegetask.net` の **両方**の A レコードが VPS の IP を向いていること
+  （`nslookup vegetask.net` で確認。片方でも引けないと発行に失敗します）。
+- ファイアウォールで 80 / 443 番を許可していること（5. 参照）。
+
+1. certbot を導入し、webroot 用ディレクトリを作ります。
+
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y certbot
+   sudo mkdir -p /var/www/certbot
+   ```
+
+2. 初回は証明書が無いため HTTPS 版の `front` を起動できません。一時的に `front` を止め、
+   webroot を配信するだけの Nginx を 80 番で立てて証明書を取得します（その間 1〜2 分サイトが
+   止まります）。
+
+   ```bash
+   cd /opt/vegetask
+   docker compose stop front
+   docker run -d --rm --name acme-tmp -p 80:80 \
+     -v /var/www/certbot:/usr/share/nginx/html:ro nginx:1.27-alpine
+
+   sudo certbot certonly --webroot -w /var/www/certbot \
+     -d www.vegetask.net -d vegetask.net \
+     --cert-name www.vegetask.net \
+     --email <連絡用メールアドレス> --agree-tos --no-eff-email
+
+   docker stop acme-tmp
+   ```
+
+   `/etc/letsencrypt/live/www.vegetask.net/fullchain.pem` と `privkey.pem` ができていれば成功です。
+
+3. HTTPS 版の `front` を起動します（まだ `git pull` していなければここで行う）。
+
+   ```bash
+   git pull
+   docker compose up -d --build front
+   ```
+
+4. 自動更新を設定します。Debian の certbot パッケージは `certbot.timer`（systemd timer）で
+   1 日 2 回 `certbot renew` を自動実行します。ただし Nginx は証明書を起動時にしか読み込まない
+   ため、**更新後に `front` をリロードするフック**を置きます。
+
+   ```bash
+   sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-front.sh > /dev/null <<'EOF'
+   #!/bin/sh
+   cd /opt/vegetask && docker compose exec -T front nginx -s reload
+   EOF
+   sudo chmod 755 /etc/letsencrypt/renewal-hooks/deploy/reload-front.sh
+
+   systemctl list-timers certbot.timer   # タイマーが有効か確認
+   sudo certbot renew --dry-run          # 更新がエラーなく通るか確認（フックは dry-run では実行されない）
+   ```
+
+   更新時の認証は `front` 自身が `/.well-known/acme-challenge/` を `/var/www/certbot` から
+   配信するので、サイトを止める必要はありません。
 
 ---
 
@@ -154,15 +231,19 @@ docker compose logs -f --tail=100
 
 ## 5. ネットワーク・公開ポートの確認
 
-- 公開してよいのは **80 番（Nginx）のみ**です。`back-end`（3000）・`db`（5432）は
+- 公開してよいのは **80 番と 443 番（Nginx）のみ**です。`back-end`（3000）・`db`（5432）は
   `docker-compose.yml` 上でホストに `ports` を公開していないため、外部から直接は到達できません。
   `docker compose ps` の `PORTS` 列で 3000 / 5432 がホストに出ていないことを確認してください。
-- アクセスは IP 直打ち・`http` のみです（ドメイン・TLS 終端は本計画のスコープ外）。
-- ホストのファイアウォール（`ufw` 等を使っている場合）で 80 番のみが開放されていることを
-  確認します。
+- 正規の URL は `https://www.vegetask.net/` です。80 番は Let's Encrypt の認証
+  （`/.well-known/acme-challenge/`）とリダイレクト専用で、それ以外はすべて
+  `https://www.vegetask.net/` へ 301 リダイレクトします。`https://vegetask.net/`（www なし）も
+  同様に www 付きへリダイレクトします。
+- ホストのファイアウォール（`ufw` 等を使っている場合）で 80 / 443 番（と SSH）のみが開放されて
+  いることを確認します。443 が無ければ許可します。
 
   ```bash
   sudo ufw status
+  sudo ufw allow 443/tcp   # 未許可の場合のみ
   ```
 
 ---
@@ -207,6 +288,9 @@ docker compose up -d --build
 | 日本語のファイル名（`/野菜L/...` など）の静的アセットが 404 になる | `front-end/nginx.conf` の `charset utf-8;` 設定と、`npm run build` の成果物（`dist/`）が正しくイメージに含まれているか確認する。 |
 | `/api/subtasks/today` など日付に依存する API が 500 になる | back-end イメージに `tzdata` が入っているか（`back-end/Dockerfile` の `apk add --no-cache tzdata ca-certificates`）を確認する。 |
 | `docker compose up` 時に `.env` のキー不足でエラーになる | README.md の「環境変数」表と `./.env` を突き合わせ、不足しているキーを追記する。 |
+| `front` が起動直後に落ちる（ログに `cannot load certificate`） | 証明書が未取得か、パスが違う。`sudo ls /etc/letsencrypt/live/www.vegetask.net/` を確認し、無ければ 3.1 の手順で取得する。 |
+| ブラウザで証明書の期限切れエラーが出る | `sudo certbot certificates` で有効期限を確認。更新済みなのに古い証明書が出る場合は `docker compose exec front nginx -s reload` を実行し、3.1 の 4. のデプロイフックが置かれているか確認する。 |
+| `certbot renew` が失敗する | `http://www.vegetask.net/.well-known/acme-challenge/test` に届くか確認する（`/var/www/certbot` のマウント、80 番の開放、DNS）。 |
 | ページの再読み込みや `/tasks` への直アクセスで 404 になる | `front-end/nginx.conf` の `location /` に `try_files $uri $uri/ /index.html;`（SPA フォールバック）が設定されているか確認する。 |
 
 ---
@@ -221,4 +305,7 @@ docker compose up -d --build
       （2026-09-21）。
 - [ ] 別の Linux ユーザーで更新フロー（`git pull` → `docker compose up -d --build`）を
       実行できることを確認した。
-- [ ] `sudo ufw status` で 80 番のみが開放されていることを確認した。
+- [ ] `sudo ufw status` で 80 / 443 番（と SSH）のみが開放されていることを確認した。
+- [ ] `https://www.vegetask.net/` が証明書エラーなく表示され、`http://` と www なしのアクセスが
+      リダイレクトされることを確認した。
+- [ ] `sudo certbot renew --dry-run` が成功することを確認した。
