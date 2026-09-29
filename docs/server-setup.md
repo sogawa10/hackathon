@@ -301,18 +301,3 @@ docker compose up -d --build
 | ページの再読み込みや `/tasks` への直アクセスで 404 になる | `front-end/nginx.conf` の `location /` に `try_files $uri $uri/ /index.html;`（SPA フォールバック）が設定されているか確認する。 |
 
 ---
-
-## 9. 完了条件（DoD）チェックリスト
-
-- [ ] この手順書だけを見て、関与していないメンバーがクリーンな VPS 相当の環境からデプロイを
-      再現できる（レビューで読み合わせ済み）。
-- [x] `docker compose ps` で `back-end` / `db` がホストにポート公開されていないことを確認した
-      （2026-09-21）。
-- [x] `./.env` の権限が `660` かつ `vegetask-dev` グループのみ書き込み可であることを確認した
-      （2026-09-21）。
-- [ ] 別の Linux ユーザーで更新フロー（`git pull` → `docker compose up -d --build`）を
-      実行できることを確認した。
-- [ ] さくらのパケットフィルタで 80 / 443 番（と SSH）のみが許可されていることを確認した。
-- [ ] `https://www.vegetask.net/` が証明書エラーなく表示され、`http://` と www なしのアクセスが
-      リダイレクトされることを確認した。
-- [x] `sudo certbot renew --dry-run` が成功することを確認した（2026-09-29）。
