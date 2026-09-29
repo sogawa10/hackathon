@@ -66,17 +66,19 @@ CI は `on: pull_request: branches: [main]` で PR ごとに自動実行され�
 立てるので、他の人の PR と衝突しない。`pull_request` イベントは「`main` にマージした想定の
 コード」に対して走るため、他の PR が先にマージされたことによる意味的な衝突もある程度拾える。
 
-- [ ] `.github/workflows/ci.yml` を作成。PR / main への push をトリガーに:
-  - [ ] back-end: `go vet ./...`、`go test -v`（PostgreSQL は `services:` で
+- [x] `.github/workflows/ci.yml` を作成。PR / main への push をトリガーに:
+  - [x] back-end: `go vet ./...`、`go test -v`（PostgreSQL は `services:` で
         `postgres:17-alpine` コンテナを起動し、`DB/01_create_table.sql` →
         `DB/02_add_vegetable.sql` を流してから実行）
-  - [ ] front-end: `npm ci`、`npm run lint`、`npm run build`
+  - [x] front-end: `npm ci`、`npm run lint`、`npm run build`
+        （フロントにユニットテスト／テストランナーは無いので、品質ゲートは lint + build）
 - [ ] GitHub リポジトリ設定（Settings → Branches）で `main` にブランチ保護ルールを追加:
+      （ワークフローが一度成功してから、チェック名 `back-end` / `front-end` を指定する）
   - [ ] Require a pull request before merging（直接 push 禁止）
   - [ ] Require status checks to pass before merging（上記 CI のジョブ名を指定）
   - [ ] Require branches to be up to date before merging
   - [ ] Require approvals: 1（3人チームなので自分以外1人のレビュー必須）
-- [ ] `back-end/.env` 相当の値（`JWT_SECRET` 等）は CI 用にダミー値を Secrets ではなく
+- [x] `back-end/.env` 相当の値（`JWT_SECRET` 等）は CI 用にダミー値を Secrets ではなく
       ワークフロー内に直書きでよい（本番の値とは無関係なため）
 
 **DoD**: 適当な PR を出して、CI が自動で回り、わざと壊した場合に赤くなることを確認。

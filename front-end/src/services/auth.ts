@@ -15,6 +15,11 @@ export type AuthPayload = {
   user_pass: string;
 };
 
+type ErrorResponse = {
+  error?: string;
+  message?: string;
+};
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export async function login({ user_name, user_pass }: AuthPayload): Promise<LoginResponse> {
@@ -29,8 +34,8 @@ export async function login({ user_name, user_pass }: AuthPayload): Promise<Logi
   });
 
   if (!res.ok) {
-    const errData = await res.json().catch(() => ({ error: 'ログインに失敗しました' }));
-    const message = (errData as any).error || (errData as any).message || 'ログインに失敗しました';
+    const errData: ErrorResponse = await res.json().catch(() => ({ error: 'ログインに失敗しました' }));
+    const message = errData.error || errData.message || 'ログインに失敗しました';
     throw new Error(message);
   }
 
@@ -55,8 +60,8 @@ export async function signup({ user_name, user_pass }: AuthPayload): Promise<Sig
   });
 
   if (!res.ok) {
-    const errData = await res.json().catch(() => ({ error: 'ユーザー登録に失敗しました' }));
-    const message = (errData as any).error || (errData as any).message || 'ユーザー登録に失敗しました';
+    const errData: ErrorResponse = await res.json().catch(() => ({ error: 'ユーザー登録に失敗しました' }));
+    const message = errData.error || errData.message || 'ユーザー登録に失敗しました';
     throw new Error(message);
   }
 
