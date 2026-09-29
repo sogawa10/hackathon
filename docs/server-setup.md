@@ -238,13 +238,20 @@ docker compose logs -f --tail=100
   （`/.well-known/acme-challenge/`）とリダイレクト専用で、それ以外はすべて
   `https://www.vegetask.net/` へ 301 リダイレクトします。`https://vegetask.net/`（www なし）も
   同様に www 付きへリダイレクトします。
-- ホストのファイアウォール（`ufw` 等を使っている場合）で 80 / 443 番（と SSH）のみが開放されて
-  いることを確認します。443 が無ければ許可します。
+- 外部からの到達可否は、**さくらのコントロールパネルの「パケットフィルタ」**で制御します。
+  80 / 443 番（と SSH）のみを許可してください。443 が無ければ追加します。
+- 現行の VPS には `ufw` は入っておらず、ホストの nftables にあるのは Docker が自動で管理する
+  ルールだけです（2026-09-29 確認）。ホスト側で追加のファイアウォール設定は不要です。
+  なお、仮に `ufw` を入れても、Docker が `ports` で公開したポートは `ufw` のルールを経由せずに
+  転送されるため、公開ポートの制限には使えません。公開範囲は `docker-compose.yml` の `ports` と
+  パケットフィルタで管理します。
 
   ```bash
-  sudo ufw status
-  sudo ufw allow 443/tcp   # 未許可の場合のみ
+  sudo nft list ruleset | less   # ホスト側のルール確認（Docker 管理のルールのみであること）
   ```
+
+- パケットフィルタの確認は VPS 自身からでは行えません（自分の公開 IP 宛ての通信はフィルタを
+  通らない）。**必ず VPS 以外の端末**から `https://www.vegetask.net/` にアクセスして確認します。
 
 ---
 
@@ -305,7 +312,7 @@ docker compose up -d --build
       （2026-09-21）。
 - [ ] 別の Linux ユーザーで更新フロー（`git pull` → `docker compose up -d --build`）を
       実行できることを確認した。
-- [ ] `sudo ufw status` で 80 / 443 番（と SSH）のみが開放されていることを確認した。
+- [ ] さくらのパケットフィルタで 80 / 443 番（と SSH）のみが許可されていることを確認した。
 - [ ] `https://www.vegetask.net/` が証明書エラーなく表示され、`http://` と www なしのアクセスが
       リダイレクトされることを確認した。
-- [ ] `sudo certbot renew --dry-run` が成功することを確認した。
+- [x] `sudo certbot renew --dry-run` が成功することを確認した（2026-09-29）。
