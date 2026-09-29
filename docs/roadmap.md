@@ -96,20 +96,25 @@ CI は `on: pull_request: branches: [main]` で PR ごとに自動実行され�
 
 ## Phase 2: HTTPS化 + CORS更新
 
-- [ ] VPS に certbot を導入（webroot 方式。`front-end/nginx.conf` の `location /` 配下に
+- [x] VPS に certbot を導入（webroot 方式。`front-end/nginx.conf` の `location /` 配下に
       `/.well-known/acme-challenge/` の静的配信を追加してから取得する）
-      → 手順は `docs/server-setup.md` の「3.1」。nginx 側の設定はリポジトリに反映済み
+      → 手順は `docs/server-setup.md` の「3.1」。2026-09-29 に取得済み
+      （`www.vegetask.net` + `vegetask.net` の 1 枚、有効期限 2026-12-28）
 - [x] `front-end/nginx.conf` に 443 の server ブロックを追加、80 は 443 へリダイレクト
 - [x] 証明書ファイルをコンテナにマウント（`docker-compose.yml` の `front` サービスに
       volume 追加）
-- [ ] 証明書の自動更新（`certbot renew` を cron/systemd timer で。更新後に
+- [x] 証明書の自動更新（`certbot renew` を cron/systemd timer で。更新後に
       `docker compose exec front nginx -s reload` が必要な点に注意）
-      → 手順（deploy フック）は `docs/server-setup.md` の「3.1」。VPS での設定作業が残り
+      → 手順（deploy フック）は `docs/server-setup.md` の「3.1」。2026-09-29 に設定済み
+      （`certbot.timer` 有効、`reload-front.sh` 設置、`renew --dry-run` 成功）
 - [x] `back-end/main.go` の `AllowOrigins`（CORS）をドメインの `https://` に更新
       （ルーティングの単一情報源方針どおり、変更はここだけ）
 - [x] `docker-compose.yml` で 443 番もホストに公開
 - [x] `docs/server-setup.md` の「公開してよいポート」節を 80/443 に更新
-- [ ] `sudo ufw status` を確認し、443 を許可
+- [ ] ファイアウォールで 443 を許可（当初は `sudo ufw status` で確認する想定だった）
+      → VPS に ufw は無く、nftables も Docker 管理のルールのみでホスト側の対応は不要。
+      さくらのパケットフィルタで 443 が許可されているかを VPS 以外の端末から要確認
+      （`docs/server-setup.md` の「5.」）
 - [x] `front-end/public/robots.txt` と `front-end/public/sitemap.xml` の URL を
       `https://www.vegetask.net/` に更新し、`vegetask.net`（www なし）は www 付きへリダイレクト
       （リダイレクトは nginx 側。www なしの A レコード追加が別途必要）
