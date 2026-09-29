@@ -51,6 +51,11 @@ func CreateTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		if req.TotalCount <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "分量は1以上で入力してください"})
+			return
+		}
+
 		if req.LapCount <= 0 {
 			req.LapCount = 1
 		}
@@ -533,8 +538,15 @@ func DeleteTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		query := `DELETE FROM "TASKS" WHERE task_id = $1`
-		result, err := db.Exec(query, taskID)
+		ctxUserID, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "認証情報が見つかりません"})
+			return
+		}
+		userID := ctxUserID.(string)
+
+		query := `DELETE FROM "TASKS" WHERE task_id = $1 AND user_id = $2`
+		result, err := db.Exec(query, taskID, userID)
 		if err != nil {
 			log.Printf("タスク削除エラー: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラーが発生しました"})

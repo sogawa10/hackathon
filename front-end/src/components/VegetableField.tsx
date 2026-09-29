@@ -71,7 +71,7 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
-      for (let entry of entries) {
+      for (const entry of entries) {
         setBoardScale(entry.contentRect.height / 600);
       }
     });
@@ -162,7 +162,7 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
   }
 
   const getVegetableInfo = (task: TodaySubtask) => {
-    let vegName = task.vegetable_name || 'かぼちゃ';
+    const vegName = task.vegetable_name || 'かぼちゃ';
     let size = 'L';
     let jpName = 'かぼちゃ';
 
@@ -175,9 +175,9 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
     else if (['プチトマト', 'オクラ', '枝豆', 'シイタケ', 'ネギ', 'S'].includes(vegName)) { jpName = vegName === 'S' ? 'プチトマト' : vegName; size = 'S'; }
 
     const stage = task.growth_stage;
-    let path = '';
-    let label = '';
-    let bgColor = '';
+    let path: string;
+    const label = '';
+    let bgColor: string;
     
     let scaleMultiplier = 1; 
     let bottomOffsetBase = 0; 

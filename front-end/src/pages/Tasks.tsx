@@ -83,16 +83,8 @@ const Tasks: React.FC = () => {
 
     // 現在時刻の取得
     const mockDate = import.meta.env.VITE_MOCK_TODAY;
-    let todayStr = '';
-    if (mockDate) {
-      todayStr = mockDate;
-    } else {
-      const d = new Date();
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      todayStr = `${year}-${month}-${day}`;
-    }
+    const d = new Date();
+    const todayStr = mockDate || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
     const startDateStr = task.start_date.split('T')[0];
 
