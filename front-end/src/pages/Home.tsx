@@ -15,6 +15,7 @@ type TodaySubtask = {
   vegetable_name: string;
   growth_stage: number;
   is_checkable?: boolean;
+  field_position?: number | null;
 };
 
 const Home: React.FC = () => {
@@ -93,6 +94,7 @@ const Home: React.FC = () => {
         vegetable_name: t.vegetable_name || 'かぼちゃ',
         growth_stage: 0,
         is_checkable: false,
+        field_position: typeof t.field_position === 'number' ? t.field_position : null,
       }));
 
       const todayTaskIds = new Set(safeTodayData.map((t: any) => t.task_id));
@@ -112,6 +114,7 @@ const Home: React.FC = () => {
         vegetable_name: t.vegetable_name || 'かぼちゃ',
         growth_stage: 10,
         is_checkable: false,
+        field_position: typeof t.field_position === 'number' ? t.field_position : null,
       }));
 
       const combinedData = [

@@ -138,7 +138,7 @@ const HarvestBasket: React.FC = () => {
 
         setHarvests(calculatedData);
         setLoading(false);
-      } catch (err: any) {
+      } catch {
         setError('収穫データの取得に失敗しました');
         setLoading(false);
       }

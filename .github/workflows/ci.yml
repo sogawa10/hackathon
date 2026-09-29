@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  back-end:
+    name: back-end
+    runs-on: ubuntu-latest
+    env:
+      # 本番とは無関係な CI 専用ダミー値（Secrets には置かない）
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_USER: vegetask_user
+      DB_PASS: vegetask_ci
+      DB_NAME: vegetask_db
+      JWT_SECRET: ci-dummy-jwt-secret-not-for-production
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: vegetask_user
+          POSTGRES_PASSWORD: vegetask_ci
+          POSTGRES_DB: vegetask_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vegetask_user -d vegetask_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: back-end/go.mod
+          cache-dependency-path: back-end/go.sum
+      - name: スキーマと野菜マスタを適用
+        env:
+          PGPASSWORD: vegetask_ci
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          psql -h localhost -U vegetask_user -d vegetask_db -v ON_ERROR_STOP=1 -f DB/01_create_table.sql
+          psql -h localhost -U vegetask_user -d vegetask_db -v ON_ERROR_STOP=1 -f DB/02_add_vegetable.sql
+      - name: go vet
+        working-directory: back-end
+        run: go vet ./...
+      - name: go test
+        working-directory: back-end
+        run: go test -v ./...
+
+  front-end:
+    name: front-end
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: front-end
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: front-end/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build

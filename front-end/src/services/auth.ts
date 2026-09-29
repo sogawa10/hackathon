@@ -15,7 +15,12 @@ export type AuthPayload = {
   user_pass: string;
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+type ErrorResponse = {
+  error?: string;
+  message?: string;
+};
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export async function login({ user_name, user_pass }: AuthPayload): Promise<LoginResponse> {
   const body = JSON.stringify({ user_name, user_pass });
@@ -29,13 +34,12 @@ export async function login({ user_name, user_pass }: AuthPayload): Promise<Logi
   });
 
   if (!res.ok) {
-    const errData = await res.json().catch(() => ({ error: 'ログインに失敗しました' }));
-    const message = (errData as any).error || (errData as any).message || 'ログインに失敗しました';
+    const errData: ErrorResponse = await res.json().catch(() => ({ error: 'ログインに失敗しました' }));
+    const message = errData.error || errData.message || 'ログインに失敗しました';
     throw new Error(message);
   }
 
-  const json = await res.json().catch(() => []);
-  const data = Array.isArray(json) ? json[0] : json;
+  const data = await res.json().catch(() => null);
 
   if (!data || !data.access_token) {
     throw new Error('無効なレスポンスです');
@@ -56,13 +60,12 @@ export async function signup({ user_name, user_pass }: AuthPayload): Promise<Sig
   });
 
   if (!res.ok) {
-    const errData = await res.json().catch(() => ({ error: 'ユーザー登録に失敗しました' }));
-    const message = (errData as any).error || (errData as any).message || 'ユーザー登録に失敗しました';
+    const errData: ErrorResponse = await res.json().catch(() => ({ error: 'ユーザー登録に失敗しました' }));
+    const message = errData.error || errData.message || 'ユーザー登録に失敗しました';
     throw new Error(message);
   }
 
-  const json = await res.json().catch(() => []);
-  const data = Array.isArray(json) ? json[0] : json;
+  const data = await res.json().catch(() => null);
 
   if (!data || !data.access_token) {
     throw new Error('無効なレスポンスです');

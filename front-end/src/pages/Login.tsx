@@ -24,16 +24,14 @@ const Login: React.FC = () => {
 
     try {
       const data = await login({ user_name: username, user_pass: password });
-      
-      const responseData = Array.isArray(data) ? data[0] : data;
 
-      if (!responseData || !responseData.access_token) {
+      if (!data || !data.access_token) {
         throw new Error('トークンの取得に失敗しました');
       }
 
-      localStorage.setItem('access_token', responseData.access_token);
-      if (responseData.refresh_token) {
-        localStorage.setItem('refresh_token', responseData.refresh_token);
+      localStorage.setItem('access_token', data.access_token);
+      if (data.refresh_token) {
+        localStorage.setItem('refresh_token', data.refresh_token);
       }
 
       navigate('/home', { replace: true });

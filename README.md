@@ -56,6 +56,48 @@
 9. 収穫された野菜は**かご**に溜まっていく
 
 
+## 環境変数
+
+### サーバーの `./.env`（リポジトリ直下・`chmod 600`）
+
+`docker-compose.yml` が変数展開に使い、`back-end` へは `env_file` で丸ごと注入、`db` は `POSTGRES_*: ${DB_*}` で流用する。
+
+| 変数 | 用途 | 例 / 既定 | 備考 |
+|---|---|---|---|
+| `DB_HOST` | 接続先 DB ホスト | `db` | Compose のサービス名 |
+| `DB_PORT` | DB ポート | `5432` | |
+| `DB_USER` | DB ユーザー | `vegetask_user` | `db` の `POSTGRES_USER` に流用 |
+| `DB_PASS` | DB パスワード | （本番用に新規発行） | 秘密。`db` の `POSTGRES_PASSWORD` に流用 |
+| `DB_NAME` | DB 名 | `vegetask_db` | `db` の `POSTGRES_DB` に流用 |
+| `JWT_SECRET` | JWT 署名鍵 | （本番用に新規発行） | 秘密 |
+| `MOCK_TODAY` | 「今日」を固定（開発用） | 未設定 | 本番では設定しない。未設定だと実日付（Asia/Tokyo） |
+
+### front-end（ビルド時 / `docker compose build` の引数で渡す。サーバーに `.env` は不要）
+
+| 変数 | 用途 | 本番値 | 備考 |
+|---|---|---|---|
+| `VITE_API_BASE_URL` | API のベース URL | `""`（空） | 空 = 同一オリジンの相対 `/api`。JS に焼き込まれる |
+| `VITE_PROXY_TARGET` | dev サーバのプロキシ先 | — | `npm run dev` 専用。本番ビルドでは未使用 |
+| `VITE_MOCK_TODAY` | 「今日」を固定（開発用） | 未設定 | 本番では渡さない |
+
+### `back-end/.env`（Docker を使わず `go run` / `go test` する人向け・各自作成・任意）
+
+キーはサーバーの `./.env` と同じで、`DB_HOST=127.0.0.1` などローカル値にする。`.dockerignore` で除外されるため、イメージにもサーバーにも入らない。
+
+## デプロイ構成
+
+さくら VPS 上で Docker Compose により 3 コンテナを稼働。
+
+| コンテナ | 内容 | 待ち受け |
+|---|---|---|
+| front | Nginx + ビルド済み静的ファイル（TLS 終端・SPA 配信 + `/api` を back-end へプロキシ） | `:443` / `:80`（公開。80 は https へリダイレクト） |
+| back-end | Go/Gin の API | `:3000`（内部のみ） |
+| db | PostgreSQL 17 | `:5432`（内部のみ） |
+
+公開 URL は `https://www.vegetask.net/`（証明書は Let's Encrypt、ホストの certbot で自動更新）。
+公開ポートは 80 / 443 番のみ。サーバー構築・更新手順は `docs/server-setup.md`、DB スキーマ変更の運用は
+`docs/db-operations.md` を参照。
+
 ## システムの仕様書
 
 ### タスクの種類と入力の型
@@ -171,7 +213,7 @@ S = D + P
 
 **ER図**
 
-<img width="679" height="561" alt="Image" src="https://github.com/user-attachments/assets/7f97e690-82a8-461c-8874-133ca8a4e8fc" />
+<img width="679" height="581" alt="Image" src="https://github.com/user-attachments/assets/fe9728f5-4e77-400d-9633-a4079874e38e" />
 
 **補足：「growth_stage」について**
 
@@ -184,29 +226,36 @@ S = D + P
 < 11 > → 収穫済み
 
 
+**補足：「field_position」について**
+
+- 野菜を配置する畑スロットの番号。畑は 5×5 の 25 マスで，`0`〜`24` の値をとる
+
+- `null` は「まだ畑に配置されていない」状態（種をもらう前，または収穫・枯死でスロットを解放した後）
+
+- 値は野菜を初めて割り当てたとき（**POST** `api/vegetable/{task_id}`）に，中央寄せの配置順で空いているスロットへ自動で決まる。一度決まった位置は，同じタスクで野菜を選び直しても変わらない
+
+- 収穫済み（`growth_stage` 11）・枯れた（`growth_stage` -1）タスクはスロットを解放し，以降は他のタスクがそのスロットを使える
+
+
 **ユーザー登録**（**POST** `api/signup`）
 
 リクエスト (JSON)
 
 ```json
-[
-  {
-    "user_name": "user_name",
-    "user_pass": "user_pass"
-  }
-]
+{
+  "user_name": "user_name",
+  "user_pass": "user_pass"
+}
 ```
 
 レスポンス (JSON)
 
 ```json
-[
-  {
-    "user_id": "UUID",
-    "access_token": "access_token",
-    "refresh_token": "refresh_token"
-  }
-]
+{
+  "user_id": "UUID",
+  "access_token": "access_token",
+  "refresh_token": "refresh_token"
+}
 ```
 
 **ログイン**（**POST** `api/login`）
@@ -214,24 +263,20 @@ S = D + P
 リクエスト (JSON)
 
 ```json
-[
-  {
-    "user_name": "user_name",
-    "user_pass": "user_pass"
-  }
-]
+{
+  "user_name": "user_name",
+  "user_pass": "user_pass"
+}
 ```
 
 レスポンス (JSON)
 
 ```json
-[
-  {
-    "user_id": "UUID",
-    "access_token": "accesstoken",
-    "refresh_token": "refresh_token"
-  }
-]
+{
+  "user_id": "UUID",
+  "access_token": "accesstoken",
+  "refresh_token": "refresh_token"
+}
 ```
 
 **今日のToDo取得**（**GET** `api/subtasks/today`）
@@ -251,7 +296,8 @@ S = D + P
     "task_content": "String（何問 or 何単語 など）",
     "is_completed": "Boolean",
     "vegetable_name": "vegetable_name",
-    "growth_stage": "-1〜11"
+    "growth_stage": "-1〜11",
+    "field_position": "0〜24 または null（畑スロット番号）"
   }
 ]
 ```
@@ -263,21 +309,17 @@ S = D + P
 リクエスト (JSON)
 
 ```json
-[
-  {
-    "sub_task_id": "UUID",
-  }
-]
+{
+  "sub_task_id": "UUID"
+}
 ```
 
 レスポンス (JSON)
 
 ```json
-[
-  {
-    "growth_stage": "-1〜11"
-  }
-]
+{
+  "growth_stage": "-1〜11"
+}
 ```
 
 **野菜の収穫**（**POST** `api/tasks/harvest`）
@@ -287,23 +329,19 @@ S = D + P
 リクエスト (JSON)
 
 ```json
-[
-  {
-    "task_id": "UUID"
-  }
-]
+{
+  "task_id": "UUID"
+}
 ```
 
 レスポンス (JSON)
 
 ```json
-[
-  {
-    "harvest_id": "UUID",
-    "vegetable_name": "vegetable_name",
-    "size": "S | M | L"
-  }
-]
+{
+  "harvest_id": "UUID",
+  "vegetable_name": "vegetable_name",
+  "size": "S | M | L"
+}
 ```
 
 **タスク登録**（**POST** `api/tasks`）
@@ -313,27 +351,23 @@ S = D + P
 リクエスト (JSON)
 
 ```json
-[
-  {
-    "task_type": "単語帳 | 問題集 | 過去問 | その他",
-    "task_title": "task_title",
-    "total_count": "total_count（問題量）",
-    "lap_count": "lap_count（周回数：デフォルトは1）",
-    "start_date": "YYYY-MM-DD",
-    "end_date": "YYYY-MM-DD"
-  }
-]
+{
+  "task_type": "単語帳 | 問題集 | 過去問 | その他",
+  "task_title": "task_title",
+  "total_count": "total_count（問題量）",
+  "lap_count": "lap_count（周回数：デフォルトは1）",
+  "start_date": "YYYY-MM-DD",
+  "end_date": "YYYY-MM-DD"
+}
 ```
 
 レスポンス (JSON)
 
 ```json
-[
-  {
-    "task_id": "UUID",
-    "size": "S | M | L"
-  }
-]
+{
+  "task_id": "UUID",
+  "size": "S | M | L"
+}
 ```
 
 **野菜をタスクに割り当てる**（**POST** `api/vegetable/{task_id}`）
@@ -345,21 +379,17 @@ S = D + P
 リクエスト (JSON)
 
 ```json
-[
-  {
-    "vegetable_name": "vegetable_name"
-  }
-]
+{
+  "vegetable_name": "vegetable_name"
+}
 ```
 
 レスポンス (JSON)
 
 ```json
-[
-  {
-    "task_id": "UUID"
-  }
-]
+{
+  "task_id": "UUID"
+}
 ```
 
 **タスク一覧取得**（**GET** `api/tasks`）
@@ -380,7 +410,8 @@ S = D + P
     "end_date": "YYYY-MM-DD",
     "buffer_days": "buffer_day（予備日数）",
     "vegetable_name": "vegetable_name",
-    "growth_stage": "-1〜11"
+    "growth_stage": "-1〜11",
+    "field_position": "0〜24 または null（畑スロット番号）"
   }
 ]
 ```

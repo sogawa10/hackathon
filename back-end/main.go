@@ -39,10 +39,17 @@ func main() {
 	}
 	fmt.Println("PostgreSQL への接続成功！")
 
+	r := SetupRouter(db)
+
+	fmt.Println("VegeTask サーバーがポート3000番で起動しました。")
+	r.Run(":3000")
+}
+
+func SetupRouter(db *sql.DB) *gin.Engine {
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowOrigins:     []string{"https://www.vegetask.net", "http://localhost:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
@@ -64,6 +71,5 @@ func main() {
 		authGroup.GET("/api/harvest_basket", handlers.GetHarvestBasketHandler(db))
 	}
 
-	fmt.Println("VegeTask サーバーがポート3000番で起動しました。")
-	r.Run(":3000")
+	return r
 }
