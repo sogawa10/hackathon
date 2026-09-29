@@ -85,10 +85,10 @@ CI は `on: pull_request: branches: [main]` で PR ごとに自動実行され�
 
 ## Phase 1: ドメイン契約 + DNS
 
-- [ ] ドメイン名を決めて契約（レジストラはどこでも可。更新費用も確認しておく）
-- [ ] レジストラ or Cloudflare 等の DNS で A レコードを VPS の IP に向ける
-- [ ] TTL を短め（300秒程度）にしておく（Phase2 で切り替えがしやすいように）
-- [ ] `dig <ドメイン>` / `nslookup <ドメイン>` で反映を確認
+- [x] ドメイン名を決めて契約（レジストラはどこでも可。更新費用も確認しておく）
+- [x] レジストラ or Cloudflare 等の DNS で A レコードを VPS の IP に向ける
+- [x] TTL を短め（300秒程度）にしておく（Phase2 で切り替えがしやすいように）
+- [x] `dig <ドメイン>` / `nslookup <ドメイン>` で反映を確認
 
 **DoD**: `http://<ドメイン>/` で既存の VPS（IP直打ちと同じ内容）が表示される。
 
@@ -98,18 +98,21 @@ CI は `on: pull_request: branches: [main]` で PR ごとに自動実行され�
 
 - [ ] VPS に certbot を導入（webroot 方式。`front-end/nginx.conf` の `location /` 配下に
       `/.well-known/acme-challenge/` の静的配信を追加してから取得する）
-- [ ] `front-end/nginx.conf` に 443 の server ブロックを追加、80 は 443 へリダイレクト
-- [ ] 証明書ファイルをコンテナにマウント（`docker-compose.yml` の `front` サービスに
+      → 手順は `docs/server-setup.md` の「3.1」。nginx 側の設定はリポジトリに反映済み
+- [x] `front-end/nginx.conf` に 443 の server ブロックを追加、80 は 443 へリダイレクト
+- [x] 証明書ファイルをコンテナにマウント（`docker-compose.yml` の `front` サービスに
       volume 追加）
 - [ ] 証明書の自動更新（`certbot renew` を cron/systemd timer で。更新後に
       `docker compose exec front nginx -s reload` が必要な点に注意）
-- [ ] `back-end/main.go` の `AllowOrigins`（CORS）をドメインの `https://` に更新
+      → 手順（deploy フック）は `docs/server-setup.md` の「3.1」。VPS での設定作業が残り
+- [x] `back-end/main.go` の `AllowOrigins`（CORS）をドメインの `https://` に更新
       （ルーティングの単一情報源方針どおり、変更はここだけ）
-- [ ] `docker-compose.yml` で 443 番もホストに公開
-- [ ] `docs/server-setup.md` の「公開してよいポート」節を 80/443 に更新
+- [x] `docker-compose.yml` で 443 番もホストに公開
+- [x] `docs/server-setup.md` の「公開してよいポート」節を 80/443 に更新
 - [ ] `sudo ufw status` を確認し、443 を許可
-- [ ] `front-end/public/robots.txt` と `front-end/public/sitemap.xml` の URL を
+- [x] `front-end/public/robots.txt` と `front-end/public/sitemap.xml` の URL を
       `https://www.vegetask.net/` に更新し、`vegetask.net`（www なし）は www 付きへリダイレクト
+      （リダイレクトは nginx 側。www なしの A レコード追加が別途必要）
 
 **DoD**: `https://<ドメイン>/` で SPA が表示され、`http://` アクセスが 443 へリダイレクトされる。
 ブラウザで証明書エラーが出ない。

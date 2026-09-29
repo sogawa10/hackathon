@@ -32,6 +32,11 @@ services:
         VITE_API_BASE_URL: ""
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      # 証明書はホストの certbot が管理（手順は docs/server-setup.md）
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       - back-end
     restart: unless-stopped
