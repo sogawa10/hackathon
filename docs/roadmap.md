@@ -111,7 +111,7 @@ CI は `on: pull_request: branches: [main]` で PR ごとに自動実行され�
       （ルーティングの単一情報源方針どおり、変更はここだけ）
 - [x] `docker-compose.yml` で 443 番もホストに公開
 - [x] `docs/server-setup.md` の「公開してよいポート」節を 80/443 に更新
-- [ ] ファイアウォールで 443 を許可（当初は `sudo ufw status` で確認する想定だった）
+- [x] ファイアウォールで 443 を許可（当初は `sudo ufw status` で確認する想定だった）
       → VPS に ufw は無く、nftables も Docker 管理のルールのみでホスト側の対応は不要。
       さくらのパケットフィルタで 443 が許可されているかを VPS 以外の端末から要確認
       （`docs/server-setup.md` の「5.」）
