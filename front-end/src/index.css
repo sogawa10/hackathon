@@ -52,7 +52,17 @@
 
 body {
   margin: 0;
-  overflow: hidden; 
+  overflow: hidden;
+}
+
+img {
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+img::selection {
+  background: transparent;
 }
 
 #root {
