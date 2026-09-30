@@ -1,13 +1,11 @@
 export type LoginResponse = {
   user_id: string;
   access_token: string;
-  refresh_token?: string;
 };
 
 export type SignupResponse = {
   user_id: string;
   access_token: string;
-  refresh_token?: string;
 };
 
 export type AuthPayload = {
