@@ -70,6 +70,7 @@
 | `DB_PASS` | DB パスワード | （本番用に新規発行） | 秘密。`db` の `POSTGRES_PASSWORD` に流用 |
 | `DB_NAME` | DB 名 | `vegetask_db` | `db` の `POSTGRES_DB` に流用 |
 | `JWT_SECRET` | JWT 署名鍵 | （本番用に新規発行） | 秘密 |
+| `GIN_MODE` | Gin の実行モード | `release` | 本番は `release`。未設定だとデバッグログが出る |
 | `MOCK_TODAY` | 「今日」を固定（開発用） | 未設定 | 本番では設定しない。未設定だと実日付（Asia/Tokyo） |
 
 ### front-end（ビルド時 / `docker compose build` の引数で渡す。サーバーに `.env` は不要）
