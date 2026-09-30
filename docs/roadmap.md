@@ -72,12 +72,12 @@ CI は `on: pull_request: branches: [main]` で PR ごとに自動実行され�
         `DB/02_add_vegetable.sql` を流してから実行）
   - [x] front-end: `npm ci`、`npm run lint`、`npm run build`
         （フロントにユニットテスト／テストランナーは無いので、品質ゲートは lint + build）
-- [ ] GitHub リポジトリ設定（Settings → Branches）で `main` にブランチ保護ルールを追加:
+- [x] GitHub リポジトリ設定（Settings → Branches）で `main` にブランチ保護ルールを追加:
       （ワークフローが一度成功してから、チェック名 `back-end` / `front-end` を指定する）
-  - [ ] Require a pull request before merging（直接 push 禁止）
-  - [ ] Require status checks to pass before merging（上記 CI のジョブ名を指定）
-  - [ ] Require branches to be up to date before merging
-  - [ ] Require approvals: 1（3人チームなので自分以外1人のレビュー必須）
+  - [x] Require a pull request before merging（直接 push 禁止）
+  - [x] Require status checks to pass before merging（上記 CI のジョブ名を指定）
+  - [x] Require branches to be up to date before merging
+  - [x] Require approvals: 1（3人チームなので自分以外1人のレビュー必須）
 - [x] `back-end/.env` 相当の値（`JWT_SECRET` 等）は CI 用にダミー値を Secrets ではなく
       ワークフロー内に直書きでよい（本番の値とは無関係なため）
 
@@ -128,7 +128,7 @@ CI は `on: pull_request: branches: [main]` で PR ごとに自動実行され�
 
 ## Phase 3: セキュリティ強化
 
-- [ ] **本番モード化**: `GIN_MODE=release` を `./.env` に追加（現状デバッグモードで
+- [x] **本番モード化**: `GIN_MODE=release` を `./.env` に追加（現状デバッグモードで
       詳細ログが出ている）→ 手順は `docs/server-setup.md` の「5.1」。VPS での作業が残り
 - [x] **セキュリティヘッダー**: `front-end/nginx.conf` に `Strict-Transport-Security` /
       `X-Content-Type-Options: nosniff` / `X-Frame-Options: DENY` を追加
@@ -142,9 +142,9 @@ CI は `on: pull_request: branches: [main]` で PR ごとに自動実行され�
       → 手順は `docs/server-setup.md` の「5.1」。VPS での作業が残り
 - [x] **依存関係の脆弱性チェック**: CI に `govulncheck` と `npm audit`（or Dependabot 有効化）
       を追加
-- [ ] **リフレッシュトークンの扱いを決める**: 現状発行はされるが再発行エンドポイントが無い
+- [x] **リフレッシュトークンの扱いを決める**: 現状発行はされるが再発行エンドポイントが無い
       （`CLAUDE.md` 記載の既知の状態）。実装して使うか、使わないなら発行自体をやめるか方針を決める
-- [ ] `.env` の権限（`660` / `vegetask-dev` グループのみ）が保たれているか再確認
+- [x] `.env` の権限（`660` / `vegetask-dev` グループのみ）が保たれているか再確認
 
 **DoD**: 上記チェックリストを一通り実施し、`docs/server-setup.md` に反映。
 
@@ -160,10 +160,10 @@ CI は `on: pull_request: branches: [main]` で PR ごとに自動実行され�
       → 2026-09-30 に `origin/main` へ上書き済み
 - [x] CD 用ユーザー `deploy` を作成（`docker` / `vegetask-dev` のみ、sudo なし）し、
       CD 専用の鍵を登録 → 手順は `docs/server-setup.md` の「4.1」。2026-09-30 に接続確認済み
-- [ ] GitHub Actions の Secrets に `SSH_HOST` / `SSH_USER` / `SSH_KEY` / `SSH_FINGERPRINT` を登録
+- [x] GitHub Actions の Secrets に `SSH_HOST` / `SSH_USER` / `SSH_KEY` / `SSH_FINGERPRINT` を登録
 - [x] CI が `main` で成功した後にのみデプロイが走るようにする（`workflow_run`。`ci.yml` は
       `cancel-in-progress` なので同じファイルには入れない）
-- [ ] 誤ったデプロイの防止は、Phase 0 のブランチ保護（レビュー必須）で代える。承認ステップは入れない
+- [x] 誤ったデプロイの防止は、Phase 0 のブランチ保護（レビュー必須）で代える。承認ステップは入れない
 - [x] デプロイ失敗時の通知 → GitHub 標準の失敗通知メールで足りるとし、Webhook は入れない
 - [x] `docs/server-setup.md` の「4. 通常の更新フロー」を「CD が自動で行う」旨に更新し、
       手動手順は障害時の代替手順として残す
