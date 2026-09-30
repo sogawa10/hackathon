@@ -61,8 +61,8 @@ npm run preview             # ビルド済み dist/ を配信
   それ以外は `handlers.AuthMiddleware()` で保護された認証グループ配下。
 - **認証** — `AuthMiddleware` は `Authorization: Bearer <JWT>` を要求し、`JWT_SECRET` で HS256 を
   検証、`user_id`（UUID 文字列）を Gin コンテキストに入れる。ハンドラは `c.Get("user_id")` で
-  参照する。パスワードは bcrypt ハッシュ。アクセストークン 1 時間、リフレッシュトークン 7 日
-  （リフレッシュトークンは発行されるが、まだ再発行エンドポイントは無い）。
+  参照する。パスワードは bcrypt ハッシュ。アクセストークンの有効期限は 1 時間。
+  リフレッシュトークンは発行しない（期限切れ後は再ログイン）。
 - **`handlers/` パッケージ** — `auth.go`、`auth_middleware.go`、`tasks.go`、`subtasks.go`。
   各ハンドラは `func(db *sql.DB) gin.HandlerFunc` のクロージャ。SQL は手書きで、テーブル名は
   ダブルクォート付きの大文字識別子（`"USERS"`、`"TASKS"`、`"SUB_TASKS"`、`"VEGETABLES"`、

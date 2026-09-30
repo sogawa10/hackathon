@@ -254,8 +254,7 @@ S = D + P
 ```json
 {
   "user_id": "UUID",
-  "access_token": "access_token",
-  "refresh_token": "refresh_token"
+  "access_token": "access_token"
 }
 ```
 
@@ -275,8 +274,7 @@ S = D + P
 ```json
 {
   "user_id": "UUID",
-  "access_token": "accesstoken",
-  "refresh_token": "refresh_token"
+  "access_token": "accesstoken"
 }
 ```
 

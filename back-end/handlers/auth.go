@@ -18,9 +18,8 @@ type SignupRequest struct {
 }
 
 type SignupResponse struct {
-	UserID       string `json:"user_id"`
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	UserID      string `json:"user_id"`
+	AccessToken string `json:"access_token"`
 }
 
 func SignupHandler(db *sql.DB) gin.HandlerFunc {
@@ -40,7 +39,7 @@ func SignupHandler(db *sql.DB) gin.HandlerFunc {
 
 		newUserID := uuid.New().String()
 
-		accessToken, refreshToken, err := generateTokens(newUserID)
+		accessToken, err := generateAccessToken(newUserID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "トークンの発行に失敗しました"})
 			return
@@ -54,9 +53,8 @@ func SignupHandler(db *sql.DB) gin.HandlerFunc {
 		}
 
 		response := SignupResponse{
-			UserID:       newUserID,
-			AccessToken:  accessToken,
-			RefreshToken: refreshToken,
+			UserID:      newUserID,
+			AccessToken: accessToken,
 		}
 
 		c.JSON(http.StatusOK, response)
@@ -69,9 +67,8 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	UserID       string `json:"user_id"`
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	UserID      string `json:"user_id"`
+	AccessToken string `json:"access_token"`
 }
 
 func LoginHandler(db *sql.DB) gin.HandlerFunc {
@@ -102,41 +99,27 @@ func LoginHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		accessToken, refreshToken, err := generateTokens(userID)
+		accessToken, err := generateAccessToken(userID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "トークンの発行に失敗しました"})
 			return
 		}
 
 		response := LoginResponse{
-			UserID:       userID,
-			AccessToken:  accessToken,
-			RefreshToken: refreshToken,
+			UserID:      userID,
+			AccessToken: accessToken,
 		}
 
 		c.JSON(http.StatusOK, response)
 	}
 }
 
-func generateTokens(userID string) (string, string, error) {
+func generateAccessToken(userID string) (string, error) {
 	secret := []byte(os.Getenv("JWT_SECRET"))
 	accessTokenClaims := jwt.MapClaims{
 		"user_id": userID,
 		"exp":     time.Now().Add(time.Hour * 1).Unix(),
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessTokenClaims)
-	accessTokenString, err := accessToken.SignedString(secret)
-	if err != nil {
-		return "", "", err
-	}
-	refreshTokenClaims := jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(),
-	}
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshTokenClaims)
-	refreshTokenString, err := refreshToken.SignedString(secret)
-	if err != nil {
-		return "", "", err
-	}
-	return accessTokenString, refreshTokenString, nil
+	return accessToken.SignedString(secret)
 }

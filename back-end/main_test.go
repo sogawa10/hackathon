@@ -327,14 +327,17 @@ func TestAuth(t *testing.T) {
 		mustStatus(t, rec, 401)
 	})
 
-	t.Run("signup_レスポンスに3つのフィールドが揃う", func(t *testing.T) {
+	t.Run("signup_レスポンスはuser_idとaccess_tokenのみ", func(t *testing.T) {
 		rec := req(t, "POST", "/api/signup", "", map[string]string{"user_name": name + "_fields", "user_pass": "pass1234"})
 		mustStatus(t, rec, 200)
 		obj := decodeObj(t, rec)
-		for _, k := range []string{"user_id", "access_token", "refresh_token"} {
+		for _, k := range []string{"user_id", "access_token"} {
 			if s, _ := obj[k].(string); s == "" {
 				t.Fatalf("%s が空: %s", k, rec.Body.String())
 			}
+		}
+		if _, ok := obj["refresh_token"]; ok {
+			t.Fatalf("refresh_token を発行してはいけない: %s", rec.Body.String())
 		}
 	})
 
@@ -363,6 +366,9 @@ func TestAuth(t *testing.T) {
 		obj := decodeObj(t, rec)
 		if obj["user_id"] != dbID {
 			t.Fatalf("user_id 期待 %s, 実際 %v", dbID, obj["user_id"])
+		}
+		if _, ok := obj["refresh_token"]; ok {
+			t.Fatalf("login が refresh_token を返した: %s", rec.Body.String())
 		}
 		mustStatus(t, req(t, "GET", "/api/tasks", obj["access_token"].(string), nil), 200)
 	})
