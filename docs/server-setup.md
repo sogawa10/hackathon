@@ -73,6 +73,7 @@ setgid だけだと `git pull` で増えるファイルの「パーミッショ�
    DB_PASS=<本番用に新規発行した値>
    DB_NAME=vegetask_db
    JWT_SECRET=<本番用に新規発行した値>
+   GIN_MODE=release
    # MOCK_TODAY は書かない（本番は実日付を使う）
    ```
 
@@ -135,8 +136,8 @@ DB の初期化（スキーマとシード）が済んでいることは、野�
 docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select count(*) from \"VEGETABLES\";"'
 ```
 
-> 起動ログに `[GIN-debug]` が出るのは、`GIN_MODE` が未設定でデバッグモードで動いているためです
-> （動作には影響しません）。また、back-end のログ上の接続元 IP は Docker ブリッジのアドレス
+> 本番の `./.env` には `GIN_MODE=release` を書く（5.1 参照）。未設定だと `[GIN-debug]` が
+> 出て詳細ログが残ります。また、back-end のログ上の接続元 IP は Docker ブリッジのアドレス
 > （`172.18.0.1` など）になります。実際のクライアント IP を調べたい場合は Nginx 側のログを
 > 見てください。
 
@@ -255,6 +256,92 @@ docker compose logs -f --tail=100
 
 ---
 
+## 5.1 セキュリティ（Phase 3）
+
+リポジトリ側（nginx のセキュリティヘッダー・ログイン／サインアップのレート制限、CI の
+`govulncheck` / `npm audit`）はコードに入っている。以下は **VPS で残る作業**。
+
+### 本番モード（`GIN_MODE`）
+
+`/opt/vegetask/.env` に次を追加し、back-end を再起動する。
+
+```bash
+# .env の末尾に追記
+GIN_MODE=release
+
+cd /opt/vegetask
+docker compose up -d back-end
+docker compose logs back-end --tail=30   # [GIN-debug] が出ていないこと
+```
+
+### `.env` の権限
+
+```bash
+ls -l /opt/vegetask/.env          # `-rw-rw----`（660）であること
+getfacl /opt/vegetask/.env        # others に権限が無いこと
+```
+
+ずれていれば「2.」の権限手順をやり直す。
+
+### セキュリティヘッダーとレート制限の確認
+
+マージ後に `git pull` → `docker compose up -d --build front` したあと、VPS 以外の端末で:
+
+```bash
+curl -sI https://www.vegetask.net/ | grep -i -E '^(HTTP|strict-transport|x-content-type|x-frame)'
+# Strict-Transport-Security / X-Content-Type-Options: nosniff / X-Frame-Options: DENY
+```
+
+`/api/login` と `/api/signup` は IP あたり 10 回/分（バースト 5）を超えると 429 になる。
+
+### SSH 強化（鍵が全員分登録されてから）
+
+パスワードしか使っていないメンバーが残っていると、以降入れなくなる。先に全員が
+鍵認証でログインできることを確認する。
+
+`/etc/ssh/sshd_config` または `/etc/ssh/sshd_config.d/*.conf` で次を設定する。
+
+```
+PasswordAuthentication no
+PermitRootLogin no
+KbdInteractiveAuthentication no
+```
+
+変更後:
+
+```bash
+sudo sshd -t && sudo systemctl reload ssh
+```
+
+別の端末から鍵で入れることを確認してから、今のセッションを切る。必要なら:
+
+```bash
+sudo apt-get install -y fail2ban
+sudo systemctl enable --now fail2ban
+```
+
+### DB バックアップ
+
+`pg_dump` をホストで定期実行し、結果を VPS の外へコピーする。例（毎日 3:00、7 日分残す）:
+
+```bash
+sudo mkdir -p /var/backups/vegetask
+sudo chgrp vegetask-dev /var/backups/vegetask
+sudo chmod 770 /var/backups/vegetask
+
+sudo tee /etc/cron.d/vegetask-pgdump > /dev/null <<'EOF'
+0 3 * * * root cd /opt/vegetask && docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > /var/backups/vegetask/vegetask-$(date +\%Y\%m\%d).sql && find /var/backups/vegetask -name 'vegetask-*.sql' -mtime +7 -delete
+EOF
+```
+
+ダンプファイルは VPS 障害で一緒に消えるので、週 1 回でもよいので自分の PC へコピーする。
+
+```bash
+scp <ユーザー名>@133.125.60.179:/var/backups/vegetask/vegetask-*.sql .
+```
+
+---
+
 ## 6. ロールバック
 
 直前のリリースに戻したい場合は、対象のコミット（またはタグ）へ戻して再ビルドします。
@@ -295,6 +382,7 @@ docker compose up -d --build
 | 日本語のファイル名（`/野菜L/...` など）の静的アセットが 404 になる | `front-end/nginx.conf` の `charset utf-8;` 設定と、`npm run build` の成果物（`dist/`）が正しくイメージに含まれているか確認する。 |
 | `/api/subtasks/today` など日付に依存する API が 500 になる | back-end イメージに `tzdata` が入っているか（`back-end/Dockerfile` の `apk add --no-cache tzdata ca-certificates`）を確認する。 |
 | `docker compose up` 時に `.env` のキー不足でエラーになる | README.md の「環境変数」表と `./.env` を突き合わせ、不足しているキーを追記する。 |
+| `/api/login` や `/api/signup` が 429 になる | nginx のレート制限（IP あたり 10 回/分）。短時間の連打で発生したら数分待って再試行する。 |
 | `front` が起動直後に落ちる（ログに `cannot load certificate`） | 証明書が未取得か、パスが違う。`sudo ls /etc/letsencrypt/live/www.vegetask.net/` を確認し、無ければ 3.1 の手順で取得する。 |
 | ブラウザで証明書の期限切れエラーが出る | `sudo certbot certificates` で有効期限を確認。更新済みなのに古い証明書が出る場合は `docker compose exec front nginx -s reload` を実行し、3.1 の 4. のデプロイフックが置かれているか確認する。 |
 | `certbot renew` が失敗する | `http://www.vegetask.net/.well-known/acme-challenge/test` に届くか確認する（`/var/www/certbot` のマウント、80 番の開放、DNS）。 |

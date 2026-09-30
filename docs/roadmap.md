@@ -129,17 +129,18 @@ CI は `on: pull_request: branches: [main]` で PR ごとに自動実行され�
 ## Phase 3: セキュリティ強化
 
 - [ ] **本番モード化**: `GIN_MODE=release` を `./.env` に追加（現状デバッグモードで
-      詳細ログが出ている）
-- [ ] **セキュリティヘッダー**: `front-end/nginx.conf` に `Strict-Transport-Security` /
+      詳細ログが出ている）→ 手順は `docs/server-setup.md` の「5.1」。VPS での作業が残り
+- [x] **セキュリティヘッダー**: `front-end/nginx.conf` に `Strict-Transport-Security` /
       `X-Content-Type-Options: nosniff` / `X-Frame-Options: DENY` を追加
-- [ ] **ログイン/サインアップのレート制限**: nginx の `limit_req` で
+- [x] **ログイン/サインアップのレート制限**: nginx の `limit_req` で
       `/api/login` `/api/signup` にブルートフォース対策を入れる
 - [ ] **SSH強化**: パスワード認証を無効化し鍵認証のみに、root ログイン禁止、
-      必要なら `fail2ban` 導入
+      必要なら `fail2ban` 導入 → 手順は `docs/server-setup.md` の「5.1」。VPS での作業が残り
 - [ ] **DBバックアップ**: `pg_dump` を定期実行し VPS 外（ローカル or オブジェクトストレージ）
       に保存する仕組みを作る。現状 `docs/db-operations.md` は「データ破棄前提」の運用なので、
       実ユーザーが増えた後の喪失リスクとして別途方針を決める
-- [ ] **依存関係の脆弱性チェック**: CI に `govulncheck` と `npm audit`（or Dependabot 有効化）
+      → 手順は `docs/server-setup.md` の「5.1」。VPS での作業が残り
+- [x] **依存関係の脆弱性チェック**: CI に `govulncheck` と `npm audit`（or Dependabot 有効化）
       を追加
 - [ ] **リフレッシュトークンの扱いを決める**: 現状発行はされるが再発行エンドポイントが無い
       （`CLAUDE.md` 記載の既知の状態）。実装して使うか、使わないなら発行自体をやめるか方針を決める
