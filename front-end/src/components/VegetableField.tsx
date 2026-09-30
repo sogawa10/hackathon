@@ -312,6 +312,8 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
                     src={path} 
                     alt={task.task_title || '野菜'}
                     className="crop-image"
+                    draggable={false}
+                    onDragStart={(e) => e.preventDefault()}
                     onClick={(e) => {
                       if (task.growth_stage === 10 && onHarvestClick) {
                         e.stopPropagation();
