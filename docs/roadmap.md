@@ -152,16 +152,20 @@ CI は `on: pull_request: branches: [main]` で PR ごとに自動実行され�
 
 ## Phase 4: CD（GitHub Actions で自動デプロイ）
 
-- [ ] デプロイ方式を決める（推奨: `appleboy/ssh-action` 等で VPS に SSH し
-      `git pull && docker compose up -d --build` を実行）
-- [ ] SSH 秘密鍵・VPS ホスト名・ユーザー名を GitHub Actions の Secrets に登録
-- [ ] `main` へのマージをトリガーに、Phase0 の CI が通った後にのみデプロイが走るようにする
-      （`needs:` で CI ジョブに依存させる）
-- [ ] 本番は VPS 1台のみ（ステージング環境が無い）ため、誤爆を防ぐしくみを検討する:
-      - 手動承認ステップ（GitHub Environments の Required reviewers）を挟む、または
-      - `main` へのマージ自体をレビュー必須にする（Phase0 で設定済みならそれで十分）
-- [ ] デプロイ失敗時の通知（Slack/Discord Webhook 等）を入れる
-- [ ] `docs/server-setup.md` の「4. 通常の更新フロー」を「CD が自動で行う」旨に更新し、
+方式: `appleboy/ssh-action` で VPS に SSH し、VPS 上で `git pull` → `docker compose up -d --build`
+（`.github/workflows/cd.yml`）。レジストリ経由などの仕組みは規模に見合わないので入れない。
+
+- [x] デプロイ方式を決める → 上記
+- [x] サーバーの作業ツリーを片付ける（直接編集が残っていると `git pull --ff-only` が失敗するため）
+      → 2026-09-30 に `origin/main` へ上書き済み
+- [x] CD 用ユーザー `deploy` を作成（`docker` / `vegetask-dev` のみ、sudo なし）し、
+      CD 専用の鍵を登録 → 手順は `docs/server-setup.md` の「4.1」。2026-09-30 に接続確認済み
+- [ ] GitHub Actions の Secrets に `SSH_HOST` / `SSH_USER` / `SSH_KEY` / `SSH_FINGERPRINT` を登録
+- [x] CI が `main` で成功した後にのみデプロイが走るようにする（`workflow_run`。`ci.yml` は
+      `cancel-in-progress` なので同じファイルには入れない）
+- [ ] 誤ったデプロイの防止は、Phase 0 のブランチ保護（レビュー必須）で代える。承認ステップは入れない
+- [x] デプロイ失敗時の通知 → GitHub 標準の失敗通知メールで足りるとし、Webhook は入れない
+- [x] `docs/server-setup.md` の「4. 通常の更新フロー」を「CD が自動で行う」旨に更新し、
       手動手順は障害時の代替手順として残す
 
 **DoD**: `main` にマージすると数分後に `https://<ドメイン>/` に反映される。ロールバック手順

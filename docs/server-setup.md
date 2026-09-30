@@ -211,7 +211,14 @@ docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc
 
 ## 4. 通常の更新フロー
 
-コードを変更してマージした後、サーバー側で反映する手順です。
+`main` へのマージは **CD（`.github/workflows/cd.yml`）が自動で反映します**。CI が成功した
+コミットまで `git pull` し、`docker compose up -d --build` した後、公開 URL の疎通を確認します
+（back-end の変更を含むと 10 分前後）。進捗と結果は GitHub の Actions タブで確認できます。
+
+> **サーバー上でリポジトリのファイルを直接編集しないでください。** 未コミットの変更が残って
+> いると、CD の `git pull` が失敗します。
+
+CD が失敗したときや止めたいときは、サーバーで手動で反映します。
 
 ```bash
 cd /opt/vegetask
@@ -226,7 +233,43 @@ docker compose logs -f --tail=100
 - `./.env` は `git pull` の対象外（`.gitignore` 済み）なので、キーが増えた場合は手動で追記して
   ください。
 - DB のスキーマ自体を変更した PR がマージされた場合は、`git pull` だけでは反映されません
-  （initdb.d は初回のみ実行のため）。`docs/db-operations.md` を参照してください。
+  （initdb.d は初回のみ実行のため）。`docs/db-operations.md` を参照してください。CD もこれは
+  行いません。
+
+### 4.1 CD 用ユーザー（`deploy`）と鍵
+
+CD は専用ユーザー `deploy`（`docker` / `vegetask-dev` のみ、sudo なし）で SSH します。
+サーバーを再構築する場合の作り方は次のとおりです。
+
+```bash
+sudo adduser --disabled-password --gecos "" deploy
+sudo usermod -aG docker,vegetask-dev deploy
+# /opt/vegetask は deploy の所有ではないため、git の所有者チェックを許可する
+sudo -u deploy git config --global --add safe.directory /opt/vegetask
+sudo -u deploy mkdir -p -m 700 /home/deploy/.ssh
+```
+
+CD 専用の鍵ペア（パスフレーズなし）を手元で作り、公開鍵を登録します。
+
+```bash
+# 手元の PC で
+ssh-keygen -t ed25519 -C "vegetask-cd" -f ~/.ssh/vegetask_cd -N ""
+
+# VPS で（公開鍵の 1 行を貼る）
+echo '<vegetask_cd.pub の中身>' | sudo -u deploy tee -a /home/deploy/.ssh/authorized_keys
+sudo -u deploy chmod 600 /home/deploy/.ssh/authorized_keys
+```
+
+GitHub の Settings → Secrets and variables → Actions に次を登録します。
+
+| Secret | 値 |
+|---|---|
+| `SSH_HOST` | `www.vegetask.net` |
+| `SSH_USER` | `deploy` |
+| `SSH_KEY` | 秘密鍵 `vegetask_cd` の中身（`-----BEGIN` から `END-----` の行まで全部） |
+| `SSH_FINGERPRINT` | VPS のホスト鍵のフィンガープリント（`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` の `SHA256:...` 部分） |
+
+秘密鍵は Secrets に登録したら手元から削除して構いません（作り直す場合は鍵ペアごと作り直す）。
 
 ---
 
@@ -344,7 +387,10 @@ scp <ユーザー名>@133.125.60.179:/var/backups/vegetask/vegetask-*.sql .
 
 ## 6. ロールバック
 
-直前のリリースに戻したい場合は、対象のコミット（またはタグ）へ戻して再ビルドします。
+基本は、問題のある PR を GitHub 上で revert する PR を作ってマージします（CD がそのまま反映します）。
+
+急ぎで戻したい場合は、サーバーで対象のコミットへ戻して再ビルドします。次に `main` へ
+マージされたときは、CD が最新の `main` に戻します。
 
 ```bash
 git log --oneline -5        # 戻したいコミットを確認
