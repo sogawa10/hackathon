@@ -7,8 +7,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// DB を使わない純粋関数の単体テスト。統合テストは back-end/main_test.go。
-
 func TestGetVegetableSize(t *testing.T) {
 	cases := map[string]string{
 		"プチトマト": "S", "オクラ": "S", "枝豆": "S", "シイタケ": "S", "ネギ": "S",
