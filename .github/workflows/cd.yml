@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - name: VPS で CI 済みのコミットに更新して再ビルド
+      - name: VPS に CI 済みのリポジトリを pull して再ビルド
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -37,8 +37,7 @@ jobs:
             docker compose up -d --build
             docker image prune -f
             docker compose ps
-
-      - name: 公開 URL の疎通確認
+      - name: 公開 URL の疎通を確認
         run: |
           for i in $(seq 1 12); do
             top=$(curl -s -o /dev/null -w '%{http_code}' https://www.vegetask.net/ || true)
