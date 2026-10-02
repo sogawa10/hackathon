@@ -134,9 +134,6 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
   }, [subtasks]);
 
   if (Array.isArray(subtasks)) {
-    // 配置スロットはサーバー（TASKS.field_position）が正。
-    // まずサーバー値を尊重して埋め、値が無い旧タスクだけ中央寄せの
-    // 優先順位で空きマスにフォールバック配置する（保存はしない）。
     const usedSlots = new Set<number>();
     const placed = new Set<TodaySubtask>();
 
@@ -203,7 +200,6 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
       statusText = '✨収穫する✨';
     } else {
       path = '';
-      //label = '';
       bgColor = 'transparent';
     }
 

@@ -19,7 +19,6 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
 
-  // 現在時刻の取得
   const getTodayString = () => {
     const mockDate = import.meta.env.VITE_MOCK_TODAY;
     const d = mockDate ? new Date(`${mockDate}T00:00:00+09:00`) : new Date();
@@ -29,7 +28,6 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
     return `${year}-${month}-${day}`;
   };
 
-  // 現在時刻の取得
   const getNextWeekString = () => {
     const mockDate = import.meta.env.VITE_MOCK_TODAY;
     const d = mockDate ? new Date(`${mockDate}T00:00:00+09:00`) : new Date();

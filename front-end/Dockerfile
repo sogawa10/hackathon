@@ -1,4 +1,3 @@
-# ---- Stage 1: ビルド ----
 FROM node:22-alpine AS build
 
 WORKDIR /app
@@ -12,7 +11,6 @@ ARG VITE_API_BASE_URL=""
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
-# ---- Stage 2: 配信 ----
 FROM nginx:1.27-alpine AS serve
 
 RUN rm /etc/nginx/conf.d/default.conf
