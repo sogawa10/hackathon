@@ -3,7 +3,6 @@
 
 *_test.go
 main_test.go
-TEST_CASES.md
 
 .git
 .gitignore
