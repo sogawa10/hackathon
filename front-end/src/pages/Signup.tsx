@@ -30,9 +30,7 @@ const Signup: React.FC = () => {
       }
 
       localStorage.setItem('access_token', data.access_token);
-      if (data.refresh_token) {
-        localStorage.setItem('refresh_token', data.refresh_token);
-      }
+      localStorage.removeItem('refresh_token');
 
       navigate('/home', { replace: true });
     } catch (err: any) {
@@ -76,8 +74,7 @@ const Signup: React.FC = () => {
           {loading ? '登録中…' : 'Sign Up'}
         </button>
       </form>
-      
-      {/* 必要に応じてログイン画面への戻るリンクを追加しても親切です */}
+
       <div className="auth-link-text">
         すでにアカウントをお持ちですか？<br />
         <Link to="/login" className="auth-link">

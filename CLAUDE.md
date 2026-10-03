@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> このリポジトリのドキュメント・コメント・PR 説明・チャットでの説明は**日本語**で書くこと。
+> このリポジトリのドキュメント・PR 説明・チャットでの説明は**日本語**で書くこと。
 
 ## プロジェクト概要
 
@@ -10,6 +10,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 サブタスクに自動分割し、チェックを付けるたびに野菜が `growth_stage` 0→10 と成長し、収穫して
 かごに溜めていく。製品仕様・スコア計算式・API の入出力 JSON（全エンドポイント）は
 `README.md` に詳細がある。
+
+ドキュメントは `README.md`（仕様・API・環境変数・テスト・デプロイ構成）と
+`サーバー運用手順.md`（更新・DB スキーマの変更・サーバーの再構築）の 2 つだけ。
+**新しい md ファイルを作ることも、この 2 つに追記することも、必ず先にユーザーへ確認する。**
+確認なしに行ってよいのは、コードの変更で事実と食い違った既存の記述を直すことだけ。
 
 1 つのリポジトリに 3 つの構成要素:
 
@@ -24,13 +29,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 go run .                    # API を :3000 で起動（PostgreSQL への到達と環境変数が必要）
 go build -o server .        # ビルド
-go test -v                  # 統合テストを全実行
+go test -v                  # 統合テスト（main_test.go）を全実行
 go test -run TestAuth -v    # 1 グループだけ実行（TestTaskCreate, TestHarvestAndBasket, ...）
+go test -v ./...            # handlers/ の単体テストも含めて全実行（CI はこれ）
 go vet ./...
 ```
 
-`go test` は**実際の PostgreSQL に対する End-to-End テスト**（`SetupRouter(db)` を呼び出して
-`httptest` で叩く。サーバーの別起動は不要）。前提:
+`main_test.go` は**実際の PostgreSQL に対する End-to-End テスト**（`SetupRouter(db)` を呼び出して
+`httptest` で叩く。サーバーの別起動は不要）。`handlers/handlers_test.go` は DB を使わない
+単体テスト。統合テストの前提:
 
 - PostgreSQL が起動し、`DB/01_create_table.sql` + `DB/02_add_vegetable.sql` を適用済み
   （`field_position` 列が必須）
@@ -61,8 +68,8 @@ npm run preview             # ビルド済み dist/ を配信
   それ以外は `handlers.AuthMiddleware()` で保護された認証グループ配下。
 - **認証** — `AuthMiddleware` は `Authorization: Bearer <JWT>` を要求し、`JWT_SECRET` で HS256 を
   検証、`user_id`（UUID 文字列）を Gin コンテキストに入れる。ハンドラは `c.Get("user_id")` で
-  参照する。パスワードは bcrypt ハッシュ。アクセストークン 1 時間、リフレッシュトークン 7 日
-  （リフレッシュトークンは発行されるが、まだ再発行エンドポイントは無い）。
+  参照する。パスワードは bcrypt ハッシュ。アクセストークンの有効期限は 1 時間。
+  リフレッシュトークンは発行しない（期限切れ後は再ログイン）。
 - **`handlers/` パッケージ** — `auth.go`、`auth_middleware.go`、`tasks.go`、`subtasks.go`。
   各ハンドラは `func(db *sql.DB) gin.HandlerFunc` のクロージャ。SQL は手書きで、テーブル名は
   ダブルクォート付きの大文字識別子（`"USERS"`、`"TASKS"`、`"SUB_TASKS"`、`"VEGETABLES"`、
@@ -107,8 +114,9 @@ npm run preview             # ビルド済み dist/ を配信
 
 ## 規約
 
-- **ユーザー向け文字列・エラーメッセージ・コードコメントはすべて日本語。** 編集時もそれに
-  合わせる。
+- **ユーザー向け文字列・エラーメッセージ・テスト名はすべて日本語。** 編集時もそれに合わせる。
+- **コードと設定ファイルにコメントは書かない**（Go / TypeScript / SQL / YAML / Dockerfile /
+  nginx.conf すべて）。意図は名前とコミットメッセージで伝える。
 - タスク種別は `問題集` / `単語帳` / `過去問` / `その他` のいずれかのリテラル文字列。
   野菜名は `DB/02_add_vegetable.sql` にある 15 個の日本語名（S/M/L 各 5 個）。どちらも
   サーバー側でハードコードされた集合と照合して検証される。
@@ -120,5 +128,15 @@ npm run preview             # ビルド済み dist/ を配信
 さくら VPS 上で Docker Compose により稼働中（デプロイ済み）。構成の概要は `README.md` の
 「デプロイ構成」を参照。サーバー設定はリポジトリ直下の `./.env` 1 ファイルに集約し
 `docker-compose.yml` が参照する。`back-end/.env` はローカルで Docker を使わない
-`go run` / `go test` 専用。サーバー構築・更新手順は `docs/server-setup.md`、DB スキーマ変更の
-運用は `docs/db-operations.md` にある。
+`go run` / `go test` 専用。サーバーの構築・更新と DB スキーマ変更の手順は
+`サーバー運用手順.md` にある。
+
+- **CI**（`.github/workflows/ci.yml`）: PR と `main` への push で、back-end は `go vet` /
+  `go test -v ./...` / `govulncheck`、front-end は `npm audit` / `npm run lint` /
+  `npm run build` を実行する。
+- **CD**（`.github/workflows/cd.yml`）: `main` の CI が成功すると、VPS に SSH して
+  `docker compose up -d --build` する。DB スキーマの変更は反映しない。
+- Nginx（`front-end/nginx.conf`）が TLS 終端・`/api` のプロキシ・セキュリティヘッダー・
+  `/api/login` と `/api/signup` のレート制限を担う。
+- **DB の変更は差分マイグレーションを作らない。** `DB/` の SQL を直接編集し、DROP して
+  作り直す。

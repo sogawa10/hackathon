@@ -18,7 +18,6 @@ jobs:
     name: back-end
     runs-on: ubuntu-latest
     env:
-      # 本番とは無関係な CI 専用ダミー値（Secrets には置かない）
       DB_HOST: localhost
       DB_PORT: "5432"
       DB_USER: vegetask_user
@@ -39,9 +38,14 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+    defaults:
+      run:
+        working-directory: back-end
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+      - name: Go をセットアップ
+        uses: actions/setup-go@v5
         with:
           go-version-file: back-end/go.mod
           cache-dependency-path: back-end/go.sum
@@ -51,14 +55,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
-          psql -h localhost -U vegetask_user -d vegetask_db -v ON_ERROR_STOP=1 -f DB/01_create_table.sql
-          psql -h localhost -U vegetask_user -d vegetask_db -v ON_ERROR_STOP=1 -f DB/02_add_vegetable.sql
-      - name: go vet
-        working-directory: back-end
+          psql -h localhost -U vegetask_user -d vegetask_db -v ON_ERROR_STOP=1 -f ../DB/01_create_table.sql
+          psql -h localhost -U vegetask_user -d vegetask_db -v ON_ERROR_STOP=1 -f ../DB/02_add_vegetable.sql
+      - name: 静的解析を実行
         run: go vet ./...
-      - name: go test
-        working-directory: back-end
+      - name: テストを実行
         run: go test -v ./...
+      - name: 依存パッケージの脆弱性を検査
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
 
   front-end:
     name: front-end
@@ -67,12 +73,19 @@ jobs:
       run:
         working-directory: front-end
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+      - name: Node.js をセットアップ
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: front-end/package-lock.json
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run build
+      - name: 依存パッケージをインストール
+        run: npm ci
+      - name: 依存パッケージの脆弱性を検査
+        run: npm audit --audit-level=high
+      - name: 静的解析を実行
+        run: npm run lint
+      - name: ビルドを実行
+        run: npm run build

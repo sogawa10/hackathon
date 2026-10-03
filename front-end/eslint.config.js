@@ -21,11 +21,9 @@ export default defineConfig([
     },
     rules: {
     "no-undef": "error",
-    // 本体の no-unused-vars は型シグネチャの引数名を誤検出するため TS 版を使う
     "no-unused-vars": "off",
     "@typescript-eslint/no-unused-vars": "error",
     "react/prop-types": "off",
-    // 既存コードに多数あるため、CI では警告に留める（新規は直していく）
     "@typescript-eslint/no-explicit-any": "warn",
     "react-hooks/set-state-in-effect": "warn",
     },

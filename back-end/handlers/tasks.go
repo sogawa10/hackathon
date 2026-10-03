@@ -436,7 +436,6 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "タイムゾーンの読み込みに失敗しました"})
 			return
 		}
-		// 現在時刻の取得
 		todayStr := os.Getenv("MOCK_TODAY")
 		if todayStr == "" {
 			todayStr = time.Now().In(jst).Format("2006-01-02")

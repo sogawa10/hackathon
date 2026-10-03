@@ -63,6 +63,12 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
   const [growthMsgs, setGrowthMsgs] = useState<{ [subTaskId: string]: string }>({});
   const [isClearingSystemMessage, setIsClearingSystemMessage] = useState(false);
   const [hoveredTask, setHoveredTask] = useState<string | null>(null);
+  const [seenSystemMessage, setSeenSystemMessage] = useState(systemMessage);
+
+  if (systemMessage !== seenSystemMessage) {
+    setSeenSystemMessage(systemMessage);
+    setIsClearingSystemMessage(false);
+  }
 
   const boardRef = useRef<HTMLDivElement>(null);
   const [boardScale, setBoardScale] = useState(1);
@@ -82,14 +88,13 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
   }, []);
 
   useEffect(() => {
-    const newGrowthMsgs = { ...growthMsgs };
-    let hasNewGrowth = false;
+    const updates: { [subTaskId: string]: string } = {};
 
     subtasks.forEach(task => {
       if (!task) return;
-      
+
       const prevTask = prevSubtasksRef.current.find(t => t && t.sub_task_id === task.sub_task_id);
-      
+
       if (prevTask && !prevTask.is_completed && task.is_completed) {
         setRecentCompleted(prev => {
           const next = new Set(prev);
@@ -106,11 +111,10 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
         }, 1000);
 
         if (prevTask.growth_stage < task.growth_stage && task.growth_stage > 0) {
-          newGrowthMsgs[task.sub_task_id] = `${task.vegetable_name || '野菜'}が成長しました！✨`;
+          updates[task.sub_task_id] = `${task.vegetable_name || '野菜'}が成長しました！✨`;
         } else {
-          newGrowthMsgs[task.sub_task_id] = `${task.vegetable_name || '野菜'}に栄養が届きました！💧`;
+          updates[task.sub_task_id] = `${task.vegetable_name || '野菜'}に栄養が届きました！💧`;
         }
-        hasNewGrowth = true;
 
         setTimeout(() => {
           setGrowthMsgs(prev => {
@@ -122,21 +126,14 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
       }
     });
 
-    if (hasNewGrowth) {
-      setGrowthMsgs(newGrowthMsgs);
+    if (Object.keys(updates).length > 0) {
+      setGrowthMsgs(prev => ({ ...prev, ...updates }));
     }
 
     prevSubtasksRef.current = subtasks;
   }, [subtasks]);
 
-  useEffect(() => {
-    if (systemMessage) setIsClearingSystemMessage(false);
-  }, [systemMessage]);
-
   if (Array.isArray(subtasks)) {
-    // 配置スロットはサーバー（TASKS.field_position）が正。
-    // まずサーバー値を尊重して埋め、値が無い旧タスクだけ中央寄せの
-    // 優先順位で空きマスにフォールバック配置する（保存はしない）。
     const usedSlots = new Set<number>();
     const placed = new Set<TodaySubtask>();
 
@@ -203,7 +200,6 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
       statusText = '✨収穫する✨';
     } else {
       path = '';
-      //label = '';
       bgColor = 'transparent';
     }
 
@@ -312,6 +308,8 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
                     src={path} 
                     alt={task.task_title || '野菜'}
                     className="crop-image"
+                    draggable={false}
+                    onDragStart={(e) => e.preventDefault()}
                     onClick={(e) => {
                       if (task.growth_stage === 10 && onHarvestClick) {
                         e.stopPropagation();

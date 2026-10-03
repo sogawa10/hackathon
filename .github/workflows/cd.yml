@@ -1,0 +1,52 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: deploy
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: VPS に CI 済みのリポジトリを pull して再ビルド
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
+          command_timeout: 30m
+          script: |
+            set -e
+            cd /opt/vegetask
+            git fetch origin main
+            git checkout -q main
+            git merge --ff-only ${{ github.event.workflow_run.head_sha }}
+            docker compose up -d --build
+            docker image prune -f
+            docker compose ps
+      - name: 公開 URL の疎通を確認
+        run: |
+          for i in $(seq 1 12); do
+            top=$(curl -s -o /dev/null -w '%{http_code}' https://www.vegetask.net/ || true)
+            api=$(curl -s -o /dev/null -w '%{http_code}' https://www.vegetask.net/api/tasks || true)
+            echo "試行 $i: / => $top, /api/tasks => $api"
+            if [ "$top" = 200 ] && [ "$api" = 401 ]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "デプロイ後の疎通確認に失敗しました"
+          exit 1

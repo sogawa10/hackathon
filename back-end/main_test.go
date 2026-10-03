@@ -188,7 +188,6 @@ func day(offset int) string {
 	return base.AddDate(0, 0, offset).Format("2006-01-02")
 }
 
-// reqRaw は JSON 以外のボディや任意の Authorization ヘッダーを送るためのもの。
 func reqRaw(t *testing.T, method, path, authHeader, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	httpReq := httptest.NewRequest(method, path, strings.NewReader(body))
@@ -327,14 +326,17 @@ func TestAuth(t *testing.T) {
 		mustStatus(t, rec, 401)
 	})
 
-	t.Run("signup_レスポンスに3つのフィールドが揃う", func(t *testing.T) {
+	t.Run("signup_レスポンスはuser_idとaccess_tokenのみ", func(t *testing.T) {
 		rec := req(t, "POST", "/api/signup", "", map[string]string{"user_name": name + "_fields", "user_pass": "pass1234"})
 		mustStatus(t, rec, 200)
 		obj := decodeObj(t, rec)
-		for _, k := range []string{"user_id", "access_token", "refresh_token"} {
+		for _, k := range []string{"user_id", "access_token"} {
 			if s, _ := obj[k].(string); s == "" {
 				t.Fatalf("%s が空: %s", k, rec.Body.String())
 			}
+		}
+		if _, ok := obj["refresh_token"]; ok {
+			t.Fatalf("refresh_token を発行してはいけない: %s", rec.Body.String())
 		}
 	})
 
@@ -363,6 +365,9 @@ func TestAuth(t *testing.T) {
 		obj := decodeObj(t, rec)
 		if obj["user_id"] != dbID {
 			t.Fatalf("user_id 期待 %s, 実際 %v", dbID, obj["user_id"])
+		}
+		if _, ok := obj["refresh_token"]; ok {
+			t.Fatalf("login が refresh_token を返した: %s", rec.Body.String())
 		}
 		mustStatus(t, req(t, "GET", "/api/tasks", obj["access_token"].(string), nil), 200)
 	})
@@ -596,8 +601,6 @@ func TestTaskCreateValidation(t *testing.T) {
 	})
 }
 
-// 計算式は README.md の「野菜サイズの決定」を参照。
-// S = D（種別スコア + 1日あたり分量 × 係数）+ P（期間スコア）。S < 2.8 → S, < 5.0 → M, それ以上 → L。
 func TestTaskSize(t *testing.T) {
 	_, token := newUser(t, "size")
 
@@ -609,27 +612,16 @@ func TestTaskSize(t *testing.T) {
 		days     int
 		want     string
 	}{
-		// D = 1.0 + (5/6)*0.3 = 1.25
 		{"その他_少量_7日はS", "その他", 5, 1, 7, "S"},
-		// D = 2.5 + (1/6)*3.0 = 3.0
 		{"過去問_1年分_7日はM", "過去問", 1, 1, 7, "M"},
-		// D = 1.5 + (50/6)*0.7 = 7.33
 		{"問題集_50問_7日はL", "問題集", 50, 1, 7, "L"},
-		// D = 1.0 + (1000/6)*0.01 = 2.67
 		{"単語帳_1000語1周_7日はS", "単語帳", 1000, 1, 7, "S"},
-		// D = 1.0 + (2000/6)*0.01 = 4.33 （周回数が分量に掛かる）
 		{"単語帳_1000語2周_7日はM", "単語帳", 1000, 2, 7, "M"},
-		// D = 1.0 + (5/50)*0.3 = 1.03, P = 1.6 → 2.63
 		{"その他_56日は期間スコア1.6でS", "その他", 5, 1, 56, "S"},
-		// D = 1.0 + (5/51)*0.3 = 1.03, P = 2.0 → 3.03
 		{"その他_57日は期間スコア2.0でM", "その他", 5, 1, 57, "M"},
-		// D = 1.0 + (5/63)*0.3 = 1.02, P = 2.4 → 3.42
 		{"その他_70日は期間スコア2.4でM", "その他", 5, 1, 70, "M"},
-		// D = 1.5 + (40/63)*0.7 = 1.94, P = 2.4 → 4.34
 		{"問題集_40問_70日はM", "問題集", 40, 1, 70, "M"},
-		// D = 1.5 + (60/63)*0.7 = 2.17, P = 2.4 → 4.57
 		{"問題集_60問_70日はM", "問題集", 60, 1, 70, "M"},
-		// D = 1.5 + (100/63)*0.7 = 2.61, P = 2.4 → 5.01
 		{"問題集_100問_70日はL", "問題集", 100, 1, 70, "L"},
 	}
 	for _, tc := range cases {
@@ -710,7 +702,6 @@ func TestSubtaskGeneration(t *testing.T) {
 	})
 
 	t.Run("端数モード_1単位が複数日にまたがる", func(t *testing.T) {
-		// 7日間 → 予備日1 / 有効6日。2問 → 1問あたり3日
 		taskID := newTask(t, token, taskBody("問題集", 2, 1, day(0), day(6)))
 		rows := dbSubtasks(t, taskID)
 		checkDates(t, rows, day(0), 7)
@@ -727,7 +718,6 @@ func TestSubtaskGeneration(t *testing.T) {
 	})
 
 	t.Run("端数モード_割り切れない日数は後ろの単位に配分される", func(t *testing.T) {
-		// 有効6日に5問 → 4問は1日ずつ、最後の1問が2日
 		taskID := newTask(t, token, taskBody("問題集", 5, 1, day(0), day(6)))
 		rows := dbSubtasks(t, taskID)
 		want := []string{
@@ -956,7 +946,6 @@ func TestTaskListAndTodayFilters(t *testing.T) {
 				t.Fatalf("フィールド %s が無い: %v", k, o)
 			}
 		}
-		// 100語×2周 / 有効12日 = 16 余り 8 → 初日は 16
 		if o["task_content"] != "16単語覚える" || o["is_checkable"] != true || o["is_completed"] != false || o["vegetable_name"] != "なす" {
 			t.Fatalf("ToDo の値が不正: %v", o)
 		}
@@ -1138,7 +1127,6 @@ func TestCompleteSubtaskEdgeCases(t *testing.T) {
 	})
 
 	t.Run("growth_stageは完了数に比例して1から10まで上がる", func(t *testing.T) {
-		// 有効6日 → 1+floor(n*9/6): 1件=2, 2件=4, 3件=5, 4件=7, 5件=8, 6件=10
 		taskID := newTaskWithVeg(t, token, "問題集", "growth", 12, 1, day(0), day(6), "オクラ")
 		want := []float64{2, 4, 5, 7, 8, 10}
 		for i, r := range dbSubtasks(t, taskID)[:6] {
@@ -1177,7 +1165,6 @@ func TestCompleteSubtaskEdgeCases(t *testing.T) {
 
 		rec := req(t, "PATCH", "/api/subtasks", token, map[string]string{"sub_task_id": last["sub_task_id"].(string)})
 		mustStatus(t, rec, 200)
-		// 有効6日中3日ぶん完了 → 1+floor(3*9/6) = 5
 		if g := decodeObj(t, rec)["growth_stage"].(float64); g != 5 {
 			t.Fatalf("growth_stage 期待5, 実際 %v", g)
 		}

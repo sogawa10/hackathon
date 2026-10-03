@@ -1,13 +1,11 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- 1. ユーザー管理テーブル
 CREATE TABLE "USERS" (
     "user_id"   UUID PRIMARY KEY,
     "user_name" VARCHAR(255) NOT NULL UNIQUE,
     "user_pass" VARCHAR(255) NOT NULL
 );
 
--- 2. 野菜マスタテーブル
 CREATE TABLE "VEGETABLES" (
     "vegetable_id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "vegetable_name"   VARCHAR(255) NOT NULL UNIQUE,
@@ -15,7 +13,6 @@ CREATE TABLE "VEGETABLES" (
     CONSTRAINT "check_vegetable_size" CHECK ("size" IN ('S', 'M', 'L'))
 );
 
--- 3. タスク（苗）テーブル
 CREATE TABLE "TASKS" (
     "task_id"      UUID PRIMARY KEY,
     "user_id"      UUID NOT NULL REFERENCES "USERS" ("user_id"),
@@ -36,7 +33,6 @@ CREATE TABLE "TASKS" (
     CONSTRAINT "check_task_type" CHECK ("task_type" IN ('問題集', '単語帳', '過去問', 'その他'))
 );
 
--- 4. サブタスク（日ごとのToDo）テーブル
 CREATE TABLE "SUB_TASKS" (
     "sub_task_id"    UUID PRIMARY KEY,
     "task_id"        UUID NOT NULL REFERENCES "TASKS" ("task_id") ON DELETE CASCADE,
@@ -45,7 +41,6 @@ CREATE TABLE "SUB_TASKS" (
     "is_completed"   BOOLEAN NOT NULL DEFAULT FALSE
 );
 
--- 5. 収穫履歴テーブル
 CREATE TABLE "HARVESTS" (
     "harvest_id"   UUID PRIMARY KEY,
     "user_id"      UUID NOT NULL REFERENCES "USERS" ("user_id"),
