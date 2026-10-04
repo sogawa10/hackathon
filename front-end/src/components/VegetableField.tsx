@@ -111,9 +111,9 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
         }, 1000);
 
         if (prevTask.growth_stage < task.growth_stage && task.growth_stage > 0) {
-          updates[task.sub_task_id] = `${task.vegetable_name || '野菜'}が成長しました！✨`;
+          updates[task.sub_task_id] = `${task.vegetable_name || '野菜'}が育ちました`;
         } else {
-          updates[task.sub_task_id] = `${task.vegetable_name || '野菜'}に栄養が届きました！💧`;
+          updates[task.sub_task_id] = `${task.vegetable_name || '野菜'}に水をあげました`;
         }
 
         setTimeout(() => {
@@ -193,11 +193,11 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
     } else if (stage >= 1 && stage <= 9) {
       path = `/野菜${size}/(${stage})_${jpName}.png`;
       bgColor = 'rgba(0,0,0,0.6)';
-      statusText = `LV-${stage}`;
+      statusText = `成長 ${stage} / 10`;
     } else if (stage === 10) {
       path = `/野菜${size}/(${stage})_${jpName}.png`;
       bgColor = '#ff9800';
-      statusText = '✨収穫する✨';
+      statusText = 'クリックで収穫';
     } else {
       path = '';
       bgColor = 'transparent';
@@ -225,7 +225,7 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
         {systemMessage}
       </div>
 
-      <h3 className="field-title">マイベジタブル畑</h3>
+      <h2 className="field-title">わたしの畑</h2>
 
       <div className="field-board" ref={boardRef}>
         {field.map((task, index) => {
@@ -270,35 +270,13 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
                 )}
 
                 {hoveredTask === task.sub_task_id && !growthMsg && (
-                  <div 
-                    className="popup-tooltip hover-task-name"
-                    style={{ 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      alignItems: 'center', 
-                      gap: '6px', 
-                      padding: '8px 12px',
-                      backgroundColor: '#ffffff',
-                      color: '#333333',
-                      border: '2px solid #ff9800'
-                    }}
-                  >
+                  <div className="popup-tooltip hover-task-name">
                     {statusText && (
-                      <span style={{ 
-                        backgroundColor: bgColor === 'rgba(0,0,0,0.6)' ? '#4caf50' : bgColor, 
-                        color: '#fff', 
-                        padding: '4px 10px', 
-                        borderRadius: '12px', 
-                        fontSize: '11px', 
-                        fontWeight: 'bold',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
+                      <span className={`crop-status stage-${task.growth_stage === 10 ? 'ripe' : task.growth_stage <= 0 ? 'seed' : 'growing'}`}>
                         {statusText}
                       </span>
                     )}
-                    <span style={{ fontSize: '14px', fontWeight: 'bold' }}>
-                      {task.task_title}
-                    </span>
+                    <span className="crop-task-title">{task.task_title}</span>
                   </div>
                 )}
 

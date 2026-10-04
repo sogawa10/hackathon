@@ -1,82 +1,71 @@
+.auth-page {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
 .auth-container {
-  max-width: 400px;
-  margin: 60px auto;
-  padding: 30px;
-  background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+
+.auth-logo {
+  display: block;
+  width: 168px;
+  height: auto;
+  margin: 0 auto 1.5rem;
+  mix-blend-mode: multiply;
 }
 
 .auth-title {
-  text-align: center;
-  color: #333;
-  margin-bottom: 24px;
-  font-size: 24px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 1.5rem;
+  letter-spacing: 0.06em;
+  margin-bottom: 1.5rem;
+}
+
+.auth-container form {
+  text-align: left;
+  padding: 1.5rem;
+  background: var(--paper);
+  border-top: 6px solid var(--leaf);
+  border-radius: var(--radius-s);
+  box-shadow: 0 10px 24px rgba(46, 31, 18, 0.08);
 }
 
 .auth-input-group {
-  margin-bottom: 16px;
+  margin-bottom: 1rem;
 }
 
-.auth-label {
-  display: block;
-  margin-bottom: 8px;
-  color: #555;
-  font-weight: bold;
-  font-size: 14px;
-}
-
-.auth-input {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  box-sizing: border-box;
-  font-size: 16px;
-  transition: border-color 0.2s;
-}
-
-.auth-input:focus {
-  border-color: #4caf50;
-  outline: none;
+.auth-error {
+  margin-bottom: 0.75rem;
 }
 
 .auth-button {
   width: 100%;
-  padding: 14px;
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  margin-top: 10px;
-}
-
-.auth-button:hover {
-  background-color: #388e3c;
-}
-
-.auth-button:disabled {
-  background-color: #a5d6a7;
-  cursor: not-allowed;
+  padding: 0.8em;
+  margin-top: 0.5rem;
+  font-size: 1rem;
 }
 
 .auth-link-text {
-  margin-top: 24px;
-  text-align: center;
-  font-size: 14px;
-  color: #666;
+  margin-top: 1.25rem;
+  font-size: 0.9rem;
+  color: var(--soil-soft);
 }
 
 .auth-link {
-  color: #4caf50;
-  text-decoration: none;
-  font-weight: bold;
+  margin-left: 0.4em;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .auth-link:hover {
-  text-decoration: underline;
+  color: var(--leaf-deep);
 }

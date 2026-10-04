@@ -41,46 +41,49 @@ const Login: React.FC = () => {
   };
 
   return (
+    <div className="auth-page">
     <div className="auth-container">
-      <h2 className="auth-title">ログイン</h2>
-      <form onSubmit={handleSubmit}>
+      <img src="/VegeTASK_ロゴ.png" alt="VegeTASK 勉強を育て、収穫するタスク管理アプリ" className="auth-logo" />
+      <h1 className="auth-title">ログイン</h1>
+      <form onSubmit={handleSubmit} noValidate>
         <div className="auth-input-group">
-          <label htmlFor="username" className="auth-label">ユーザー名</label>
+          <label htmlFor="username" className="field-label">ユーザー名</label>
           <input
             id="username"
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="auth-input"
-            placeholder="ユーザー名を入力"
+            className="field-input"
+            autoComplete="username"
           />
         </div>
 
         <div className="auth-input-group">
-          <label htmlFor="password" className="auth-label">パスワード</label>
+          <label htmlFor="password" className="field-label">パスワード</label>
           <input
             id="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="auth-input"
-            placeholder="パスワードを入力"
+            className="field-input"
+            autoComplete="current-password"
           />
         </div>
 
-        {error && <div style={{ color: 'red', marginBottom: '12px', textAlign: 'center' }}>{error}</div>}
+        {error && <p className="form-error auth-error" role="alert">{error}</p>}
 
-        <button type="submit" disabled={loading} className="auth-button">
-          {loading ? 'ログイン中…' : 'Login'}
+        <button type="submit" disabled={loading} className="btn btn-primary auth-button">
+          {loading ? 'ログインしています…' : 'ログイン'}
         </button>
       </form>
 
       <div className="auth-link-text">
-        アカウントをお持ちでないですか？<br />
+        はじめて使う方は
         <Link to="/signup" className="auth-link">
-          新規登録はこちら
+          アカウントを作る
         </Link>
       </div>
+    </div>
     </div>
   );
 };

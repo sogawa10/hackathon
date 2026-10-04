@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { cropImagePath, TASK_TYPE_CLASS } from '../vegetables';
+import './Tasks.css';
 
 type Task = {
   task_id: string;
@@ -73,125 +75,112 @@ const Tasks: React.FC = () => {
     }
   };
 
-  const getTaskStatus = (task: Task) => {
-    if (task.growth_stage === -1) {
-      return { label: '枯死🍂', color: '#c62828', bgColor: '#ffebee' };
-    }
-    if (task.growth_stage === 11) {
-      return { label: '収穫済🧺', color: '#e65100', bgColor: '#fff3e0' };
-    }
-
+  const todayStr = (() => {
     const mockDate = import.meta.env.VITE_MOCK_TODAY;
+    if (mockDate) return mockDate;
     const d = new Date();
-    const todayStr = mockDate || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
 
-    const startDateStr = task.start_date.split('T')[0];
-
-    if (startDateStr > todayStr) {
-      return { label: '開始前⏳', color: '#1565c0', bgColor: '#e3f2fd' };
-    }
-
-    return { label: '進行中🌱', color: '#2e7d32', bgColor: '#e8f5e9' };
+  const getTaskStatus = (task: Task) => {
+    if (task.growth_stage === -1) return { label: '枯れた', className: 'is-withered' };
+    if (task.growth_stage === 11) return { label: '収穫済み', className: 'is-harvested' };
+    if (task.growth_stage === 10) return { label: '収穫できる', className: 'is-ripe' };
+    if (task.start_date.split('T')[0] > todayStr) return { label: '開始前', className: 'is-waiting' };
+    return { label: '育成中', className: 'is-growing' };
   };
 
-  const getTaskTypeColor = (type: string, isWithered: boolean) => {
-    if (isWithered) return '#9e9e9e';
-    switch (type) {
-      case '問題集':
-        return '#ff9800'; 
-      case '単語帳':
-        return '#81c784'; 
-      case '過去問':
-        return '#ec5e54'; 
-      case 'その他':
-        return '#46dbe6c9'; 
-      default:
-        return '#81c784';
-    }
+  const toDay = (dateStr: string) => Date.UTC(
+    Number(dateStr.slice(0, 4)),
+    Number(dateStr.slice(5, 7)) - 1,
+    Number(dateStr.slice(8, 10)),
+  ) / 86400000;
+
+  const formatMonthDay = (dateStr: string) => `${Number(dateStr.slice(5, 7))}/${Number(dateStr.slice(8, 10))}`;
+
+  const getCalendar = (task: Task) => {
+    const start = task.start_date.split('T')[0];
+    const end = task.end_date.split('T')[0];
+    const span = Math.max(1, toDay(end) - toDay(start) + 1);
+    const elapsed = toDay(todayStr) - toDay(start) + 1;
+    const ratio = Math.min(1, Math.max(0, elapsed / span));
+    const showToday = elapsed >= 1 && elapsed <= span;
+    return { start, end, ratio, showToday };
+  };
+
+  const growthPips = (stage: number) => {
+    const filled = stage >= 10 ? 10 : Math.max(0, stage);
+    return Array.from({ length: 10 }, (_, i) => i < filled);
   };
 
   return (
     <Layout>
-      <div style={{ width: '100%', padding: '0 2vw', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '30px' }}>
-          <h1 style={{ margin: 0, color: '#333', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '1.2em' }}>📋</span> タスク一覧
-          </h1>
-        </div>
+      <div className="tasks-page">
+        <h1 className="page-title">タスク一覧</h1>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>読み込み中...</div>
+          <p className="status-line">タスクを読み込んでいます…</p>
         ) : error ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#e53935', fontWeight: 'bold' }}>{error}</div>
+          <p className="status-line is-error">{error}</p>
         ) : tasks.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#888', backgroundColor: '#f5f5f5', borderRadius: '12px' }}>
-            現在登録されているタスクはありません。
+          <div className="tasks-empty">
+            <p><strong>まだ何も植えていません</strong></p>
+            <p>上の「＋ 新規タスク」から教材と期間を登録すると、種袋がここに並びます。</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <ul className="packet-shelf">
             {tasks.map(task => {
               const status = getTaskStatus(task);
-              const isWithered = task.growth_stage === -1;
+              const calendar = getCalendar(task);
+              const image = cropImagePath(task.vegetable_name, task.growth_stage);
+              const stageForPips = task.growth_stage === 11 ? 10 : task.growth_stage;
 
               return (
-                <div 
-                  key={task.task_id} 
-                  onClick={() => navigate(`/tasks/${task.task_id}`)}
-                  style={{
-                    border: '1px solid #e0e0e0', 
-                    borderRadius: '12px', 
-                    padding: '20px', 
-                    backgroundColor: isWithered ? '#fafafa' : '#fff', 
-                    opacity: isWithered ? 0.75 : 1,
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '20px',
-                    cursor: 'pointer', 
-                    transition: 'transform 0.2s, box-shadow 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.1)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  <div style={{ width: '80px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', color: '#fff', backgroundColor: getTaskTypeColor(task.task_type, isWithered), padding: '4px 10px', borderRadius: '12px', display: 'inline-block', textAlign: 'center' }}>
-                      {task.task_type}
-                    </span>
-                    <span style={{ fontSize: '11px', color: status.color, backgroundColor: status.bgColor, padding: '4px', borderRadius: '8px', display: 'inline-block', textAlign: 'center', fontWeight: 'bold' }}>
-                      {status.label}
-                    </span>
-                  </div>
-
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ margin: '0 0 8px 0', color: isWithered ? '#757575' : '#333', fontSize: '18px' }}>
-                      {task.task_title}
-                    </h3>
-                    <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>
-                      期間: {task.start_date.split('T')[0]} 〜 {task.end_date.split('T')[0]} / {formatTaskCount(task)}
-                    </p>
-                  </div>
-                  
-                  <div style={{ 
-                    textAlign: 'center', 
-                    backgroundColor: isWithered ? '#f5f5f5' : '#f9fbe7', 
-                    padding: '12px 20px', 
-                    borderRadius: '8px', 
-                    minWidth: '100px'
-                  }}>
-                    <div style={{ fontSize: '14px', fontWeight: 'bold', color: isWithered ? '#9e9e9e' : '#558b2f' }}>
-                      {task.vegetable_name || '未設定'}
+                <li key={task.task_id}>
+                  <Link
+                    to={`/tasks/${task.task_id}`}
+                    className={`packet ${TASK_TYPE_CLASS[task.task_type] ?? 'type-other'} ${status.className}`}
+                  >
+                    <div className="packet-band">
+                      <span>{task.task_type}</span>
+                      <span className="packet-status">{status.label}</span>
                     </div>
-                  </div>
-                </div>
+
+                    <div className="packet-face">
+                      <span className="packet-veg" style={{ '--chars': (task.vegetable_name || '未設定').length } as React.CSSProperties}>{task.vegetable_name || '未設定'}</span>
+                      {image && <img src={image} alt="" className="packet-image" draggable={false} />}
+                    </div>
+
+                    <div className="packet-back">
+                      <h2 className="packet-title">{task.task_title}</h2>
+                      <p className="packet-amount">{formatTaskCount(task)}</p>
+
+                      {task.growth_stage !== -1 && (
+                        <div className="packet-growth" aria-label={`成長 ${Math.max(0, stageForPips)} / 10`}>
+                          {growthPips(stageForPips).map((on, i) => (
+                            <span key={i} className={on ? 'pip on' : 'pip'} />
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="packet-calendar" aria-label={`期間 ${calendar.start} から ${calendar.end}`}>
+                        <div className="packet-calendar-track">
+                          <div className="packet-calendar-fill" style={{ width: `${calendar.ratio * 100}%` }} />
+                          {calendar.showToday && (
+                            <span className="packet-calendar-today" style={{ left: `${calendar.ratio * 100}%` }} />
+                          )}
+                        </div>
+                        <div className="packet-calendar-dates">
+                          <span>{formatMonthDay(calendar.start)}</span>
+                          <span>{formatMonthDay(calendar.end)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
       </div>
     </Layout>
