@@ -48,7 +48,8 @@ const Header: React.FC<HeaderProps> = ({ onNewTaskClick }) => {
     <header style={{ 
       display: 'flex', 
       alignItems: 'center', 
-      justifyContent: 'center', 
+      justifyContent: 'flex-start',
+      flexWrap: 'wrap',
       gap: '20px',
       padding: '15px 20px', 
       borderBottom: '1px solid #e0e0e0', 
@@ -57,6 +58,9 @@ const Header: React.FC<HeaderProps> = ({ onNewTaskClick }) => {
       top: 0,
       zIndex: 1000
     }}>
+      <button onClick={() => navigate('/home')} aria-label="VegeTask ホーム" style={{ ...buttonStyle, marginRight: 'auto', padding: 0, display: 'flex', alignItems: 'center', gap: '8px', color: '#263c2c', fontSize: '20px' }}>
+        <span>VegeTask</span>
+      </button>
       <button onClick={() => navigate('/basket')} style={buttonStyle}>🧺 かご</button>
       <button onClick={onNewTaskClick} style={buttonStyle}>➕ 新規タスク登録</button>
       <button onClick={() => navigate('/home')} style={buttonStyle}>🏠 ホーム</button>
