@@ -33,8 +33,8 @@ const Signup: React.FC = () => {
       localStorage.removeItem('refresh_token');
 
       navigate('/home', { replace: true });
-    } catch (err: any) {
-      setError(err?.message ?? 'ユーザー登録に失敗しました');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'ユーザー登録に失敗しました');
     } finally {
       setLoading(false);
     }
@@ -42,12 +42,14 @@ const Signup: React.FC = () => {
 
   return (
     <div className="auth-container">
-      <h2 className="auth-title">新規登録</h2>
+      <h2 id="auth-heading" className="auth-title">新規登録</h2>
       <form onSubmit={handleSubmit}>
         <div className="auth-input-group">
           <label htmlFor="username" className="auth-label">ユーザー名</label>
           <input
             id="username"
+            autoComplete="username"
+            required
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -60,6 +62,8 @@ const Signup: React.FC = () => {
           <label htmlFor="password" className="auth-label">パスワード</label>
           <input
             id="password"
+            autoComplete="new-password"
+            required
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -68,10 +72,10 @@ const Signup: React.FC = () => {
           />
         </div>
 
-        {error && <div style={{ color: 'red', marginBottom: '12px', textAlign: 'center' }}>{error}</div>}
+        {error && <div role="alert" style={{ color: 'red', marginBottom: '12px', textAlign: 'center' }}>{error}</div>}
 
         <button type="submit" disabled={loading} className="auth-button">
-          {loading ? '登録中…' : 'Sign Up'}
+          {loading ? '登録中…' : '新規登録'}
         </button>
       </form>
 
