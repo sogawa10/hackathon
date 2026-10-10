@@ -11,9 +11,11 @@
   border-bottom: 2px solid var(--soil);
 }
 
-.app-logo {
+.app-logo,
+.landing .landing-brand {
   font-family: var(--display);
   font-size: 1.5rem;
+  font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--leaf);
   line-height: 1;
@@ -101,7 +103,8 @@
     padding: 10px 16px 0;
   }
 
-  .app-logo {
+  .app-logo,
+  .landing .landing-brand {
     font-size: 1.2rem;
   }
 

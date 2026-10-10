@@ -33,57 +33,58 @@ const Login: React.FC = () => {
       localStorage.removeItem('refresh_token');
 
       navigate('/home', { replace: true });
-    } catch (err: any) {
-      setError(err?.message ?? 'ログインに失敗しました');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'ログインに失敗しました');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-page">
     <div className="auth-container">
-      <img src="/VegeTASK_ロゴ.png" alt="VegeTASK 勉強を育て、収穫するタスク管理アプリ" className="auth-logo" />
-      <h1 className="auth-title">ログイン</h1>
-      <form onSubmit={handleSubmit} noValidate>
+      <h2 id="auth-heading" className="auth-title">ログイン</h2>
+      <form onSubmit={handleSubmit}>
         <div className="auth-input-group">
-          <label htmlFor="username" className="field-label">ユーザー名</label>
+          <label htmlFor="username" className="auth-label">ユーザー名</label>
           <input
             id="username"
+            autoComplete="username"
+            required
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="field-input"
-            autoComplete="username"
+            className="auth-input"
+            placeholder="ユーザー名を入力"
           />
         </div>
 
         <div className="auth-input-group">
-          <label htmlFor="password" className="field-label">パスワード</label>
+          <label htmlFor="password" className="auth-label">パスワード</label>
           <input
             id="password"
+            autoComplete="current-password"
+            required
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="field-input"
-            autoComplete="current-password"
+            className="auth-input"
+            placeholder="パスワードを入力"
           />
         </div>
 
-        {error && <p className="form-error auth-error" role="alert">{error}</p>}
+        {error && <div role="alert" style={{ color: 'red', marginBottom: '12px', textAlign: 'center' }}>{error}</div>}
 
-        <button type="submit" disabled={loading} className="btn btn-primary auth-button">
-          {loading ? 'ログインしています…' : 'ログイン'}
+        <button type="submit" disabled={loading} className="auth-button">
+          {loading ? 'ログイン中…' : 'ログイン'}
         </button>
       </form>
 
       <div className="auth-link-text">
-        はじめて使う方は
+        アカウントをお持ちでないですか？<br />
         <Link to="/signup" className="auth-link">
-          アカウントを作る
+          新規登録はこちら
         </Link>
       </div>
-    </div>
     </div>
   );
 };
