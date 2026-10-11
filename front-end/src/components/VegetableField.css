@@ -1,52 +1,35 @@
 .field-container {
-  font-family: sans-serif;
   text-align: center;
-  padding: 10px;
+  padding: 0;
   position: relative;
   width: 100%;
 }
 
 .field-title {
-  margin: 0 0 16px 0;
-  color: #2e7d32;
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  text-shadow: 0 2px 4px rgba(46, 125, 50, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.field-title::before {
-  content: '🌱';
-  font-size: 20px;
-  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
-}
-
-.field-title::after {
-  content: '🌱';
-  font-size: 20px;
-  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
-  transform: scaleX(-1);
+  margin: 0 0 0.5rem;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 1.35rem;
+  letter-spacing: 0.08em;
+  color: var(--soil);
 }
 
 .system-toast {
   position: absolute;
-  top: 40px;
+  top: 3rem;
   left: 50%;
   transform: translateX(-50%);
-  background-color: rgba(76, 175, 80, 0.95);
-  color: #fff;
-  padding: 12px 24px;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  background: var(--leaf);
+  color: var(--paper);
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius-m);
+  box-shadow: 0 10px 24px rgba(46, 31, 18, 0.25);
   z-index: 100;
   cursor: pointer;
   white-space: pre-wrap;
-  font-size: 14px;
-  font-weight: bold;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.6;
   transition: opacity 0.3s ease;
   width: max-content;
   max-width: 90%;
@@ -54,8 +37,9 @@
 
 .field-board {
   position: relative;
-  height: 60vh;
+  height: min(60vh, calc((100vw - 32px) * 8 / 9));
   aspect-ratio: 9 / 8;
+  max-width: 100%;
   margin: 0 auto;
   background-image: url("/VegeTASK_畑.png");
   background-size: contain;
@@ -87,13 +71,16 @@
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  padding: 6px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: bold;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-m);
+  font-size: 0.8rem;
+  font-weight: 700;
   white-space: nowrap;
   z-index: 20;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  background: var(--paper);
+  color: var(--soil);
+  border: 2px solid var(--soil);
+  box-shadow: 0 6px 14px rgba(46, 31, 18, 0.2);
   animation: popUpFadeIn 0.2s ease-out forwards;
 }
 
@@ -102,32 +89,51 @@
   position: absolute;
   top: 100%;
   left: 50%;
-  margin-left: -6px;
-  border-width: 6px;
+  margin-left: -7px;
+  border-width: 7px;
   border-style: solid;
+  border-color: var(--soil) transparent transparent transparent;
 }
 
 .hover-task-name {
-  background-color: #ff9800;
-  color: #fff;
-  border: 2px solid #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
   pointer-events: none;
 }
 
-.hover-task-name::after {
-  border-color: #ff9800 transparent transparent transparent;
+.crop-status {
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  color: var(--paper);
+  background: var(--leaf);
+}
+
+.crop-status.stage-seed {
+  background: var(--soil-soft);
+}
+
+.crop-status.stage-ripe {
+  background: var(--ripe);
+  color: var(--soil);
+}
+
+.crop-task-title {
+  font-size: 0.875rem;
 }
 
 .growth-message {
-  background-color: #fff;
-  color: #ff9800;
-  border: 2px solid #ff9800;
+  background: var(--leaf);
+  color: var(--paper);
+  border-color: var(--leaf);
   cursor: pointer;
   z-index: 25;
 }
 
 .growth-message::after {
-  border-color: #ff9800 transparent transparent transparent;
+  border-top-color: var(--leaf);
 }
 
 .crop-image {
@@ -168,10 +174,10 @@
 @keyframes bounceHarvest {
   0%, 100% { 
     transform: translateX(-50%) scale(var(--target-scale)) translateY(0); 
-    filter: drop-shadow(0 0 4px rgba(255,215,0,0.6)); 
+    filter: drop-shadow(0 0 4px rgba(224,154,26,0.7)); 
   }
   50% { 
     transform: translateX(-50%) scale(var(--target-scale)) translateY(-8px); 
-    filter: drop-shadow(0 0 12px rgba(255,215,0,1)); 
+    filter: drop-shadow(0 0 12px rgba(224,154,26,1)); 
   }
 }

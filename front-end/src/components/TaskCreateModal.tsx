@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { VEGETABLES, TASK_TYPE_CLASS } from '../vegetables';
+import './TaskCreateModal.css';
 
 type TaskCreateModalProps = {
   isOpen: boolean;
@@ -8,11 +10,6 @@ type TaskCreateModalProps = {
 
 type TaskType = '単語帳' | '問題集' | '過去問' | 'その他';
 
-const VEGETABLES = {
-  S: ['プチトマト', 'オクラ', '枝豆', 'シイタケ', 'ネギ'],
-  M: ['赤パプリカ', 'ピーマン', 'なす', 'キュウリ', 'タケノコ'],
-  L: ['キャベツ', 'かぼちゃ', 'トウモロコシ', 'ブロッコリー', 'カリフラワー']
-};
 
 const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTaskCreated }) => {
   const [step, setStep] = useState<1 | 2>(1);
@@ -150,9 +147,9 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
 
       let msg = '';
       if (startDate === getTodayString()) {
-        msg = `${vegetableName}の種を畑に植えました！🌱\nさっそく今日のToDoを進めて育てましょう！`;
+        msg = `${vegetableName}の種を畑に植えました。\n今日のToDoから育て始めましょう。`;
       } else {
-        msg = `${vegetableName}の種を畑に植えました！🌱\n開始日の ${startDate} になるまで大切に見守りましょう！`;
+        msg = `${vegetableName}の種を畑に植えました。\n${startDate} から育て始めます。`;
       }
 
       if (onTaskCreated) onTaskCreated(msg);
@@ -193,116 +190,100 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
     }
   };
 
+  const typeOptions: TaskType[] = ['問題集', '単語帳', '過去問', 'その他'];
+
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 100000
-    }}>
-      <div style={{
-        backgroundColor: '#fff', borderRadius: '16px', padding: '30px',
-        width: '90%', maxWidth: '500px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        
-        {step === 1 && (
-          <button 
-            onClick={onClose}
-            style={{
-              position: 'absolute', top: '15px', right: '15px',
-              background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#888'
-            }}
-          >×</button>
-        )}
+    <div className="dialog-backdrop">
+      <div className="dialog task-dialog" role="dialog" aria-modal="true" aria-labelledby="task-dialog-title">
 
         {step === 1 && (
           <>
-            <h2 style={{ textAlign: 'center', color: '#333', marginTop: 0 }}>🌱 新しいタスクを作る</h2>
-            <form onSubmit={handleTaskSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <div>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>タスクの種類</label>
-                <select 
-                  value={taskType} 
-                  onChange={(e) => setTaskType(e.target.value as TaskType)}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }}
-                >
-                  <option value="問題集">問題集</option>
-                  <option value="単語帳">単語帳</option>
-                  <option value="過去問">過去問</option>
-                  <option value="その他">その他</option>
-                </select>
-              </div>
+            <button type="button" className="dialog-close" onClick={onClose} aria-label="閉じる">×</button>
+            <h2 id="task-dialog-title" className="dialog-title">新しいタスクを植える</h2>
+            <form onSubmit={handleTaskSubmit} className="task-form">
+              <fieldset className="task-type-picker">
+                <legend className="field-label">教材の種類</legend>
+                <div className="task-type-options">
+                  {typeOptions.map((type) => (
+                    <label key={type} className={`task-type-option ${TASK_TYPE_CLASS[type]}`}>
+                      <input
+                        type="radio"
+                        name="task-type"
+                        value={type}
+                        checked={taskType === type}
+                        onChange={() => setTaskType(type)}
+                      />
+                      <span>{type}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
 
               <div>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>タスク名</label>
-                <input 
+                <label htmlFor="task-title" className="field-label">タスク名</label>
+                <input
+                  id="task-title"
+                  className="field-input"
                   type="text" required
                   value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)}
                   placeholder={getTitlePlaceholder()}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box' }}
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>分量 ({getUnit()})</label>
-                  <input 
-                    type="number" required min="1"
-                    value={totalCount} 
+              <div className="task-form-row">
+                <div>
+                  <label htmlFor="task-total" className="field-label">分量（{getUnit()}）</label>
+                  <input
+                    id="task-total"
+                    className="field-input"
+                    type="number" required min="1" inputMode="numeric"
+                    value={totalCount}
                     onChange={(e) => setTotalCount(e.target.value === '' ? '' : Number(e.target.value))}
                     placeholder={getAmountPlaceholder()}
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box' }}
                   />
                 </div>
-                
+
                 {taskType === '単語帳' && (
-                  <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>周回数</label>
-                    <input 
-                      type="number" required min="1"
-                      value={lapCount} 
+                  <div>
+                    <label htmlFor="task-laps" className="field-label">周回数</label>
+                    <input
+                      id="task-laps"
+                      className="field-input"
+                      type="number" required min="1" inputMode="numeric"
+                      value={lapCount}
                       onChange={(e) => setLapCount(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="例: 2"
-                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box' }}
                     />
                   </div>
                 )}
               </div>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>開始日</label>
-                  <input 
+              <div className="task-form-row">
+                <div>
+                  <label htmlFor="task-start" className="field-label">開始日</label>
+                  <input
+                    id="task-start"
+                    className="field-input"
                     type="date" required
                     value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box' }}
                   />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>期日</label>
-                  <input 
+                <div>
+                  <label htmlFor="task-end" className="field-label">期日</label>
+                  <input
+                    id="task-end"
+                    className="field-input"
                     type="date" required
                     value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
+              <p className="task-form-hint">期間は 7 日以上にしてください。最後の約 1 割は予備日になります。</p>
 
-              {errorMsg && (
-                <p style={{ color: '#d32f2f', fontWeight: 'bold', textAlign: 'center', margin: '5px 0' }}>{errorMsg}</p>
-              )}
+              {errorMsg && <p className="form-error" role="alert">{errorMsg}</p>}
 
-              <button 
-                type="submit" 
-                disabled={loading}
-                style={{ 
-                  marginTop: '10px', padding: '12px', borderRadius: '8px', border: 'none', 
-                  backgroundColor: loading ? '#ccc' : '#4caf50', color: '#fff', fontWeight: 'bold', fontSize: '16px', cursor: loading ? 'default' : 'pointer'
-                }}
-              >
-                {loading ? '計算中...' : 'タスクを確定して種をもらう'}
+              <button type="submit" disabled={loading} className="btn btn-primary task-submit">
+                {loading ? '計算しています…' : '種を受け取る'}
               </button>
             </form>
           </>
@@ -310,39 +291,30 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
 
         {step === 2 && assignedSize && (
           <>
-            <h2 style={{ textAlign: 'center', color: '#333', marginTop: 0 }}>🎁 種が届きました！</h2>
-            <p style={{ textAlign: 'center', color: '#555' }}>
-              あなたのタスクの難易度から、<strong>野菜{assignedSize}</strong> が割り当てられました。<br/>
-              育てたい野菜の種を選んでください。
+            <h2 id="task-dialog-title" className="dialog-title">種が届きました</h2>
+            <p className="task-seed-lead">
+              分量と期間から、<strong>{assignedSize} サイズ</strong>の野菜が割り当てられました。育てたい種を選んでください。
             </p>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '15px', marginTop: '20px' }}>
+            <div className="seed-packets">
               {VEGETABLES[assignedSize].map(veg => (
-                <div 
+                <button
+                  type="button"
                   key={veg}
+                  className={`seed-packet ${TASK_TYPE_CLASS[taskType]}`}
+                  disabled={loading}
                   onClick={() => handleVegetableSelect(veg)}
-                  style={{
-                    padding: '15px', borderRadius: '12px', border: '2px solid #e0e0e0', cursor: 'pointer',
-                    textAlign: 'center', width: '30%', transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.borderColor = '#4caf50'}
-                  onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e0e0e0'}
                 >
-                  <img 
-                    src={`/野菜${assignedSize}/種_${veg}.png`} 
-                    alt={`${veg}の種`} 
-                    style={{ width: '50px', height: '50px', objectFit: 'contain', marginBottom: '10px' }} 
-                  />
-                  <div style={{ fontWeight: 'bold', color: '#333' }}>{veg}</div>
-                </div>
+                  <span className="seed-packet-face">
+                    <img src={`/野菜${assignedSize}/収穫_${veg}.png`} alt="" draggable={false} />
+                  </span>
+                  <span className="seed-packet-name">{veg}</span>
+                </button>
               ))}
             </div>
 
-            {errorMsg && (
-              <p style={{ color: '#d32f2f', fontWeight: 'bold', textAlign: 'center', marginTop: '15px' }}>{errorMsg}</p>
-            )}
-
-            {loading && <p style={{ textAlign: 'center', marginTop: '15px', color: '#888' }}>通信中...</p>}
+            {errorMsg && <p className="form-error" role="alert">{errorMsg}</p>}
+            {loading && <p className="task-form-hint">畑に植えています…</p>}
           </>
         )}
       </div>

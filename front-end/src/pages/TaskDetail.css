@@ -1,0 +1,143 @@
+.detail-page {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.detail-back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  font-weight: 700;
+  color: var(--soil-soft);
+}
+
+.detail-back::before {
+  content: '‹ ';
+}
+
+.detail-back:hover {
+  color: var(--soil);
+}
+
+.detail.packet:hover {
+  transform: none;
+  box-shadow: 0 2px 0 rgba(46, 31, 18, 0.12), 0 10px 22px rgba(46, 31, 18, 0.08);
+}
+
+.detail-body {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+}
+
+.detail-face {
+  height: auto;
+  min-height: 260px;
+  border-bottom: none;
+  border-right: 2px solid var(--type-color);
+}
+
+.detail-face .packet-veg {
+  --face-room: 230px;
+  font-size: min(2.4rem, calc(var(--face-room) / var(--chars, 4) / 1.06));
+}
+
+.detail-face .packet-image {
+  max-height: 230px;
+}
+
+.detail-info {
+  padding: 1.5rem 1.75rem;
+}
+
+.detail-title {
+  font-size: 1.4rem;
+  margin-bottom: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.detail-list {
+  margin: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.detail-list div {
+  display: grid;
+  grid-template-columns: 7.5em 1fr;
+  gap: 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.detail-list dt {
+  color: var(--soil-soft);
+  font-size: 0.9rem;
+}
+
+.detail-list dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-danger {
+  padding: 1rem 1.75rem 1.25rem;
+  border-top: 2px solid var(--type-color);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.detail-delete {
+  color: var(--chili);
+}
+
+.detail-delete:hover:not(:disabled) {
+  border-color: var(--chili);
+  background: var(--chili-wash);
+}
+
+.detail-confirm {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: var(--chili-wash);
+  border-left: 4px solid var(--chili);
+  border-radius: var(--radius-s);
+}
+
+.detail-confirm p {
+  font-weight: 700;
+  color: var(--chili);
+  margin-bottom: 0.75rem;
+}
+
+.detail-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+@media (max-width: 600px) {
+  .detail-body {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-face {
+    min-height: 200px;
+    border-right: none;
+    border-bottom: 2px solid var(--type-color);
+  }
+
+  .detail-face .packet-image {
+    max-height: 180px;
+  }
+
+  .detail-info,
+  .detail-danger {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+}
+
+.detail.packet {
+  height: auto;
+}
