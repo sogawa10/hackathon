@@ -10,16 +10,41 @@ type Task = {
   task_title: string;
   total_count: number;
   lap_count: number;
+  buffer_days: number;
   start_date: string;
   end_date: string;
   vegetable_name: string;
   growth_stage: number;
 };
 
+const TASK_TYPES = ['問題集', '単語帳', '過去問', 'その他'];
+const SORT_OPTIONS = [
+  { value: 'start-asc', label: '開始日の早い順' },
+  { value: 'start-desc', label: '開始日の遅い順' },
+  { value: 'end-asc', label: '期日の早い順' },
+  { value: 'end-desc', label: '期日の遅い順' },
+  { value: 'buffer-desc', label: '予備日の多い順' },
+  { value: 'buffer-asc', label: '予備日の少ない順' },
+  { value: 'amount-desc', label: '分量の多い順（教材別）' },
+  { value: 'amount-asc', label: '分量の少ない順（教材別）' },
+];
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'すべて' },
+  { value: 'is-waiting', label: '開始前' },
+  { value: 'is-growing', label: '育成中' },
+  { value: 'is-ripe', label: '収穫できる' },
+  { value: 'is-harvested', label: '収穫済み' },
+  { value: 'is-withered', label: '枯れた' },
+];
+
 const Tasks: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState('start-desc');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [search, setSearch] = useState('');
   const navigate = useNavigate();
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -52,8 +77,8 @@ const Tasks: React.FC = () => {
 
         const data = await res.json();
         setTasks(data || []);
-      } catch (err: any) {
-        setError(err.message || 'エラーが発生しました');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'エラーが発生しました');
       } finally {
         setLoading(false);
       }
@@ -113,10 +138,82 @@ const Tasks: React.FC = () => {
     return Array.from({ length: 10 }, (_, i) => i < filled);
   };
 
+  const normalizeSearch = (value: string) => value.normalize('NFKC').toLocaleLowerCase('ja-JP');
+  const searchTerm = normalizeSearch(search.trim());
+  const taskAmount = (task: Task) => task.total_count * (task.task_type === '単語帳' ? task.lap_count : 1);
+  const visibleTasks = tasks.filter(task =>
+    (statusFilter === 'all' || getTaskStatus(task).className === statusFilter) &&
+    (typeFilter === 'all' || task.task_type === typeFilter) &&
+    normalizeSearch(task.task_title).includes(searchTerm)
+  ).sort((a, b) => {
+    const direction = sortOrder.endsWith('-asc') ? 1 : -1;
+    if (sortOrder.startsWith('amount-')) {
+      const typeDifference = TASK_TYPES.indexOf(a.task_type) - TASK_TYPES.indexOf(b.task_type);
+      if (typeDifference !== 0) return typeDifference;
+      return direction * (taskAmount(a) - taskAmount(b));
+    }
+    if (sortOrder.startsWith('buffer-')) return direction * (a.buffer_days - b.buffer_days);
+    const dateA = sortOrder.startsWith('start-') ? a.start_date : a.end_date;
+    const dateB = sortOrder.startsWith('start-') ? b.start_date : b.end_date;
+    return direction * dateA.split('T')[0].localeCompare(dateB.split('T')[0]);
+  });
+  const resetFilters = () => {
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setSearch('');
+  };
+  const hasFilters = statusFilter !== 'all' || typeFilter !== 'all' || search !== '';
+
   return (
     <Layout>
       <div className="tasks-page">
         <h1 className="page-title">タスク一覧</h1>
+
+        {!loading && !error && tasks.length > 0 && (
+          <section className="tasks-controls" aria-label="タスクの検索・絞り込み・並べ替え">
+            <div className="tasks-control-grid">
+              <label className="tasks-control">
+                <span>タスク名で検索</span>
+                <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="タスク名を入力" />
+              </label>
+              <label className="tasks-control">
+                <span>並べ替え</span>
+                <select value={sortOrder} onChange={e => setSortOrder(e.target.value)}>
+                  {SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+            </div>
+            <fieldset className="tasks-filter-group">
+              <legend>育成段階</legend>
+              <div className="tasks-filter-buttons">
+                {STATUS_OPTIONS.map(option => (
+                  <button key={option.value} type="button" aria-pressed={statusFilter === option.value}
+                    className={`tasks-filter-button ${option.value}`} onClick={() => setStatusFilter(option.value)}>
+                    <span className="tasks-filter-check" aria-hidden="true">{statusFilter === option.value ? '✓' : ''}</span>{option.label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <fieldset className="tasks-filter-group">
+              <legend>教材の種類</legend>
+              <div className="tasks-filter-buttons">
+                {['all', ...TASK_TYPES].map(type => (
+                  <button key={type} type="button" aria-pressed={typeFilter === type}
+                    className={`tasks-filter-button ${TASK_TYPE_CLASS[type] ?? ''}`} onClick={() => setTypeFilter(type)}>
+                    <span className="tasks-filter-check" aria-hidden="true">{typeFilter === type ? '✓' : ''}</span>{type === 'all' ? 'すべて' : type}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <div className="tasks-control-summary">
+              <p role="status"><strong>{visibleTasks.length}</strong> / {tasks.length} 件のタスクを表示</p>
+              <button type="button" className="btn btn-quiet" disabled={!hasFilters} onClick={resetFilters}>絞り込みを解除</button>
+            </div>
+            {sortOrder.startsWith('amount-') && (
+              <p className="tasks-sort-note">問題集 → 単語帳 → 過去問 → その他の順にまとめ、教材ごとに分量で並べ替えます。単語帳は単語数 × 周回数で比較します。</p>
+            )}
+          </section>
+        )}
 
         {loading ? (
           <p className="status-line">タスクを読み込んでいます…</p>
@@ -127,9 +224,14 @@ const Tasks: React.FC = () => {
             <p><strong>まだ何も植えていません</strong></p>
             <p>上の「＋ 新規タスク」から教材と期間を登録すると、種袋がここに並びます。</p>
           </div>
+        ) : visibleTasks.length === 0 ? (
+          <div className="tasks-empty">
+            <p><strong>条件に一致するタスクがありません</strong></p>
+            <p>検索するタスク名や絞り込み条件を変更してください。</p>
+          </div>
         ) : (
           <ul className="packet-shelf">
-            {tasks.map(task => {
+            {visibleTasks.map(task => {
               const status = getTaskStatus(task);
               const calendar = getCalendar(task);
               const image = cropImagePath(task.vegetable_name, task.growth_stage);
@@ -154,12 +256,16 @@ const Tasks: React.FC = () => {
                     <div className="packet-back">
                       <h2 className="packet-title">{task.task_title}</h2>
                       <p className="packet-amount">{formatTaskCount(task)}</p>
+                      <p className="packet-amount">残りの予備日 {task.buffer_days} 日</p>
 
                       {task.growth_stage !== -1 && (
-                        <div className="packet-growth" aria-label={`成長 ${Math.max(0, stageForPips)} / 10`}>
+                        <div className="packet-growth-section">
+                          <p className="packet-meter-label">野菜の成長度 <span>{Math.max(0, stageForPips)} / 10</span></p>
+                          <div className="packet-growth" aria-hidden="true">
                           {growthPips(stageForPips).map((on, i) => (
                             <span key={i} className={on ? 'pip on' : 'pip'} />
                           ))}
+                          </div>
                         </div>
                       )}
 

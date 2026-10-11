@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './VegetableField.css';
 
 interface TodaySubtask {
@@ -57,6 +58,7 @@ const GRID_POSITIONS: { [key: number]: { top: string; left: string } } = {
 const ASSET_SCALE = 0.3;
 
 const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMessage, onClearSystemMessage, onHarvestClick }) => {
+  const navigate = useNavigate();
   const field: (TodaySubtask | null)[] = Array(25).fill(null);
   
   const [recentCompleted, setRecentCompleted] = useState<Set<string>>(new Set());
@@ -235,6 +237,11 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
           const pos = GRID_POSITIONS[index] || { top: '50%', left: '50%' };
           const isAnimating = recentCompleted.has(task.sub_task_id);
           const growthMsg = growthMsgs[task.sub_task_id];
+          const isHarvestable = task.growth_stage === 10 && Boolean(onHarvestClick);
+          const isInteractive = isHarvestable;
+          const activateCrop = () => {
+            if (isHarvestable) onHarvestClick?.(task);
+          };
 
           const currentScale = ASSET_SCALE * scaleMultiplier * boardScale;
           const bottomOffset = `${bottomOffsetBase * boardScale}px`;
@@ -243,6 +250,11 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
             <div 
               key={index}
               className="crop-slot"
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigate(`/tasks/${task.task_id}`);
+              }}
               onMouseEnter={() => setHoveredTask(task.sub_task_id)}
               onMouseLeave={() => setHoveredTask(null)}
               style={{
@@ -287,11 +299,21 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
                     alt={task.task_title || '野菜'}
                     className="crop-image"
                     draggable={false}
+                    role={isHarvestable ? 'button' : undefined}
+                    tabIndex={isInteractive ? 0 : undefined}
+                    aria-label={isInteractive ? `${task.task_title}：収穫する` : undefined}
                     onDragStart={(e) => e.preventDefault()}
                     onClick={(e) => {
-                      if (task.growth_stage === 10 && onHarvestClick) {
+                      if (isInteractive) {
                         e.stopPropagation();
-                        onHarvestClick(task);
+                        activateCrop();
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (isInteractive && (e.key === 'Enter' || (isHarvestable && e.key === ' '))) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        activateCrop();
                       }
                     }}
                     style={{ 
@@ -299,7 +321,7 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
                       '--target-scale': currentScale,
                       transform: `translateX(-50%) scale(${currentScale})`, 
                       opacity: task.growth_stage === -1 ? 0 : (isAnimating ? 0.4 : 1),
-                      cursor: task.growth_stage === 10 ? 'pointer' : 'default',
+                      cursor: isInteractive ? 'pointer' : 'default',
                       animation: task.growth_stage === 10 ? 'bounceHarvest 2s infinite' : 'none'
                     } as React.CSSProperties} 
                     onError={(e) => {
