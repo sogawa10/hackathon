@@ -20,7 +20,7 @@ const Header: React.FC<HeaderProps> = ({ onNewTaskClick }) => {
   const handleLogout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
-    navigate('/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
   useEffect(() => {
