@@ -4,6 +4,12 @@ import Header from './Header';
 import TaskCreateModal from './TaskCreateModal';
 import './Layout.css';
 
+type Task = { growth_stage: number };
+
+const WITHERED_STAGE = -1;
+const HARVESTED_STAGE = 11;
+const MAX_ACTIVE_TASKS = 25;
+
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLimitPopupOpen, setIsLimitPopupOpen] = useState(false);
@@ -37,16 +43,16 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       }
 
       const data = await res.json();
-      const safeData = Array.isArray(data) ? data : [];
+      const safeData: Task[] = Array.isArray(data) ? data : [];
       
-      const activeTasksCount = safeData.filter((t: any) => t.growth_stage !== -1 && t.growth_stage !== 11).length;
+      const activeTasksCount = safeData.filter(t => t.growth_stage !== WITHERED_STAGE && t.growth_stage !== HARVESTED_STAGE).length;
 
-      if (activeTasksCount >= 25) {
+      if (activeTasksCount >= MAX_ACTIVE_TASKS) {
         setIsLimitPopupOpen(true);
       } else {
         setIsModalOpen(true);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       alert('タスク状況の確認に失敗しました。');
     } finally {
