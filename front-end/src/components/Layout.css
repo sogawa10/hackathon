@@ -1,0 +1,31 @@
+.app-shell {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+  padding: 24px clamp(16px, 3vw, 40px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.dialog-alert {
+  max-width: 420px;
+  border-top-color: var(--chili);
+}
+
+.dialog-alert p {
+  color: var(--soil-soft);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}

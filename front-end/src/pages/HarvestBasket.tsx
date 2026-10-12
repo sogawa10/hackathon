@@ -254,15 +254,18 @@ const HarvestBasket: React.FC = () => {
     return `/野菜${size}/収穫_${jpName}.png`;
   };
 
-  if (loading) return <Layout><div style={{ padding: 20, textAlign: 'center' }}>読み込み中…</div></Layout>;
-  if (error) return <Layout><div style={{ padding: 20, color: 'red', textAlign: 'center', fontWeight: 'bold' }}>{error}</div></Layout>;
+  if (loading) return <Layout><p className="status-line">かごを運んでいます…</p></Layout>;
+  if (error) return <Layout><p className="status-line is-error">{error}</p></Layout>;
 
   return (
     <Layout>
       <div className="basket-container">
         
-        <div className="basket-title-wrapper">
-          <h1 className="basket-title">収穫かご</h1>
+        <div className="basket-heading">
+          <h1 className="page-title basket-title">収穫かご</h1>
+          <p className="basket-summary-text">
+            これまでに収穫した野菜 <span className="basket-summary-count">{harvests.length}</span> 個
+          </p>
         </div>
 
         <div className="basket-card">
@@ -343,13 +346,11 @@ const HarvestBasket: React.FC = () => {
             </div>
           </div>
 
-          <div className="basket-summary">
-            <h3 className="basket-summary-title">これまでの成果</h3>
-            <p className="basket-summary-text">
-              合計収穫数: <span className="basket-summary-count">{harvests.length}</span> 個
-            </p>
-          </div>
-
+          {harvests.length === 0 ? (
+            <p className="basket-hint">育ち切った野菜を畑でクリックすると、ここに入ります。</p>
+          ) : (
+            <p className="basket-hint">野菜はドラッグして並べ替えられます。</p>
+          )}
         </div>
       </div>
     </Layout>

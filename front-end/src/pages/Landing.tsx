@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Login from './Login';
 import Signup from './Signup';
+import '../components/Header.css';
 import './Landing.css';
 
 const vegetables = [
@@ -28,8 +29,8 @@ export default function Landing() {
   return (
     <div className="landing">
       <header className="landing-header">
-        <Link to="/" className="landing-brand" aria-label="VegeTask トップページ">
-          <span>VegeTask</span>
+        <Link to="/" className="landing-brand" aria-label="VegeTASK トップページ">
+          <span>VegeTASK</span>
         </Link>
         <nav className="landing-nav" aria-label="メインナビゲーション">
           <a className="landing-nav-about" href="#how-it-works">VegeTaskとは</a>

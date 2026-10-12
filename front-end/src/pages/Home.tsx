@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import VegetableField from '../components/VegetableField';
 import Layout from '../components/Layout';
+import { cropImagePath, TASK_TYPE_CLASS } from '../vegetables';
 import './Home.css';
 
 type TodaySubtask = {
@@ -288,8 +289,8 @@ const Home: React.FC = () => {
     setWitheredTasks([]);
   };
 
-  if (loading) return <Layout><div>読み込み中…</div></Layout>;
-  if (error) return <Layout><div style={{ color: 'red' }}>{error}</div></Layout>;
+  if (loading) return <Layout><p className="status-line">畑を見に行っています…</p></Layout>;
+  if (error) return <Layout><p className="status-line is-error">{error}</p></Layout>;
 
   const validTasks = subtasks.filter(
   (t): t is TodaySubtask =>
@@ -310,27 +311,30 @@ const Home: React.FC = () => {
             alt={harvestingTask.vegetable_name}
           />
           <h1 className="harvest-title">
-            {getVegetableInfoForOverlay(harvestingTask.vegetable_name).jpName}を収穫しました！🎉
+            {getVegetableInfoForOverlay(harvestingTask.vegetable_name).jpName}を収穫しました！
           </h1>
           <p className="harvest-subtitle">
-            画面をクリックしてかごにしまう
+            画面をクリックすると収穫かごにしまいます
           </p>
         </div>
       )}
 
       {witheredTasks.length > 0 && (
         <div className="harvest-overlay" onClick={handleCloseWitheredPopup}>
-          <div style={{ fontSize: '120px', marginBottom: '40px', animation: 'popOutImage 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards' }}>
-            🍂
-          </div>
-          <h1 className="harvest-title" style={{ textAlign: 'center', lineHeight: '1.4' }}>
-            残念ですが、<br />
-            <span style={{ color: '#ff5252' }}>{witheredTasks.map(t => t.vegetable_name || '野菜').join('と')}</span>
-            <br />が枯死して消滅しました...
+          {cropImagePath(witheredTasks[0].vegetable_name, -1) && (
+            <img
+              className="harvest-image is-withered"
+              src={cropImagePath(witheredTasks[0].vegetable_name, -1) ?? ''}
+              alt=""
+            />
+          )}
+          <h1 className="harvest-title">
+            {witheredTasks.map(t => t.vegetable_name || '野菜').join('と')}が枯れてしまいました
           </h1>
-          <p className="harvest-subtitle" style={{ marginTop: '20px' }}>
-            タスクのスケジュールを見直してみましょう<br />
-            （画面をクリックして閉じる）
+          <p className="harvest-subtitle">
+            予備日を使い切ったため、畑から取り除きました。<br />
+            期間や分量を見直して、もう一度植えてみましょう。<br />
+            画面をクリックすると閉じます
           </p>
         </div>
       )}
@@ -347,42 +351,51 @@ const Home: React.FC = () => {
             />
           </section>
 
-          <section className="todo-section">
+          <section className="todo-section" aria-labelledby="todo-heading">
             <div className="todo-header">
-              <h2>今日のToDo</h2>
+              <h2 id="todo-heading">今日のToDo</h2>
+              {validTasks.length > 0 && (
+                <span className="todo-progress">
+                  {validTasks.filter(t => t.is_completed).length} / {validTasks.length} 完了
+                </span>
+              )}
             </div>
-            
-            {validTasks.length === 0 ? (
-              <p className="todo-empty">今日のタスクはありません。</p>
-            ) : (
-              <ul className="todo-list">
-                {validTasks.map((task) => {
-                  const isCheckable = task.is_checkable !== false;
-                  const titleClass = task.is_completed ? "todo-title completed" : "todo-title";
-                  const contentClass = task.is_completed ? "todo-content completed" : "todo-content";
 
-                  return (
-                    <li key={task.sub_task_id} className={`todo-item ${task.is_completed ? 'completed-row' : ''}`}>
-                      <input
-                        type="checkbox"
-                        checked={task.is_completed}
-                        disabled={task.is_completed || !isCheckable} 
-                        onChange={() => handleToggleComplete(task.sub_task_id, task.is_completed)}
-                        className="todo-checkbox"
-                      />
-                      <div className="todo-details">
-                        <span className="todo-badge">{task.task_type}</span>
-                        <strong className={titleClass}>{task.task_title}</strong>
-                        <span className={contentClass}>{task.task_content}</span>
-                        {!isCheckable && !task.is_completed && (
-                          <span className="todo-warning">※最終日のみチェック可能</span>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+            <div className="todo-scroll">
+              {validTasks.length === 0 ? (
+                <p className="todo-empty">
+                  <strong>今日やることはありません</strong>
+                  「＋ 新規タスク」から教材を登録すると、毎日の分量がここに並びます。
+                </p>
+              ) : (
+                <ul className="todo-list">
+                  {validTasks.map((task) => {
+                    const isCheckable = task.is_checkable !== false;
+
+                    return (
+                      <li key={task.sub_task_id} className={`todo-item ${task.is_completed ? 'completed-row' : ''}`}>
+                        <input
+                          id={`todo-${task.sub_task_id}`}
+                          type="checkbox"
+                          checked={task.is_completed}
+                          disabled={task.is_completed || !isCheckable}
+                          onChange={() => handleToggleComplete(task.sub_task_id, task.is_completed)}
+                          className="todo-checkbox"
+                        />
+                        <label htmlFor={`todo-${task.sub_task_id}`} className={`todo-details ${TASK_TYPE_CLASS[task.task_type] ?? ''}`}>
+                          <span className="todo-badge">{task.task_type}</span>
+                          <strong className="todo-title">{task.task_title}</strong>
+                          <span className="todo-content">{task.task_content}</span>
+                          {!isCheckable && !task.is_completed && (
+                            <span className="todo-warning">この 1 単位は数日かけて進めます。チェックは最終日にできます</span>
+                          )}
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
           </section>
         </div>
       </div>

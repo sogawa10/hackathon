@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { cropImagePath, TASK_TYPE_CLASS } from '../vegetables';
+import './Tasks.css';
 
 type Task = {
   task_id: string;
@@ -8,16 +10,41 @@ type Task = {
   task_title: string;
   total_count: number;
   lap_count: number;
+  buffer_days: number;
   start_date: string;
   end_date: string;
   vegetable_name: string;
   growth_stage: number;
 };
 
+const TASK_TYPES = ['問題集', '単語帳', '過去問', 'その他'];
+const SORT_OPTIONS = [
+  { value: 'start-asc', label: '開始日の早い順' },
+  { value: 'start-desc', label: '開始日の遅い順' },
+  { value: 'end-asc', label: '期日の早い順' },
+  { value: 'end-desc', label: '期日の遅い順' },
+  { value: 'buffer-desc', label: '予備日の多い順' },
+  { value: 'buffer-asc', label: '予備日の少ない順' },
+  { value: 'amount-desc', label: '分量の多い順（教材別）' },
+  { value: 'amount-asc', label: '分量の少ない順（教材別）' },
+];
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'すべて' },
+  { value: 'is-waiting', label: '開始前' },
+  { value: 'is-growing', label: '育成中' },
+  { value: 'is-ripe', label: '収穫できる' },
+  { value: 'is-harvested', label: '収穫済み' },
+  { value: 'is-withered', label: '枯れた' },
+];
+
 const Tasks: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState('start-desc');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [search, setSearch] = useState('');
   const navigate = useNavigate();
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -50,8 +77,8 @@ const Tasks: React.FC = () => {
 
         const data = await res.json();
         setTasks(data || []);
-      } catch (err: any) {
-        setError(err.message || 'エラーが発生しました');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'エラーが発生しました');
       } finally {
         setLoading(false);
       }
@@ -73,125 +100,193 @@ const Tasks: React.FC = () => {
     }
   };
 
-  const getTaskStatus = (task: Task) => {
-    if (task.growth_stage === -1) {
-      return { label: '枯死🍂', color: '#c62828', bgColor: '#ffebee' };
-    }
-    if (task.growth_stage === 11) {
-      return { label: '収穫済🧺', color: '#e65100', bgColor: '#fff3e0' };
-    }
-
+  const todayStr = (() => {
     const mockDate = import.meta.env.VITE_MOCK_TODAY;
+    if (mockDate) return mockDate;
     const d = new Date();
-    const todayStr = mockDate || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
 
-    const startDateStr = task.start_date.split('T')[0];
-
-    if (startDateStr > todayStr) {
-      return { label: '開始前⏳', color: '#1565c0', bgColor: '#e3f2fd' };
-    }
-
-    return { label: '進行中🌱', color: '#2e7d32', bgColor: '#e8f5e9' };
+  const getTaskStatus = (task: Task) => {
+    if (task.growth_stage === -1) return { label: '枯れた', className: 'is-withered' };
+    if (task.growth_stage === 11) return { label: '収穫済み', className: 'is-harvested' };
+    if (task.growth_stage === 10) return { label: '収穫できる', className: 'is-ripe' };
+    if (task.start_date.split('T')[0] > todayStr) return { label: '開始前', className: 'is-waiting' };
+    return { label: '育成中', className: 'is-growing' };
   };
 
-  const getTaskTypeColor = (type: string, isWithered: boolean) => {
-    if (isWithered) return '#9e9e9e';
-    switch (type) {
-      case '問題集':
-        return '#ff9800'; 
-      case '単語帳':
-        return '#81c784'; 
-      case '過去問':
-        return '#ec5e54'; 
-      case 'その他':
-        return '#46dbe6c9'; 
-      default:
-        return '#81c784';
-    }
+  const toDay = (dateStr: string) => Date.UTC(
+    Number(dateStr.slice(0, 4)),
+    Number(dateStr.slice(5, 7)) - 1,
+    Number(dateStr.slice(8, 10)),
+  ) / 86400000;
+
+  const formatMonthDay = (dateStr: string) => `${Number(dateStr.slice(5, 7))}/${Number(dateStr.slice(8, 10))}`;
+
+  const getCalendar = (task: Task) => {
+    const start = task.start_date.split('T')[0];
+    const end = task.end_date.split('T')[0];
+    const span = Math.max(1, toDay(end) - toDay(start) + 1);
+    const elapsed = toDay(todayStr) - toDay(start) + 1;
+    const ratio = Math.min(1, Math.max(0, elapsed / span));
+    const showToday = elapsed >= 1 && elapsed <= span;
+    return { start, end, ratio, showToday };
   };
+
+  const growthPips = (stage: number) => {
+    const filled = stage >= 10 ? 10 : Math.max(0, stage);
+    return Array.from({ length: 10 }, (_, i) => i < filled);
+  };
+
+  const normalizeSearch = (value: string) => value.normalize('NFKC').toLocaleLowerCase('ja-JP');
+  const searchTerm = normalizeSearch(search.trim());
+  const taskAmount = (task: Task) => task.total_count * (task.task_type === '単語帳' ? task.lap_count : 1);
+  const visibleTasks = tasks.filter(task =>
+    (statusFilter === 'all' || getTaskStatus(task).className === statusFilter) &&
+    (typeFilter === 'all' || task.task_type === typeFilter) &&
+    normalizeSearch(task.task_title).includes(searchTerm)
+  ).sort((a, b) => {
+    const direction = sortOrder.endsWith('-asc') ? 1 : -1;
+    if (sortOrder.startsWith('amount-')) {
+      const typeDifference = TASK_TYPES.indexOf(a.task_type) - TASK_TYPES.indexOf(b.task_type);
+      if (typeDifference !== 0) return typeDifference;
+      return direction * (taskAmount(a) - taskAmount(b));
+    }
+    if (sortOrder.startsWith('buffer-')) return direction * (a.buffer_days - b.buffer_days);
+    const dateA = sortOrder.startsWith('start-') ? a.start_date : a.end_date;
+    const dateB = sortOrder.startsWith('start-') ? b.start_date : b.end_date;
+    return direction * dateA.split('T')[0].localeCompare(dateB.split('T')[0]);
+  });
+  const resetFilters = () => {
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setSearch('');
+  };
+  const hasFilters = statusFilter !== 'all' || typeFilter !== 'all' || search !== '';
 
   return (
     <Layout>
-      <div style={{ width: '100%', padding: '0 2vw', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '30px' }}>
-          <h1 style={{ margin: 0, color: '#333', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '1.2em' }}>📋</span> タスク一覧
-          </h1>
-        </div>
+      <div className="tasks-page">
+        <h1 className="page-title">タスク一覧</h1>
+
+        {!loading && !error && tasks.length > 0 && (
+          <section className="tasks-controls" aria-label="タスクの検索・絞り込み・並べ替え">
+            <div className="tasks-control-grid">
+              <label className="tasks-control">
+                <span>タスク名で検索</span>
+                <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="タスク名を入力" />
+              </label>
+              <label className="tasks-control">
+                <span>並べ替え</span>
+                <select value={sortOrder} onChange={e => setSortOrder(e.target.value)}>
+                  {SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+            </div>
+            <fieldset className="tasks-filter-group">
+              <legend>育成段階</legend>
+              <div className="tasks-filter-buttons">
+                {STATUS_OPTIONS.map(option => (
+                  <button key={option.value} type="button" aria-pressed={statusFilter === option.value}
+                    className={`tasks-filter-button ${option.value}`} onClick={() => setStatusFilter(option.value)}>
+                    <span className="tasks-filter-check" aria-hidden="true">{statusFilter === option.value ? '✓' : ''}</span>{option.label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <fieldset className="tasks-filter-group">
+              <legend>教材の種類</legend>
+              <div className="tasks-filter-buttons">
+                {['all', ...TASK_TYPES].map(type => (
+                  <button key={type} type="button" aria-pressed={typeFilter === type}
+                    className={`tasks-filter-button ${TASK_TYPE_CLASS[type] ?? ''}`} onClick={() => setTypeFilter(type)}>
+                    <span className="tasks-filter-check" aria-hidden="true">{typeFilter === type ? '✓' : ''}</span>{type === 'all' ? 'すべて' : type}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <div className="tasks-control-summary">
+              <p role="status"><strong>{visibleTasks.length}</strong> / {tasks.length} 件のタスクを表示</p>
+              <button type="button" className="btn btn-quiet" disabled={!hasFilters} onClick={resetFilters}>絞り込みを解除</button>
+            </div>
+            {sortOrder.startsWith('amount-') && (
+              <p className="tasks-sort-note">問題集 → 単語帳 → 過去問 → その他の順にまとめ、教材ごとに分量で並べ替えます。単語帳は単語数 × 周回数で比較します。</p>
+            )}
+          </section>
+        )}
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>読み込み中...</div>
+          <p className="status-line">タスクを読み込んでいます…</p>
         ) : error ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#e53935', fontWeight: 'bold' }}>{error}</div>
+          <p className="status-line is-error">{error}</p>
         ) : tasks.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#888', backgroundColor: '#f5f5f5', borderRadius: '12px' }}>
-            現在登録されているタスクはありません。
+          <div className="tasks-empty">
+            <p><strong>まだ何も植えていません</strong></p>
+            <p>上の「＋ 新規タスク」から教材と期間を登録すると、種袋がここに並びます。</p>
+          </div>
+        ) : visibleTasks.length === 0 ? (
+          <div className="tasks-empty">
+            <p><strong>条件に一致するタスクがありません</strong></p>
+            <p>検索するタスク名や絞り込み条件を変更してください。</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            {tasks.map(task => {
+          <ul className="packet-shelf">
+            {visibleTasks.map(task => {
               const status = getTaskStatus(task);
-              const isWithered = task.growth_stage === -1;
+              const calendar = getCalendar(task);
+              const image = cropImagePath(task.vegetable_name, task.growth_stage);
+              const stageForPips = task.growth_stage === 11 ? 10 : task.growth_stage;
 
               return (
-                <div 
-                  key={task.task_id} 
-                  onClick={() => navigate(`/tasks/${task.task_id}`)}
-                  style={{
-                    border: '1px solid #e0e0e0', 
-                    borderRadius: '12px', 
-                    padding: '20px', 
-                    backgroundColor: isWithered ? '#fafafa' : '#fff', 
-                    opacity: isWithered ? 0.75 : 1,
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '20px',
-                    cursor: 'pointer', 
-                    transition: 'transform 0.2s, box-shadow 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.1)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  <div style={{ width: '80px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', color: '#fff', backgroundColor: getTaskTypeColor(task.task_type, isWithered), padding: '4px 10px', borderRadius: '12px', display: 'inline-block', textAlign: 'center' }}>
-                      {task.task_type}
-                    </span>
-                    <span style={{ fontSize: '11px', color: status.color, backgroundColor: status.bgColor, padding: '4px', borderRadius: '8px', display: 'inline-block', textAlign: 'center', fontWeight: 'bold' }}>
-                      {status.label}
-                    </span>
-                  </div>
-
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ margin: '0 0 8px 0', color: isWithered ? '#757575' : '#333', fontSize: '18px' }}>
-                      {task.task_title}
-                    </h3>
-                    <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>
-                      期間: {task.start_date.split('T')[0]} 〜 {task.end_date.split('T')[0]} / {formatTaskCount(task)}
-                    </p>
-                  </div>
-                  
-                  <div style={{ 
-                    textAlign: 'center', 
-                    backgroundColor: isWithered ? '#f5f5f5' : '#f9fbe7', 
-                    padding: '12px 20px', 
-                    borderRadius: '8px', 
-                    minWidth: '100px'
-                  }}>
-                    <div style={{ fontSize: '14px', fontWeight: 'bold', color: isWithered ? '#9e9e9e' : '#558b2f' }}>
-                      {task.vegetable_name || '未設定'}
+                <li key={task.task_id}>
+                  <Link
+                    to={`/tasks/${task.task_id}`}
+                    className={`packet ${TASK_TYPE_CLASS[task.task_type] ?? 'type-other'} ${status.className}`}
+                  >
+                    <div className="packet-band">
+                      <span>{task.task_type}</span>
+                      <span className="packet-status">{status.label}</span>
                     </div>
-                  </div>
-                </div>
+
+                    <div className="packet-face">
+                      <span className="packet-veg" style={{ '--chars': (task.vegetable_name || '未設定').length } as React.CSSProperties}>{task.vegetable_name || '未設定'}</span>
+                      {image && <img src={image} alt="" className="packet-image" draggable={false} />}
+                    </div>
+
+                    <div className="packet-back">
+                      <h2 className="packet-title">{task.task_title}</h2>
+                      <p className="packet-amount">{formatTaskCount(task)}</p>
+                      <p className="packet-amount">残りの予備日 {task.buffer_days} 日</p>
+
+                      {task.growth_stage !== -1 && (
+                        <div className="packet-growth-section">
+                          <p className="packet-meter-label">野菜の成長度 <span>{Math.max(0, stageForPips)} / 10</span></p>
+                          <div className="packet-growth" aria-hidden="true">
+                          {growthPips(stageForPips).map((on, i) => (
+                            <span key={i} className={on ? 'pip on' : 'pip'} />
+                          ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="packet-calendar" aria-label={`期間 ${calendar.start} から ${calendar.end}`}>
+                        <div className="packet-calendar-track">
+                          <div className="packet-calendar-fill" style={{ width: `${calendar.ratio * 100}%` }} />
+                          {calendar.showToday && (
+                            <span className="packet-calendar-today" style={{ left: `${calendar.ratio * 100}%` }} />
+                          )}
+                        </div>
+                        <div className="packet-calendar-dates">
+                          <span>{formatMonthDay(calendar.start)}</span>
+                          <span>{formatMonthDay(calendar.end)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
       </div>
     </Layout>

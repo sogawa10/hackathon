@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { cropImagePath, TASK_TYPE_CLASS } from '../vegetables';
+import './Tasks.css';
+import './TaskDetail.css';
 
 type TaskDetail = {
   task_id: string;
@@ -75,62 +78,79 @@ const TaskDetail: React.FC = () => {
   };
 
   const getGrowthStatusLabel = (stage: number) => {
-    if (stage === -1) return '枯死';
+    if (stage === -1) return '枯れた';
     if (stage === 0) return '種';
-    if (stage >= 1 && stage <= 9) return `LV-${stage}`;
-    if (stage === 10) return '収穫可能';
+    if (stage >= 1 && stage <= 9) return `成長 ${stage} / 10`;
+    if (stage === 10) return '収穫できる';
     if (stage === 11) return '収穫済み';
     return '不明';
   };
 
-  if (loading) return <Layout><div>読み込み中...</div></Layout>;
-  if (error || !task) return <Layout><div>{error}</div></Layout>;
+  if (loading) return <Layout><p className="status-line">タスクを読み込んでいます…</p></Layout>;
+  if (error || !task) return <Layout><p className="status-line is-error">{error}</p></Layout>;
+
+  const image = cropImagePath(task.vegetable_name, task.growth_stage);
+  const typeClass = TASK_TYPE_CLASS[task.task_type] ?? 'type-other';
+  const stateClass = task.growth_stage === -1 ? 'is-withered' : task.growth_stage === 10 ? 'is-ripe' : '';
 
   return (
     <Layout>
-      <div style={{ maxWidth: 600, margin: '0 auto', padding: '20px' }}>
-        <button 
-          onClick={() => navigate('/tasks')} 
-          style={{ 
-            marginBottom: '20px', padding: '10px 20px', borderRadius: '20px', 
-            border: 'none', backgroundColor: '#ff9800', color: '#fff', 
-            fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' 
-          }}
-        >
-          一覧に戻る
-        </button>
-        
-        <div style={{ backgroundColor: '#fff', padding: '30px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ marginTop: 0, color: '#333' }}>{task.task_title}</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '16px', color: '#555' }}>
-            <p><strong>種類:</strong> {task.task_type}</p>
-            <p><strong>分量:</strong> {task.total_count} {getUnit(task.task_type)}</p>
-            {task.task_type === '単語帳' && <p><strong>周回数:</strong> {task.lap_count} 周</p>}
-            <p><strong>期間:</strong> {task.start_date} 〜 {task.end_date}</p>
-            <p><strong>残りの予備日:</strong> {task.buffer_days} 日</p>
-            <p><strong>野菜:</strong> {task.vegetable_name || '未設定'}</p>
-            <p><strong>状態:</strong> {getGrowthStatusLabel(task.growth_stage)}</p>
+      <div className="detail-page">
+        <Link to="/tasks" className="detail-back">タスク一覧に戻る</Link>
+
+        <article className={`detail packet ${typeClass} ${stateClass}`}>
+          <div className="packet-band">
+            <span>{task.task_type}</span>
+            <span className="packet-status">{getGrowthStatusLabel(task.growth_stage)}</span>
           </div>
 
-          <div style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+          <div className="detail-body">
+            <div className="packet-face detail-face">
+              <span className="packet-veg" style={{ '--chars': (task.vegetable_name || '未設定').length } as React.CSSProperties}>{task.vegetable_name || '未設定'}</span>
+              {image && <img src={image} alt="" className="packet-image" draggable={false} />}
+            </div>
+
+            <div className="detail-info">
+              <h1 className="detail-title">{task.task_title}</h1>
+              <dl className="detail-list">
+                <div>
+                  <dt>分量</dt>
+                  <dd>{task.total_count} {getUnit(task.task_type)}</dd>
+                </div>
+                {task.task_type === '単語帳' && (
+                  <div>
+                    <dt>周回数</dt>
+                    <dd>{task.lap_count} 周</dd>
+                  </div>
+                )}
+                <div>
+                  <dt>期間</dt>
+                  <dd>{task.start_date.split('T')[0]} 〜 {task.end_date.split('T')[0]}</dd>
+                </div>
+                <div>
+                  <dt>残りの予備日</dt>
+                  <dd>{task.buffer_days} 日</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+
+          <div className="detail-danger">
             {!isDeleting ? (
-              <button 
-                onClick={() => setIsDeleting(true)}
-                style={{ backgroundColor: '#ff5252', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}
-              >
-                このタスクを削除する
+              <button type="button" className="btn btn-quiet detail-delete" onClick={() => setIsDeleting(true)}>
+                このタスクを削除
               </button>
             ) : (
-              <div style={{ padding: '15px', backgroundColor: '#fff0f0', borderRadius: '8px', border: '1px solid #ffcdd2' }}>
-                <p style={{ margin: '0 0 10px 0', color: '#d32f2f', fontWeight: 'bold', textAlign: 'center' }}>本当に削除しますか？</p>
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                  <button onClick={handleDelete} style={{ backgroundColor: '#d32f2f', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>確定</button>
-                  <button onClick={() => setIsDeleting(false)} style={{ backgroundColor: '#ccc', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>キャンセル</button>
+              <div className="detail-confirm" role="alert">
+                <p>削除すると、畑の野菜と毎日のToDoも消えます。元に戻せません。</p>
+                <div className="detail-confirm-actions">
+                  <button type="button" className="btn btn-quiet" onClick={() => setIsDeleting(false)}>キャンセル</button>
+                  <button type="button" className="btn btn-danger" onClick={handleDelete}>削除する</button>
                 </div>
               </div>
             )}
           </div>
-        </div>
+        </article>
       </div>
     </Layout>
   );
