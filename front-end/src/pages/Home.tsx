@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import VegetableField from '../components/VegetableField';
 import Layout from '../components/Layout';
@@ -19,161 +19,181 @@ type TodaySubtask = {
   field_position?: number | null;
 };
 
+type ApiTask = {
+  task_id: string;
+  task_type: string;
+  task_title: string;
+  start_date?: string;
+  end_date?: string;
+  vegetable_name?: string;
+  growth_stage: number;
+  field_position?: number | null;
+};
+
+type GrowthStageResponse = {
+  growth_stage?: number | string;
+  GrowthStage?: number | string;
+};
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+const loadTodaySubtasks = async (): Promise<{ subtasks: TodaySubtask[]; witheredTasks: TodaySubtask[] }> => {
+  const token = localStorage.getItem('access_token');
+  if (!token) throw new Error('認証トークンが見つかりません');
+
+  const resToday = await fetch(`${API_BASE_URL}/api/subtasks/today`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!resToday.ok) throw new Error('データの取得に失敗しました');
+  const todayData = await resToday.json();
+
+  const resTasks = await fetch(`${API_BASE_URL}/api/tasks`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  const allTasksData = resTasks.ok ? await resTasks.json() : [];
+
+  const safeTodayData: TodaySubtask[] = Array.isArray(todayData) ? todayData : [];
+  const safeAllTasks: ApiTask[] = Array.isArray(allTasksData) ? allTasksData : [];
+
+  const mockDate = import.meta.env.VITE_MOCK_TODAY;
+  let todayStr = '';
+  if (mockDate) {
+    todayStr = mockDate;
+  } else {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    todayStr = `${year}-${month}-${day}`;
+  }
+
+  const futureTasks = safeAllTasks.filter((t) => {
+    if (!t.start_date) return false;
+    const startDateStr = t.start_date.split('T')[0];
+    return startDateStr > todayStr && Number(t.growth_stage) === 0;
+  });
+
+  const futureMockSubtasks: TodaySubtask[] = futureTasks.map((t) => ({
+    sub_task_id: `future-${t.task_id}`,
+    task_id: t.task_id,
+    scheduled_date: t.start_date ?? '',
+    task_type: t.task_type,
+    task_title: t.task_title,
+    task_content: '開始日までお待ちください',
+    is_completed: false,
+    vegetable_name: t.vegetable_name || 'かぼちゃ',
+    growth_stage: 0,
+    is_checkable: false,
+    field_position: typeof t.field_position === 'number' ? t.field_position : null,
+  }));
+
+  const todayTaskIds = new Set(safeTodayData.map((t) => t.task_id));
+
+  const harvestableTasks = safeAllTasks.filter((t) => {
+    return Number(t.growth_stage) === 10 && !todayTaskIds.has(t.task_id);
+  });
+
+  const harvestableMockSubtasks: TodaySubtask[] = harvestableTasks.map((t) => ({
+    sub_task_id: `harvest-${t.task_id}`,
+    task_id: t.task_id,
+    scheduled_date: t.end_date || t.start_date || todayStr,
+    task_type: t.task_type,
+    task_title: t.task_title,
+    task_content: '収穫できます',
+    is_completed: false,
+    vegetable_name: t.vegetable_name || 'かぼちゃ',
+    growth_stage: 10,
+    is_checkable: false,
+    field_position: typeof t.field_position === 'number' ? t.field_position : null,
+  }));
+
+  const combinedData = [
+    ...safeTodayData,
+    ...futureMockSubtasks,
+    ...harvestableMockSubtasks,
+  ];
+
+  const storedNotified = localStorage.getItem('notified_withered');
+  let notifiedWithered: string[] = [];
+  
+  if (storedNotified) {
+    notifiedWithered = JSON.parse(storedNotified);
+  } else {
+    const allWitheredIds = safeAllTasks
+      .filter((t) => t.growth_stage === -1)
+      .map((t) => t.task_id);
+    localStorage.setItem('notified_withered', JSON.stringify(allWitheredIds));
+    notifiedWithered = allWitheredIds;
+  }
+
+  const initialTasks = combinedData.filter((t: TodaySubtask) => {
+    if (t && t.growth_stage === -1 && notifiedWithered.includes(t.task_id)) {
+      return false; 
+    }
+    return true;
+  });
+
+  const newlyWitheredTasks = safeAllTasks.filter((t) => t.growth_stage === -1 && !notifiedWithered.includes(t.task_id));
+  const mappedWithered: TodaySubtask[] = newlyWitheredTasks.map((t) => ({
+    sub_task_id: `withered-${t.task_id}`,
+    task_id: t.task_id,
+    scheduled_date: t.start_date || '',
+    task_type: t.task_type,
+    task_title: t.task_title,
+    task_content: '',
+    is_completed: false,
+    vegetable_name: t.vegetable_name || '野菜',
+    growth_stage: -1,
+  }));
+
+  return { subtasks: initialTasks, witheredTasks: mappedWithered };
+};
+
 const Home: React.FC = () => {
+  const location = useLocation();
+  const locationSystemMessage = (location.state as { systemMessage?: string } | null)?.systemMessage;
+
   const [subtasks, setSubtasks] = useState<(TodaySubtask | null)[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [systemMessage, setSystemMessage] = useState<string | null>(null);
+  const [systemMessage, setSystemMessage] = useState<string | null>(locationSystemMessage ?? null);
   const [harvestingTask, setHarvestingTask] = useState<TodaySubtask | null>(null);
   const [witheredTasks, setWitheredTasks] = useState<TodaySubtask[]>([]);
-  
-  const location = useLocation();
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
   useEffect(() => {
-    const state = location.state as { systemMessage?: string } | null;
-    if (state?.systemMessage) {
-      setSystemMessage(state.systemMessage);
+    if (locationSystemMessage) {
       window.history.replaceState({}, document.title);
     }
-  }, [location]);
+  }, [locationSystemMessage]);
 
-  const fetchTodaySubtasks = async (isInitial = false) => {
-    if (isInitial) setLoading(true);
-    try {
-      const token = localStorage.getItem('access_token');
-      if (!token) throw new Error('認証トークンが見つかりません');
-
-    const resToday = await fetch(`${API_BASE_URL}/api/subtasks/today`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!resToday.ok) throw new Error('データの取得に失敗しました');
-    const todayData = await resToday.json();
-
-    const resTasks = await fetch(`${API_BASE_URL}/api/tasks`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    const allTasksData = resTasks.ok ? await resTasks.json() : [];
-
-    const safeTodayData = Array.isArray(todayData) ? todayData : [];
-    const safeAllTasks = Array.isArray(allTasksData) ? allTasksData : [];
-
-      const mockDate = import.meta.env.VITE_MOCK_TODAY;
-      let todayStr = '';
-      if (mockDate) {
-        todayStr = mockDate;
-      } else {
-        const d = new Date();
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        todayStr = `${year}-${month}-${day}`;
-      }
-
-      const futureTasks = safeAllTasks.filter((t: any) => {
-        if (!t.start_date) return false;
-        const startDateStr = t.start_date.split('T')[0];
-        return startDateStr > todayStr && Number(t.growth_stage) === 0;
-      });
-
-      const futureMockSubtasks: TodaySubtask[] = futureTasks.map((t: any) => ({
-        sub_task_id: `future-${t.task_id}`,
-        task_id: t.task_id,
-        scheduled_date: t.start_date,
-        task_type: t.task_type,
-        task_title: t.task_title,
-        task_content: '開始日までお待ちください',
-        is_completed: false,
-        vegetable_name: t.vegetable_name || 'かぼちゃ',
-        growth_stage: 0,
-        is_checkable: false,
-        field_position: typeof t.field_position === 'number' ? t.field_position : null,
-      }));
-
-      const todayTaskIds = new Set(safeTodayData.map((t: any) => t.task_id));
-
-      const harvestableTasks = safeAllTasks.filter((t: any) => {
-        return Number(t.growth_stage) === 10 && !todayTaskIds.has(t.task_id);
-      });
-
-      const harvestableMockSubtasks: TodaySubtask[] = harvestableTasks.map((t: any) => ({
-        sub_task_id: `harvest-${t.task_id}`,
-        task_id: t.task_id,
-        scheduled_date: t.end_date || t.start_date || todayStr,
-        task_type: t.task_type,
-        task_title: t.task_title,
-        task_content: '収穫できます',
-        is_completed: false,
-        vegetable_name: t.vegetable_name || 'かぼちゃ',
-        growth_stage: 10,
-        is_checkable: false,
-        field_position: typeof t.field_position === 'number' ? t.field_position : null,
-      }));
-
-      const combinedData = [
-        ...safeTodayData,
-        ...futureMockSubtasks,
-        ...harvestableMockSubtasks,
-      ];
-
-      const storedNotified = localStorage.getItem('notified_withered');
-      let notifiedWithered: string[] = [];
-      
-      if (storedNotified) {
-        notifiedWithered = JSON.parse(storedNotified);
-      } else {
-        const allWitheredIds = safeAllTasks
-          .filter((t: any) => t.growth_stage === -1)
-          .map((t: any) => t.task_id);
-        localStorage.setItem('notified_withered', JSON.stringify(allWitheredIds));
-        notifiedWithered = allWitheredIds;
-      }
-
-      const initialTasks = combinedData.filter((t: TodaySubtask) => {
-        if (t && t.growth_stage === -1 && notifiedWithered.includes(t.task_id)) {
-          return false; 
-        }
-        return true;
-      });
-
-      setSubtasks(initialTasks);
-
-      const newlyWitheredTasks = safeAllTasks.filter((t: any) => t.growth_stage === -1 && !notifiedWithered.includes(t.task_id));
-      if (newlyWitheredTasks.length > 0) {
-        const mappedWithered: TodaySubtask[] = newlyWitheredTasks.map((t: any) => ({
-          sub_task_id: `withered-${t.task_id}`,
-          task_id: t.task_id,
-          scheduled_date: t.start_date || '',
-          task_type: t.task_type,
-          task_title: t.task_title,
-          task_content: '',
-          is_completed: false,
-          vegetable_name: t.vegetable_name || '野菜',
-          growth_stage: -1,
-        }));
-        setTimeout(() => {
-          setWitheredTasks(mappedWithered);
-        }, 200); 
-      }
-
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      if (isInitial) setLoading(false);
-    }
-  };
+  const fetchTodaySubtasks = useCallback(
+    () =>
+      loadTodaySubtasks()
+        .then((result) => {
+          setSubtasks(result.subtasks);
+          if (result.witheredTasks.length > 0) {
+            setTimeout(() => {
+              setWitheredTasks(result.witheredTasks);
+            }, 200);
+          }
+        })
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : 'データの取得に失敗しました');
+        }),
+    [],
+  );
 
   useEffect(() => {
-    fetchTodaySubtasks(true);
-  }, [API_BASE_URL]);
+    fetchTodaySubtasks().finally(() => setLoading(false));
+  }, [fetchTodaySubtasks]);
 
   useEffect(() => {
     const handleTaskCreated = (e: Event) => {
@@ -181,11 +201,11 @@ const Home: React.FC = () => {
       if (customEvent.detail) {
         setSystemMessage(customEvent.detail);
       }
-      fetchTodaySubtasks(false);
+      fetchTodaySubtasks();
     };
     window.addEventListener('taskCreated', handleTaskCreated);
     return () => window.removeEventListener('taskCreated', handleTaskCreated);
-  }, []);
+  }, [fetchTodaySubtasks]);
 
   const handleToggleComplete = async (subTaskId: string, currentStatus: boolean) => {
     if (currentStatus) return;
@@ -206,7 +226,7 @@ const Home: React.FC = () => {
       const data = await res.json();
       let updatedGrowthStage: number | undefined = undefined;
       
-      const parseGrowthStage = (obj: any) => {
+      const parseGrowthStage = (obj: GrowthStageResponse | undefined) => {
         if (!obj) return undefined;
         if (typeof obj.growth_stage === 'number') return obj.growth_stage;
         if (typeof obj.growth_stage === 'string') return parseInt(obj.growth_stage, 10);
@@ -233,7 +253,7 @@ const Home: React.FC = () => {
           return task;
         })
       );
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       alert('エラーが発生しました');
     }
@@ -274,7 +294,7 @@ const Home: React.FC = () => {
             : task
         )
       );
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       alert('収穫通信エラーが発生しました。');
     }
@@ -298,6 +318,8 @@ const Home: React.FC = () => {
     !t.sub_task_id.startsWith('future-') &&
     !t.sub_task_id.startsWith('harvest-')
 );
+
+  const checkableTasks = validTasks.filter(t => t.is_checkable !== false);
 
   const fieldTasks = subtasks.filter(t => t && t.growth_stage !== 11);
 
@@ -354,9 +376,9 @@ const Home: React.FC = () => {
           <section className="todo-section" aria-labelledby="todo-heading">
             <div className="todo-header">
               <h2 id="todo-heading">今日のToDo</h2>
-              {validTasks.length > 0 && (
+              {checkableTasks.length > 0 && (
                 <span className="todo-progress">
-                  {validTasks.filter(t => t.is_completed).length} / {validTasks.length} 完了
+                  {checkableTasks.filter(t => t.is_completed).length} / {checkableTasks.length} 完了
                 </span>
               )}
             </div>

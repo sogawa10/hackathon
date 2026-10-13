@@ -11,13 +11,15 @@ type HarvestedVegetable = {
   harvested_at: string;
 };
 
-type VisualHarvest = HarvestedVegetable & {
+type HarvestPosition = {
   screenX: number;
   screenY: number;
   zIndex: number;
   rotation: number;
   scale: number;
 };
+
+type VisualHarvest = HarvestedVegetable & HarvestPosition;
 
 function mulberry32(a: number) {
   return function() {
@@ -124,7 +126,7 @@ const HarvestBasket: React.FC = () => {
           };
         });
 
-        const positionsToStore: Record<string, any> = {};
+        const positionsToStore: Record<string, HarvestPosition> = {};
         calculatedData.forEach(v => {
           positionsToStore[v.harvest_id] = {
             screenX: v.screenX,
@@ -208,7 +210,7 @@ const HarvestBasket: React.FC = () => {
         return veg;
       });
 
-      const positionsToStore: Record<string, any> = {};
+      const positionsToStore: Record<string, HarvestPosition> = {};
       next.forEach(v => {
         positionsToStore[v.harvest_id] = {
           screenX: v.screenX,
