@@ -274,7 +274,11 @@ const HarvestBasket: React.FC = () => {
           
           <div className="basket-area">
             <div className="basket-stage">
-              
+              <div className="basket-water" aria-hidden="true">
+                <span className="basket-ripple" />
+                <span className="basket-ripple" />
+              </div>
+
               <img 
                 src="/VegeTASK_籠(後).png" 
                 alt="籠の背面"
