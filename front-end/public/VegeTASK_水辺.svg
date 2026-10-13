@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 900 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dcf2e3"/>
+      <stop offset="0.55" stop-color="#bfe5d6"/>
+      <stop offset="1" stop-color="#a8d8c8"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.3" cy="0.05" r="0.75">
+      <stop offset="0" stop-color="#fffbe2" stop-opacity="0.95"/>
+      <stop offset="0.5" stop-color="#fffbe2" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#fffbe2" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="fade" cx="0.5" cy="0.52" r="0.72">
+      <stop offset="0.6" stop-color="#fcfbf6" stop-opacity="0"/>
+      <stop offset="1" stop-color="#fcfbf6" stop-opacity="0.85"/>
+    </radialGradient>
+
+    <filter id="caustic" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.009 0.022" numOctaves="2" seed="11" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  1 0 0 0 0" result="alpha"/>
+      <feComponentTransfer in="alpha">
+        <feFuncA type="table" tableValues="0 0 0 0 0.15 0.9 0.15 0 0 0 0"/>
+      </feComponentTransfer>
+      <feGaussianBlur stdDeviation="2.4"/>
+    </filter>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.2"/>
+    </filter>
+    <filter id="blur-near" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+    <filter id="blur-far" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2"/>
+    </filter>
+    <filter id="blur-shaft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+
+    <g id="leaf">
+      <path d="M0 0 C18 -24 54 -28 82 -4 C58 20 22 22 0 0 Z"/>
+      <path d="M4 0 C28 -6 52 -6 76 -4" fill="none" stroke="#f3f8e6" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+    </g>
+
+    <g id="rock">
+      <path d="M0 40 C0 10 30 -8 70 -6 C110 -4 135 18 132 44 C130 66 100 76 64 76 C26 76 0 64 0 40 Z" fill="#aaa596"/>
+      <path d="M6 50 C30 66 100 68 128 48 C124 66 98 76 64 76 C30 76 10 66 6 50 Z" fill="#8d8879"/>
+      <path d="M18 28 C24 10 50 2 74 4 C92 6 104 14 108 24 C88 18 52 18 18 28 Z" fill="#cfcbbd"/>
+    </g>
+
+    <g id="rock-round">
+      <path d="M0 30 C0 8 24 -4 50 -2 C78 0 96 14 94 34 C92 52 70 60 46 60 C20 60 0 50 0 30 Z" fill="#b6b1a2"/>
+      <path d="M4 38 C22 52 74 54 92 38 C88 52 70 60 46 60 C22 60 8 52 4 38 Z" fill="#96917f"/>
+      <ellipse cx="38" cy="14" rx="20" ry="7" fill="#d8d4c7"/>
+    </g>
+
+    <g id="flower">
+      <circle cx="0" cy="-11" r="10" fill="#ffffff"/>
+      <circle cx="10.5" cy="-3.4" r="10" fill="#ffffff"/>
+      <circle cx="6.5" cy="9" r="10" fill="#ffffff"/>
+      <circle cx="-6.5" cy="9" r="10" fill="#ffffff"/>
+      <circle cx="-10.5" cy="-3.4" r="10" fill="#ffffff"/>
+      <circle cx="0" cy="0" r="6" fill="#e09a1a"/>
+      <circle cx="-1.5" cy="-1.5" r="2.2" fill="#fbefd3"/>
+    </g>
+  </defs>
+
+  <rect width="900" height="600" fill="url(#water)"/>
+  <rect width="900" height="600" fill="url(#sun)"/>
+
+  <g filter="url(#blur-shaft)" fill="#ffffff" opacity="0.32">
+    <path d="M190 -40 L300 -40 L120 640 L40 640 Z"/>
+    <path d="M360 -40 L420 -40 L300 640 L250 640 Z"/>
+    <path d="M520 -40 L620 -40 L520 640 L430 640 Z"/>
+  </g>
+
+  <rect width="900" height="600" filter="url(#caustic)" opacity="0.45"/>
+
+  <g filter="url(#soft)" fill="#ffffff" opacity="0.8">
+    <path d="M70 250 l4 -12 l4 12 l12 4 l-12 4 l-4 12 l-4 -12 l-12 -4 Z"/>
+    <path d="M660 170 l3 -9 l3 9 l9 3 l-9 3 l-3 9 l-3 -9 l-9 -3 Z"/>
+    <path d="M760 330 l3 -9 l3 9 l9 3 l-9 3 l-3 9 l-3 -9 l-9 -3 Z"/>
+    <path d="M250 150 l2.5 -7 l2.5 7 l7 2.5 l-7 2.5 l-2.5 7 l-2.5 -7 l-7 -2.5 Z"/>
+    <path d="M560 470 l2.5 -7 l2.5 7 l7 2.5 l-7 2.5 l-2.5 7 l-2.5 -7 l-7 -2.5 Z"/>
+  </g>
+
+  <g fill="none" stroke="#ffffff" stroke-width="2" opacity="0.75">
+    <circle cx="160" cy="120" r="7"/>
+    <circle cx="178" cy="98" r="4"/>
+    <circle cx="720" cy="250" r="6"/>
+    <circle cx="734" cy="232" r="3.5"/>
+    <circle cx="120" cy="420" r="5"/>
+  </g>
+
+  <g filter="url(#blur-far)">
+    <ellipse cx="70" cy="566" rx="118" ry="30" fill="none" stroke="#f2fbf5" stroke-width="3" opacity="0.7"/>
+    <use xlink:href="#rock" transform="translate(-20 512) scale(1.25)"/>
+    <use xlink:href="#rock-round" transform="translate(118 548) scale(0.7)"/>
+
+    <ellipse cx="800" cy="560" rx="150" ry="36" fill="none" stroke="#f2fbf5" stroke-width="3" opacity="0.7"/>
+    <use xlink:href="#rock" transform="translate(712 482) scale(1.45)"/>
+    <path d="M748 494 C760 470 812 462 842 480 C830 488 800 484 776 494 C766 498 754 500 748 494 Z" fill="#7fb35a"/>
+    <use xlink:href="#rock-round" transform="translate(650 540) scale(0.75)"/>
+
+    <ellipse cx="40" cy="330" rx="56" ry="14" fill="none" stroke="#f2fbf5" stroke-width="2.5" opacity="0.65"/>
+    <use xlink:href="#rock-round" transform="translate(-6 296) scale(0.85)"/>
+
+    <ellipse cx="866" cy="168" rx="52" ry="13" fill="none" stroke="#f2fbf5" stroke-width="2.5" opacity="0.65"/>
+    <use xlink:href="#rock-round" transform="translate(830 132) scale(0.8)"/>
+  </g>
+
+  <g filter="url(#blur-far)">
+    <ellipse cx="230" cy="586" rx="13" ry="7" fill="#c8c2b2"/>
+    <ellipse cx="262" cy="594" rx="9" ry="5" fill="#b3ad9d"/>
+    <ellipse cx="300" cy="582" rx="7" ry="4" fill="#d9d3c4"/>
+    <ellipse cx="598" cy="590" rx="11" ry="6" fill="#c8c2b2"/>
+    <ellipse cx="626" cy="580" rx="7" ry="4" fill="#d9d3c4"/>
+    <ellipse cx="560" cy="596" rx="8" ry="4.5" fill="#b3ad9d"/>
+    <ellipse cx="868" cy="250" rx="8" ry="4.5" fill="#c8c2b2"/>
+    <ellipse cx="22" cy="398" rx="9" ry="5" fill="#d9d3c4"/>
+  </g>
+
+  <g filter="url(#blur-far)">
+    <use xlink:href="#leaf" fill="#6fa84a" transform="translate(150 70) rotate(28) scale(0.8)"/>
+    <use xlink:href="#leaf" fill="#8cc063" transform="translate(196 30) rotate(-8) scale(0.7)"/>
+    <use xlink:href="#leaf" fill="#7db556" transform="translate(40 190) rotate(78) scale(0.75)"/>
+    <use xlink:href="#leaf" fill="#8cc063" transform="translate(744 66) rotate(148) scale(0.75)"/>
+    <use xlink:href="#leaf" fill="#6fa84a" transform="translate(860 196) rotate(110) scale(0.7)"/>
+    <use xlink:href="#leaf" fill="#7db556" transform="translate(690 28) rotate(170) scale(0.6)"/>
+  </g>
+
+  <g filter="url(#blur-near)">
+    <path d="M-20 10 C40 30 90 60 140 110" fill="none" stroke="#4f8a36" stroke-width="5" stroke-linecap="round"/>
+    <use xlink:href="#leaf" fill="#6fa84a" transform="translate(-26 54) rotate(-6) scale(1.6)"/>
+    <use xlink:href="#leaf" fill="#8cc063" transform="translate(20 -18) rotate(44) scale(1.5)"/>
+    <use xlink:href="#leaf" fill="#4f8a36" transform="translate(62 50) rotate(22) scale(1.15)"/>
+    <use xlink:href="#leaf" fill="#7db556" transform="translate(96 -4) rotate(-18) scale(1.3)"/>
+    <use xlink:href="#leaf" fill="#8cc063" transform="translate(-10 120) rotate(64) scale(1.3)"/>
+
+    <path d="M920 0 C860 30 820 70 790 120" fill="none" stroke="#4f8a36" stroke-width="5" stroke-linecap="round"/>
+    <use xlink:href="#leaf" fill="#7db556" transform="translate(930 40) rotate(178) scale(1.55)"/>
+    <use xlink:href="#leaf" fill="#4f8a36" transform="translate(880 -20) rotate(130) scale(1.4)"/>
+    <use xlink:href="#leaf" fill="#8cc063" transform="translate(842 70) rotate(160) scale(1.15)"/>
+    <use xlink:href="#leaf" fill="#6fa84a" transform="translate(918 130) rotate(118) scale(1.2)"/>
+
+    <use xlink:href="#leaf" fill="#6fa84a" transform="translate(-30 470) rotate(-40) scale(1.4)"/>
+    <use xlink:href="#leaf" fill="#8cc063" transform="translate(10 520) rotate(-70) scale(1.1)"/>
+    <use xlink:href="#leaf" fill="#4f8a36" transform="translate(150 610) rotate(-110) scale(1.2)"/>
+    <use xlink:href="#flower" transform="translate(66 498) scale(1.5)"/>
+    <use xlink:href="#flower" transform="translate(116 540) scale(1.15)"/>
+    <use xlink:href="#flower" transform="translate(40 566) scale(1)"/>
+
+    <use xlink:href="#leaf" fill="#7db556" transform="translate(930 400) rotate(-150) scale(1.3)"/>
+    <use xlink:href="#leaf" fill="#4f8a36" transform="translate(920 450) rotate(-176) scale(1)"/>
+  </g>
+
+  <rect width="900" height="600" fill="url(#fade)"/>
+</svg>
