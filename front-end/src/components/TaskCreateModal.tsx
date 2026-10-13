@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { VEGETABLES, TASK_TYPE_CLASS } from '../vegetables';
 import './TaskCreateModal.css';
 
@@ -10,8 +10,12 @@ type TaskCreateModalProps = {
 
 type TaskType = '単語帳' | '問題集' | '過去問' | 'その他';
 
-
 const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTaskCreated }) => {
+  if (!isOpen) return null;
+  return <TaskCreateForm onClose={onClose} onTaskCreated={onTaskCreated} />;
+};
+
+const TaskCreateForm: React.FC<Omit<TaskCreateModalProps, 'isOpen'>> = ({ onClose, onTaskCreated }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
@@ -46,23 +50,6 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
   const [assignedSize, setAssignedSize] = useState<'S' | 'M' | 'L' | null>(null);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-
-  useEffect(() => {
-    if (isOpen) {
-      setStep(1);
-      setTaskType('問題集');
-      setTaskTitle('');
-      setTotalCount('');
-      setLapCount(1);
-      setStartDate(getTodayString());
-      setEndDate(getNextWeekString());
-      setCreatedTaskId(null);
-      setAssignedSize(null);
-      setErrorMsg('');
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
 
   const validateDates = () => {
     if (!startDate || !endDate) return false;
@@ -118,8 +105,8 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
       setAssignedSize(data.size);
       setStep(2);
 
-    } catch (err: any) {
-      setErrorMsg(err.message || 'タスクの登録に失敗しました');
+    } catch (err) {
+      setErrorMsg((err instanceof Error && err.message) || 'タスクの登録に失敗しました');
     } finally {
       setLoading(false);
     }
@@ -156,8 +143,8 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ isOpen, onClose, onTa
       window.dispatchEvent(new CustomEvent('taskCreated', { detail: msg }));
       
       onClose();
-    } catch (err: any) {
-      setErrorMsg(err.message || '野菜の割り当てに失敗しました');
+    } catch (err) {
+      setErrorMsg((err instanceof Error && err.message) || '野菜の割り当てに失敗しました');
     } finally {
       setLoading(false);
     }
