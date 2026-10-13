@@ -95,18 +95,67 @@
   border-color: var(--soil) transparent transparent transparent;
 }
 
-.hover-task-name {
+.popup-tooltip.hover-task-name {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+  min-width: 9.5rem;
+  max-width: 13rem;
+  padding: 0.7rem 0.9rem 0;
+  white-space: normal;
+  text-align: left;
+  pointer-events: auto;
+  animation: popUpFadeInFlush 0.2s ease-out forwards;
+}
+
+.popup-tooltip.hover-task-name::before {
+  content: '';
+  position: absolute;
+  top: calc(100% - 10px);
+  left: 0;
+  width: 100%;
+  height: 5.5rem;
+}
+
+.crop-detail-btn {
+  display: flex;
   align-items: center;
-  gap: 0.3rem;
-  pointer-events: none;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.15rem -0.9rem 0;
+  padding: 0.5rem 0.9rem 0.55rem;
+  border: none;
+  border-top: 1px dashed var(--soil-faint);
+  border-radius: 0 0 calc(var(--radius-m) - 2px) calc(var(--radius-m) - 2px);
+  background: transparent;
+  color: var(--leaf-deep);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+}
+
+.crop-detail-btn::after {
+  content: '›';
+  font-size: 1.05rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1;
+  color: var(--leaf);
+}
+
+.crop-detail-btn:hover {
+  background: var(--leaf-wash);
+  color: var(--leaf-deep);
 }
 
 .crop-status {
-  padding: 0.1rem 0.6rem;
+  align-self: start;
+  padding: 0.08rem 0.55rem;
   border-radius: 999px;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
   color: var(--paper);
   background: var(--leaf);
 }
@@ -121,7 +170,12 @@
 }
 
 .crop-task-title {
-  font-size: 0.875rem;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 0.92rem;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .growth-message {
@@ -169,6 +223,11 @@
 @keyframes popUpFadeIn {
   0% { opacity: 0; transform: translate(-50%, 10px); }
   100% { opacity: 1; transform: translate(-50%, -6px); }
+}
+
+@keyframes popUpFadeInFlush {
+  0% { opacity: 0; transform: translate(-50%, 8px); }
+  100% { opacity: 1; transform: translateX(-50%); }
 }
 
 @keyframes bounceHarvest {

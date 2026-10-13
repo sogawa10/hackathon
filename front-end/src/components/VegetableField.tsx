@@ -73,9 +73,28 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
   }
 
   const boardRef = useRef<HTMLDivElement>(null);
+  const hoverHideTimer = useRef<number | null>(null);
   const [boardScale, setBoardScale] = useState(1);
 
   const prevSubtasksRef = useRef<(TodaySubtask | null)[]>([]);
+
+  const showTaskHover = (subTaskId: string) => {
+    if (hoverHideTimer.current !== null) {
+      window.clearTimeout(hoverHideTimer.current);
+      hoverHideTimer.current = null;
+    }
+    setHoveredTask(subTaskId);
+  };
+
+  const hideTaskHover = () => {
+    if (hoverHideTimer.current !== null) {
+      window.clearTimeout(hoverHideTimer.current);
+    }
+    hoverHideTimer.current = window.setTimeout(() => {
+      setHoveredTask(null);
+      hoverHideTimer.current = null;
+    }, 200);
+  };
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
@@ -87,6 +106,14 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
       observer.observe(boardRef.current);
     }
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (hoverHideTimer.current !== null) {
+        window.clearTimeout(hoverHideTimer.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -229,7 +256,7 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
 
       <h2 className="field-title">わたしの畑</h2>
 
-      <div className="field-board" ref={boardRef}>
+      <div className="field-board" ref={boardRef} onClick={() => setHoveredTask(null)}>
         {field.map((task, index) => {
           if (!task || task.vegetable_name === undefined) return null;
 
@@ -246,17 +273,21 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
           const currentScale = ASSET_SCALE * scaleMultiplier * boardScale;
           const bottomOffset = `${bottomOffsetBase * boardScale}px`;
 
+          const openTaskDetail = () => {
+            navigate(`/tasks/${task.task_id}`);
+          };
+
           return (
             <div 
               key={index}
               className="crop-slot"
-              onContextMenu={(e) => {
-                e.preventDefault();
+              onMouseEnter={() => showTaskHover(task.sub_task_id)}
+              onMouseLeave={hideTaskHover}
+              onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/tasks/${task.task_id}`);
+                if (isHarvestable) return;
+                setHoveredTask(task.sub_task_id);
               }}
-              onMouseEnter={() => setHoveredTask(task.sub_task_id)}
-              onMouseLeave={() => setHoveredTask(null)}
               style={{
                 top: pos.top,
                 left: pos.left,
@@ -289,6 +320,16 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
                       </span>
                     )}
                     <span className="crop-task-title">{task.task_title}</span>
+                    <button
+                      type="button"
+                      className="crop-detail-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openTaskDetail();
+                      }}
+                    >
+                      詳細を見る
+                    </button>
                   </div>
                 )}
 
