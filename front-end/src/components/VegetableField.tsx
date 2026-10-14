@@ -313,7 +313,7 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
                 )}
 
                 {hoveredTask === task.sub_task_id && !growthMsg && (
-                  <div className="popup-tooltip hover-task-name">
+                  <div className={`popup-tooltip hover-task-name${isHarvestable ? ' is-ripe' : ''}`}>
                     {statusText && (
                       <span className={`crop-status stage-${task.growth_stage === 10 ? 'ripe' : task.growth_stage <= 0 ? 'seed' : 'growing'}`}>
                         {statusText}
@@ -338,7 +338,7 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
                     key={path}
                     src={path} 
                     alt={task.task_title || '野菜'}
-                    className="crop-image"
+                    className={`crop-image${task.growth_stage === 10 ? ' is-ripe' : ''}`}
                     draggable={false}
                     role={isHarvestable ? 'button' : undefined}
                     tabIndex={isInteractive ? 0 : undefined}
@@ -363,7 +363,6 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
                       transform: `translateX(-50%) scale(${currentScale})`, 
                       opacity: task.growth_stage === -1 ? 0 : (isAnimating ? 0.4 : 1),
                       cursor: isInteractive ? 'pointer' : 'default',
-                      animation: task.growth_stage === 10 ? 'bounceHarvest 2s infinite' : 'none'
                     } as React.CSSProperties} 
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
