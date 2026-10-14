@@ -10,7 +10,7 @@
   font-family: var(--display);
   font-weight: 400;
   font-size: 1.35rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   color: var(--soil);
 }
 
@@ -175,11 +175,11 @@
 }
 
 .crop-task-title {
-  font-family: var(--display);
-  font-weight: 400;
+  font-family: var(--sans);
+  font-weight: 700;
   font-size: 0.92rem;
-  letter-spacing: 0.04em;
-  line-height: 1.35;
+  letter-spacing: 0;
+  line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
