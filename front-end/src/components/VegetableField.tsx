@@ -254,7 +254,7 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
         {systemMessage}
       </div>
 
-      <h2 className="field-title">わたしの畑</h2>
+      <h2 className="field-title">がんばり農園</h2>
 
       <div className="field-board" ref={boardRef} onClick={() => setHoveredTask(null)}>
         {field.map((task, index) => {
