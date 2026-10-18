@@ -314,7 +314,7 @@
   height: 100%;
   object-fit: contain;
   z-index: 10;
-  filter: saturate(0.88) contrast(0.92) blur(1.1px);
+  filter: saturate(0.94) contrast(0.96) blur(1.1px);
 }
 
 .basket-layer-front {
@@ -326,7 +326,7 @@
   object-fit: contain;
   z-index: 10000;
   pointer-events: none;
-  filter: saturate(0.88) contrast(0.92) blur(1.1px);
+  filter: saturate(0.94) contrast(0.96) blur(1.1px);
 }
 
 .basket-hollow {
@@ -372,7 +372,7 @@
   pointer-events: none;
   transform-origin: bottom center;
   transform: translate(-50%, -100%) rotate(var(--veg-rotation));
-  filter: saturate(0.88) contrast(0.92) blur(0.45px) drop-shadow(0.35vmin 0.6vmin 0.5vmin rgba(30, 26, 12, 0.5));
+  filter: saturate(0.94) contrast(0.96) blur(0.45px) drop-shadow(0.35vmin 0.6vmin 0.5vmin rgba(30, 26, 12, 0.5));
   transition: transform 0.18s ease-out, filter 0.18s ease-out;
 }
 
@@ -383,8 +383,8 @@
 .basket-veg-item.is-active,
 .basket-veg-item:focus-visible {
   filter:
-    saturate(0.88)
-    contrast(0.92)
+    saturate(0.94)
+    contrast(0.96)
     blur(0.45px)
     drop-shadow(0 0 0.25vmin rgba(255, 249, 228, 0.95))
     drop-shadow(0 0 0.6vmin rgba(255, 236, 170, 0.7))
@@ -394,7 +394,7 @@
 .basket-veg-item.is-dragging {
   transition: none;
   transform: translate(-50%, calc(-100% - 1.5%)) rotate(var(--veg-rotation)) scale(1.06);
-  filter: saturate(0.88) contrast(0.92) blur(0.45px) drop-shadow(1.2vmin 2.4vmin 1.4vmin rgba(30, 26, 12, 0.35));
+  filter: saturate(0.94) contrast(0.96) blur(0.45px) drop-shadow(1.2vmin 2.4vmin 1.4vmin rgba(30, 26, 12, 0.35));
 }
 
 @media (prefers-reduced-motion: reduce) {
