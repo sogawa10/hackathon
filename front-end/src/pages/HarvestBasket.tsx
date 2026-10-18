@@ -66,15 +66,6 @@ const BASKET = {
 
 const LOCAL_STORAGE_BASKET_KEY = 'harvest_basket_positions_v2';
 
-function mulberry32(a: number) {
-  return function() {
-    let t = a += 0x6D2B79F5;
-    t = Math.imul(t ^ t >>> 15, t | 1);
-    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  }
-}
-
 const resolveVegetableName = (veg: HarvestedVegetable) =>
   VEGETABLE_SHAPES[veg.vegetable_name]
     ? veg.vegetable_name
@@ -142,66 +133,109 @@ const stackingIndex = (
   return Math.min(zIndex, 9000);
 };
 
+const BASKET_ROWS = [-0.72, 0.02, 0.58];
+const ROW_OVERLAP = 0.82;
+const LAYER_LIFT = 3;
+
+const rowY = (depth: number, x: number) => {
+  const dx = (x - BASKET.centerX) / BASKET.floorRadiusX;
+  const radius = depth < 0 ? BASKET.floorRadiusY : BASKET.floorFrontRadiusY;
+  return BASKET.floorCenterY + depth * radius * Math.sqrt(Math.max(0, 1 - dx * dx));
+};
+
+const rowHalfSpan = (depth: number) =>
+  Math.min(BASKET.wallHalfWidth - 1, BASKET.floorRadiusX * Math.sqrt(1 - depth * depth) * 0.88);
+
+const centerOut = <T,>(items: T[]) => {
+  const result: T[] = [];
+  items.forEach((item, index) => {
+    if (index % 2 === 0) result.push(item);
+    else result.unshift(item);
+  });
+  return result;
+};
+
 const arrangeInBasket = (data: HarvestedVegetable[], stored: Record<string, HarvestPosition>) => {
-  const rand = mulberry32(12345);
-  const placed: VisualHarvest[] = [];
-  const order = data
+  const sorted = data
     .map((veg, index) => ({ veg, index }))
-    .sort((a, b) => getShape(b.veg).longSide - getShape(a.veg).longSide || a.index - b.index);
+    .sort((a, b) =>
+      getShape(b.veg).longSide - getShape(a.veg).longSide
+      || resolveVegetableName(a.veg).localeCompare(resolveVegetableName(b.veg))
+      || a.index - b.index)
+    .map(({ veg }) => veg);
 
-  for (const { veg } of order) {
-    const saved = stored[veg.harvest_id];
-    if (saved) {
-      const { x, y } = clampToBasket(veg, saved.screenX, saved.screenY);
-      placed.push({ ...veg, screenX: x, screenY: y, zIndex: saved.zIndex, rotation: saved.rotation });
-      continue;
+  const spans = BASKET_ROWS.map(rowHalfSpan);
+  const layerCapacity = spans.reduce((sum, half) => sum + half * 2, 0) / ROW_OVERLAP;
+  const totalWidth = sorted.reduce((sum, veg) => sum + getFootprint(veg).width, 0);
+  const layerCount = Math.max(1, Math.ceil(totalWidth / layerCapacity));
+  const perLayer = Math.ceil(sorted.length / layerCount);
+
+  const placed: VisualHarvest[] = [];
+
+  for (let layer = 0; layer < layerCount; layer++) {
+    const items = sorted.slice(layer * perLayer, (layer + 1) * perLayer);
+    const layerWidth = items.reduce((sum, veg) => sum + getFootprint(veg).width, 0);
+    const spanTotal = spans.reduce((sum, half) => sum + half * 2, 0);
+    const rows: HarvestedVegetable[][] = BASKET_ROWS.map(() => []);
+
+    let rowIndex = 0;
+    let used = 0;
+    for (const veg of items) {
+      const width = getFootprint(veg).width;
+      const target = layerWidth * (spans[rowIndex] * 2) / spanTotal;
+      if (rowIndex < rows.length - 1 && rows[rowIndex].length > 0 && used + width / 2 > target) {
+        rowIndex++;
+        used = 0;
+      }
+      rows[rowIndex].push(veg);
+      used += width;
     }
 
-    const { radius } = getFootprint(veg);
-    let best = { x: BASKET.centerX, y: BASKET.floorCenterY, score: Infinity, lift: 0, below: 0 };
+    const rowOffsets = rows.map((row, index) => {
+      if (index === 0 || row.length === 0 || rows[index - 1].length === 0) return 0;
+      if (row.length % 2 !== rows[index - 1].length % 2) return 0;
+      const average = row.reduce((sum, veg) => sum + getFootprint(veg).width, 0) / row.length;
+      return (index % 2 === 1 ? 1 : -1) * average * 0.45;
+    });
 
-    for (let attempt = 0; attempt < 48; attempt++) {
-      const r = Math.sqrt(rand());
-      const theta = rand() * 2 * Math.PI;
-      const base = clampToBasket(
-        veg,
-        BASKET.centerX + r * Math.cos(theta) * BASKET.floorRadiusX,
-        BASKET.floorCenterY + r * Math.sin(theta) * (Math.sin(theta) > 0 ? BASKET.floorFrontRadiusY : BASKET.floorRadiusY),
-      );
+    rows.forEach((row, index) => {
+      if (row.length === 0) return;
+      const depth = BASKET_ROWS[index];
+      const span = spans[index] * 2;
+      const ordered = centerOut([...row].sort((a, b) => getFootprint(b).height - getFootprint(a).height));
+      const widths = ordered.map((veg) => getFootprint(veg).width);
+      const rowWidth = widths.reduce((sum, w) => sum + w, 0);
+      const squeeze = Math.min(1, span / rowWidth);
+      const gap = rowWidth * squeeze < span ? Math.min(2.5, (span - rowWidth * squeeze) / (ordered.length + 1)) : 0;
+      const occupied = rowWidth * squeeze + gap * (ordered.length - 1);
+      const layerShift = layer % 2 === 1 ? widths[0] * squeeze / 2 : 0;
+      let cursor = BASKET.centerX - occupied / 2 + layerShift + rowOffsets[index];
 
-      let overlap = 0;
-      let lift = 0;
-      let below = 0;
-      for (const other of placed) {
-        const reach = radius + getFootprint(other).radius;
-        const distance = toPixelDistance(base.x, base.y, other.screenX, other.screenY);
-        if (distance < reach) {
-          const depth = 1 - distance / reach;
-          overlap += depth * depth;
-          const otherLift = BASKET.floorCenterY + BASKET.floorRadiusY - other.screenY;
-          lift = Math.max(lift, depth * getFootprint(other).height * 0.45 + Math.max(0, otherLift) * 0.25);
-          below = Math.max(below, other.zIndex + 1);
-        }
-      }
-
-      const score = overlap + Math.abs(base.x - BASKET.centerX) * 0.004;
-      if (score < best.score) {
-        best = { x: base.x, y: base.y, score, lift: Math.min(lift, BASKET.maxPileHeight), below };
-      }
-    }
-
-    const { x, y } = clampToBasket(veg, best.x, best.y - best.lift);
-    placed.push({
-      ...veg,
-      screenX: x,
-      screenY: y,
-      zIndex: Math.min(9000, Math.max(Math.round(best.y * 10), best.below)),
-      rotation: rand() * 24 - 12,
+      ordered.forEach((veg, position) => {
+        const width = widths[position] * squeeze;
+        const targetX = cursor + width / 2;
+        cursor += width + gap;
+        const lean = Math.max(-6, Math.min(6, (targetX - BASKET.centerX) * 0.2));
+        const wobble = position % 2 === 0 ? 1 : -1;
+        const { x, y } = clampToBasket(veg, targetX, rowY(depth, targetX) - layer * LAYER_LIFT);
+        placed.push({
+          ...veg,
+          screenX: x,
+          screenY: y,
+          zIndex: Math.min(9000, Math.round(y * 10) + layer * 1000 + Math.round(Math.abs(x - BASKET.centerX) / 4)),
+          rotation: lean + wobble,
+        });
+      });
     });
   }
 
   const byId = new Map(placed.map((veg) => [veg.harvest_id, veg]));
-  return data.map((veg) => byId.get(veg.harvest_id)!);
+  return data.map((veg) => {
+    const saved = stored[veg.harvest_id];
+    if (!saved) return byId.get(veg.harvest_id)!;
+    const { x, y } = clampToBasket(veg, saved.screenX, saved.screenY);
+    return { ...veg, screenX: x, screenY: y, zIndex: saved.zIndex, rotation: saved.rotation };
+  });
 };
 
 const readStoredPositions = (): Record<string, HarvestPosition> => {
