@@ -51,15 +51,15 @@ const STAGE_ASPECT = 1408 / 768;
 
 const BASKET = {
   centerX: 50,
-  wallHalfWidth: 37,
-  floorCenterY: 54,
-  floorRadiusX: 29,
-  floorRadiusY: 8.5,
+  wallHalfWidth: 39.5,
+  floorCenterY: 52.5,
+  floorRadiusX: 34,
+  floorRadiusY: 11.5,
   rimCenterY: 40.5,
   rimRadiusX: 41.7,
   rimRadiusY: 19.5,
-  maxPileHeight: 14,
-  minVisibleRatio: 0.55,
+  maxPileHeight: 20,
+  minVisibleRatio: 0.45,
 };
 
 const LOCAL_STORAGE_BASKET_KEY = 'harvest_basket_positions_v2';
@@ -311,6 +311,7 @@ const HarvestBasket: React.FC = () => {
       <div className="basket-scene">
         <div className="basket-scene-far" aria-hidden="true" />
         <div className="basket-scene-pond" aria-hidden="true" />
+        <div className="basket-scene-seam" aria-hidden="true" />
 
         <header className="basket-sign">
           <h1 className="basket-title">収穫かご</h1>
@@ -332,6 +333,8 @@ const HarvestBasket: React.FC = () => {
               alt="籠の背面"
               className="basket-layer-back"
             />
+            <div className="basket-shade basket-shade-back" aria-hidden="true" />
+            <div className="basket-hollow" aria-hidden="true" />
 
             <div className="basket-veg-container">
               {harvests.map((veg) => {
@@ -369,6 +372,7 @@ const HarvestBasket: React.FC = () => {
               alt="籠の前面"
               className="basket-layer-front"
             />
+            <div className="basket-shade basket-shade-front" aria-hidden="true" />
             <div className="basket-submerge" aria-hidden="true" />
             <div className="basket-waterline" aria-hidden="true" />
             <div className="basket-water basket-water-front" aria-hidden="true">
@@ -388,13 +392,9 @@ const HarvestBasket: React.FC = () => {
         <div className="basket-scene-light" aria-hidden="true" />
 
         <svg className="basket-filters" aria-hidden="true">
-          <filter id="basket-waterline-wobble">
+          <filter id="basket-waterline-wobble" x="-10%" y="-10%" width="120%" height="120%">
             <feTurbulence type="fractalNoise" baseFrequency="0.01 0.09" numOctaves="2" seed="7" />
             <feDisplacementMap in="SourceGraphic" scale="7" xChannelSelector="R" yChannelSelector="G" />
-          </filter>
-          <filter id="basket-ripple-wobble">
-            <feTurbulence type="fractalNoise" baseFrequency="0.006 0.03" numOctaves="2" seed="11" />
-            <feDisplacementMap in="SourceGraphic" scale="12" xChannelSelector="R" yChannelSelector="G" />
           </filter>
         </svg>
       </div>
