@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import './HarvestBasket.css';
 
@@ -7,7 +7,7 @@ type HarvestedVegetable = {
   task_id: string;
   vegetable_name: string;
   vegetable_size: string;
-  image_url: string;
+  image_url?: string;
   harvested_at: string;
 };
 
@@ -16,27 +16,289 @@ type HarvestPosition = {
   screenY: number;
   zIndex: number;
   rotation: number;
-  scale: number;
 };
 
 type VisualHarvest = HarvestedVegetable & HarvestPosition;
 
-function mulberry32(a: number) {
-  return function() {
-    let t = a += 0x6D2B79F5;
-    t = Math.imul(t ^ t >>> 15, t | 1);
-    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  }
-}
+type VegetableShape = {
+  size: 'S' | 'M' | 'L';
+  imageWidth: number;
+  imageHeight: number;
+  longSide: number;
+};
 
-const LOCAL_STORAGE_BASKET_KEY = 'harvest_basket_positions';
+const VEGETABLE_SHAPES: Record<string, VegetableShape> = {
+  'かぼちゃ': { size: 'L', imageWidth: 217, imageHeight: 193, longSide: 20 },
+  'キャベツ': { size: 'L', imageWidth: 203, imageHeight: 182, longSide: 19.5 },
+  'トウモロコシ': { size: 'L', imageWidth: 165, imageHeight: 199, longSide: 20 },
+  'ブロッコリー': { size: 'L', imageWidth: 190, imageHeight: 183, longSide: 17.5 },
+  'カリフラワー': { size: 'L', imageWidth: 157, imageHeight: 161, longSide: 16.5 },
+  'なす': { size: 'M', imageWidth: 157, imageHeight: 168, longSide: 14.5 },
+  'キュウリ': { size: 'M', imageWidth: 190, imageHeight: 162, longSide: 16.5 },
+  'タケノコ': { size: 'M', imageWidth: 91, imageHeight: 170, longSide: 13.5 },
+  'ピーマン': { size: 'M', imageWidth: 132, imageHeight: 162, longSide: 11.5 },
+  '赤パプリカ': { size: 'M', imageWidth: 126, imageHeight: 162, longSide: 12.5 },
+  'ネギ': { size: 'S', imageWidth: 194, imageHeight: 189, longSide: 18 },
+  'オクラ': { size: 'S', imageWidth: 173, imageHeight: 172, longSide: 11.5 },
+  '枝豆': { size: 'S', imageWidth: 180, imageHeight: 166, longSide: 11 },
+  'シイタケ': { size: 'S', imageWidth: 153, imageHeight: 145, longSide: 9.5 },
+  'プチトマト': { size: 'S', imageWidth: 134, imageHeight: 140, longSide: 7.5 },
+};
+
+const FALLBACK_VEGETABLE: Record<string, string> = { S: 'プチトマト', M: 'なす', L: 'かぼちゃ' };
+
+const STAGE_ASPECT = 1408 / 768;
+const VEGETABLE_SCALE = 0.92;
+
+const BASKET = {
+  centerX: 50,
+  wallHalfWidth: 39.5,
+  floorCenterY: 52.5,
+  floorRadiusX: 34,
+  floorRadiusY: 11.5,
+  floorFrontRadiusY: 19,
+  rimCenterY: 40.5,
+  rimRadiusX: 41.7,
+  rimRadiusY: 19.5,
+  maxPileHeight: 20,
+  minVisibleRatio: 0.25,
+};
+
+const LOCAL_STORAGE_BASKET_KEY = 'harvest_basket_positions_v2';
+
+const resolveVegetableName = (veg: HarvestedVegetable) =>
+  VEGETABLE_SHAPES[veg.vegetable_name]
+    ? veg.vegetable_name
+    : FALLBACK_VEGETABLE[veg.vegetable_size] || 'かぼちゃ';
+
+const getShape = (veg: HarvestedVegetable) => VEGETABLE_SHAPES[resolveVegetableName(veg)];
+
+const getImagePath = (veg: HarvestedVegetable) => {
+  const name = resolveVegetableName(veg);
+  return `/野菜${VEGETABLE_SHAPES[name].size}/収穫_${name}.png`;
+};
+
+const getFootprint = (veg: HarvestedVegetable) => {
+  const { imageWidth, imageHeight } = getShape(veg);
+  const longSide = getShape(veg).longSide * VEGETABLE_SCALE;
+  const longest = Math.max(imageWidth, imageHeight);
+  const width = longSide * imageWidth / longest;
+  const height = longSide * imageHeight / longest * STAGE_ASPECT;
+  return { width, height, radius: longSide * 0.42 };
+};
+
+const frontRimTop = (x: number) => {
+  const dx = Math.min(1, Math.abs(x - BASKET.centerX) / BASKET.rimRadiusX);
+  return BASKET.rimCenterY + BASKET.rimRadiusY * Math.sqrt(1 - dx * dx);
+};
+
+const clampToBasket = (veg: HarvestedVegetable, x: number, y: number) => {
+  const { width, height } = getFootprint(veg);
+  const maxDx = Math.min(BASKET.floorRadiusX, BASKET.wallHalfWidth - width / 2);
+  const nextX = Math.max(BASKET.centerX - maxDx, Math.min(BASKET.centerX + maxDx, x));
+
+  const dx = (nextX - BASKET.centerX) / BASKET.floorRadiusX;
+  const span = Math.sqrt(Math.max(0, 1 - dx * dx));
+  const floorBack = BASKET.floorCenterY - BASKET.floorRadiusY * span;
+  const floorFront = Math.min(
+    BASKET.floorCenterY + BASKET.floorFrontRadiusY * span,
+    frontRimTop(nextX) + height * (1 - BASKET.minVisibleRatio),
+  );
+  const nextY = Math.max(floorBack - BASKET.maxPileHeight, Math.min(floorFront, y));
+
+  return { x: nextX, y: nextY };
+};
+
+const SIZE_TIER: Record<VegetableShape['size'], number> = { L: 1000, M: 2000, S: 3000 };
+
+const depthIndex = (veg: HarvestedVegetable, y: number) =>
+  SIZE_TIER[getShape(veg).size] + Math.round(y * 10);
+
+const BASKET_ROWS = [-0.72, 0.02, 0.58];
+const ROW_OVERLAP = 0.7;
+const LAYER_LIFT = 3;
+
+const rowY = (depth: number, x: number) => {
+  const dx = (x - BASKET.centerX) / BASKET.floorRadiusX;
+  const radius = depth < 0 ? BASKET.floorRadiusY : BASKET.floorFrontRadiusY;
+  return BASKET.floorCenterY + depth * radius * Math.sqrt(Math.max(0, 1 - dx * dx));
+};
+
+const rowHalfSpan = (depth: number) =>
+  Math.min(BASKET.wallHalfWidth - 1, BASKET.floorRadiusX * Math.sqrt(1 - depth * depth) * 0.88);
+
+const centerOut = <T,>(items: T[]) => {
+  const result: T[] = [];
+  items.forEach((item, index) => {
+    if (index % 2 === 0) result.push(item);
+    else result.unshift(item);
+  });
+  return result;
+};
+
+const arrangeInBasket = (data: HarvestedVegetable[], stored: Record<string, HarvestPosition>) => {
+  const sorted = data
+    .map((veg, index) => ({ veg, index }))
+    .sort((a, b) =>
+      getShape(b.veg).longSide - getShape(a.veg).longSide
+      || resolveVegetableName(a.veg).localeCompare(resolveVegetableName(b.veg))
+      || a.index - b.index)
+    .map(({ veg }) => veg);
+
+  const spans = BASKET_ROWS.map(rowHalfSpan);
+  const layerCapacity = spans.reduce((sum, half) => sum + half * 2, 0) / ROW_OVERLAP;
+  const totalWidth = sorted.reduce((sum, veg) => sum + getFootprint(veg).width, 0);
+  const layerCount = Math.max(1, Math.ceil(totalWidth / layerCapacity));
+  const perLayer = Math.ceil(sorted.length / layerCount);
+
+  const placed: VisualHarvest[] = [];
+
+  for (let layer = 0; layer < layerCount; layer++) {
+    const items = sorted.slice(layer * perLayer, (layer + 1) * perLayer);
+    const layerWidth = items.reduce((sum, veg) => sum + getFootprint(veg).width, 0);
+    const spanTotal = spans.reduce((sum, half) => sum + half * 2, 0);
+    const rows: HarvestedVegetable[][] = BASKET_ROWS.map(() => []);
+
+    let rowIndex = 0;
+    let used = 0;
+    for (const veg of items) {
+      const width = getFootprint(veg).width;
+      const target = layerWidth * (spans[rowIndex] * 2) / spanTotal;
+      if (rowIndex < rows.length - 1 && rows[rowIndex].length > 0 && used + width / 2 > target) {
+        rowIndex++;
+        used = 0;
+      }
+      rows[rowIndex].push(veg);
+      used += width;
+    }
+
+    const rowOffsets = rows.map((row, index) => {
+      if (index === 0 || row.length === 0 || rows[index - 1].length === 0) return 0;
+      if (row.length % 2 !== rows[index - 1].length % 2) return 0;
+      const average = row.reduce((sum, veg) => sum + getFootprint(veg).width, 0) / row.length;
+      return (index % 2 === 1 ? 1 : -1) * average * 0.45;
+    });
+
+    rows.forEach((row, index) => {
+      if (row.length === 0) return;
+      const depth = BASKET_ROWS[index];
+      const span = spans[index] * 2;
+      const ordered = centerOut([...row].sort((a, b) => getFootprint(b).height - getFootprint(a).height));
+      const widths = ordered.map((veg) => getFootprint(veg).width);
+      const rowWidth = widths.reduce((sum, w) => sum + w, 0);
+      const squeeze = Math.min(1, span / rowWidth);
+      const gap = rowWidth * squeeze < span ? Math.min(2.5, (span - rowWidth * squeeze) / (ordered.length + 1)) : 0;
+      const occupied = rowWidth * squeeze + gap * (ordered.length - 1);
+      const layerShift = layer % 2 === 1 ? widths[0] * squeeze / 2 : 0;
+      let cursor = BASKET.centerX - occupied / 2 + layerShift + rowOffsets[index];
+
+      ordered.forEach((veg, position) => {
+        const width = widths[position] * squeeze;
+        const targetX = cursor + width / 2;
+        cursor += width + gap;
+        const lean = Math.max(-6, Math.min(6, (targetX - BASKET.centerX) * 0.2));
+        const wobble = position % 2 === 0 ? 1 : -1;
+        const { x, y } = clampToBasket(veg, targetX, rowY(depth, targetX) - layer * LAYER_LIFT);
+        placed.push({
+          ...veg,
+          screenX: x,
+          screenY: y,
+          zIndex: depthIndex(veg, y),
+          rotation: lean + wobble,
+        });
+      });
+    });
+  }
+
+  const byId = new Map(placed.map((veg) => [veg.harvest_id, veg]));
+  return data.map((veg) => {
+    const saved = stored[veg.harvest_id];
+    if (!saved) return byId.get(veg.harvest_id)!;
+    const { x, y } = clampToBasket(veg, saved.screenX, saved.screenY);
+    return { ...veg, screenX: x, screenY: y, zIndex: depthIndex(veg, y), rotation: saved.rotation };
+  });
+};
+
+const readStoredPositions = (): Record<string, HarvestPosition> => {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_BASKET_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+const storePositions = (harvests: VisualHarvest[]) => {
+  const positions: Record<string, HarvestPosition> = {};
+  harvests.forEach((v) => {
+    positions[v.harvest_id] = {
+      screenX: v.screenX,
+      screenY: v.screenY,
+      zIndex: v.zIndex,
+      rotation: v.rotation,
+    };
+  });
+  try {
+    localStorage.setItem(LOCAL_STORAGE_BASKET_KEY, JSON.stringify(positions));
+  } catch {
+    return;
+  }
+};
+
+type AlphaMap = { width: number; height: number; data: Uint8ClampedArray };
+
+type DragState = {
+  id: string;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  grabX: number;
+  grabY: number;
+  moved: boolean;
+};
+
+const DRAG_THRESHOLD = 5;
+const HIT_TOLERANCE = 4;
+const KEY_STEP = 1;
+const KEY_STEP_LARGE = 4;
+
+const formatHarvestDate = (date: string) => {
+  const [year, month, day] = date.split('-').map(Number);
+  if (!year || !month || !day) return date;
+  return `${year}年${month}月${day}日に収穫`;
+};
+
+const loadAlphaMap = (src: string) =>
+  new Promise<AlphaMap>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) {
+        reject(new Error('canvas'));
+        return;
+      }
+      context.drawImage(image, 0, 0);
+      const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+      resolve({ width: canvas.width, height: canvas.height, data });
+    };
+    image.onerror = reject;
+    image.src = src;
+  });
 
 const HarvestBasket: React.FC = () => {
   const [harvests, setHarvests] = useState<VisualHarvest[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [hoverId, setHoverId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<DragState | null>(null);
+  const alphaMaps = useRef(new Map<string, AlphaMap>());
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -51,94 +313,15 @@ const HarvestBasket: React.FC = () => {
             'Content-Type': 'application/json'
           }
         });
-        
+
         if (!response.ok) {
           throw new Error('データの取得に失敗しました');
         }
         const data: HarvestedVegetable[] = await response.json();
+        const arranged = arrangeInBasket(data, readStoredPositions());
+        storePositions(arranged);
 
-        const rand = mulberry32(12345);
-
-        const cx = 50; 
-        const cy = 60; 
-        const rx = 35;
-        const rz = 12;
-        const min_dist = 8;
-        const stack_h = 5;
-
-        const placed: { x: number, z: number, y: number }[] = [];
-        
-        const storedPositionsStr = localStorage.getItem(LOCAL_STORAGE_BASKET_KEY);
-        const storedPositions = storedPositionsStr ? JSON.parse(storedPositionsStr) : {};
-
-        const calculatedData: VisualHarvest[] = data.map((veg) => {
-          if (storedPositions[veg.harvest_id]) {
-            const pos = storedPositions[veg.harvest_id];
-            placed.push({ 
-              x: pos.screenX - cx, 
-              z: pos.screenY - cy, 
-              y: 0 
-            });
-            
-            return {
-              ...veg,
-              screenX: pos.screenX,
-              screenY: pos.screenY,
-              zIndex: pos.zIndex,
-              rotation: pos.rotation,
-              scale: pos.scale || 1.0
-            };
-          }
-
-          const r = Math.sqrt(rand()); 
-          const theta = rand() * 2 * Math.PI;
-          const x = r * Math.cos(theta) * rx;
-          const z = r * Math.sin(theta) * rz;
-
-          const nx = x / rx;
-          const nz = z / rz;
-          let y = 8 * (nx * nx + nz * nz);
-
-          for (const p of placed) {
-            const dx = x - p.x;
-            const dz = z - p.z;
-            const dist = Math.sqrt(dx * dx + dz * dz);
-            
-            if (dist < min_dist) {
-              const height_boost = stack_h - (dist / min_dist) * (stack_h * 0.8);
-              y = Math.max(y, p.y + height_boost);
-            }
-          }
-          placed.push({ x, z, y });
-
-          const screenX = cx + x;
-          const screenY = cy + z - y;
-          const zIndex = Math.floor(screenY * 100);
-          const rotation = rand() * 60 - 30;
-
-          return { 
-            ...veg, 
-            screenX, 
-            screenY, 
-            zIndex, 
-            rotation, 
-            scale: 1.0
-          };
-        });
-
-        const positionsToStore: Record<string, HarvestPosition> = {};
-        calculatedData.forEach(v => {
-          positionsToStore[v.harvest_id] = {
-            screenX: v.screenX,
-            screenY: v.screenY,
-            zIndex: v.zIndex,
-            rotation: v.rotation,
-            scale: v.scale
-          };
-        });
-        localStorage.setItem(LOCAL_STORAGE_BASKET_KEY, JSON.stringify(positionsToStore));
-
-        setHarvests(calculatedData);
+        setHarvests(arranged);
         setLoading(false);
       } catch {
         setError('収穫データの取得に失敗しました');
@@ -149,112 +332,156 @@ const HarvestBasket: React.FC = () => {
     fetchHarvestData();
   }, [API_BASE_URL]);
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLImageElement>, id: string) => {
-    setDraggingId(id);
-    e.currentTarget.setPointerCapture(e.pointerId);
+  useEffect(() => {
+    const paths = new Set(harvests.map(getImagePath));
+    paths.forEach((path) => {
+      if (alphaMaps.current.has(path)) return;
+      loadAlphaMap(path)
+        .then((map) => alphaMaps.current.set(path, map))
+        .catch(() => undefined);
+    });
+  }, [harvests]);
+
+  const hitTest = useCallback((clientX: number, clientY: number) => {
+    const container = containerRef.current;
+    if (!container) return null;
+    const rect = container.getBoundingClientRect();
+    const ordered = [...harvests].sort((a, b) => b.zIndex - a.zIndex);
+
+    for (const veg of ordered) {
+      const shape = getShape(veg);
+      const width = getFootprint(veg).width / 100 * rect.width;
+      const height = width * shape.imageHeight / shape.imageWidth;
+      const anchorX = rect.left + veg.screenX / 100 * rect.width;
+      const anchorY = rect.top + veg.screenY / 100 * rect.height;
+      const angle = veg.rotation * Math.PI / 180;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const dx = clientX - anchorX;
+      const dy = clientY - anchorY;
+      const localX = cos * dx + sin * dy + width / 2;
+      const localY = -sin * dx + cos * dy + height;
+
+      if (localX < -HIT_TOLERANCE || localX > width + HIT_TOLERANCE) continue;
+      if (localY < -HIT_TOLERANCE || localY > height + HIT_TOLERANCE) continue;
+
+      const map = alphaMaps.current.get(getImagePath(veg));
+      if (!map) return veg.harvest_id;
+
+      const offsets = [[0, 0], [HIT_TOLERANCE, 0], [-HIT_TOLERANCE, 0], [0, HIT_TOLERANCE], [0, -HIT_TOLERANCE]];
+      for (const [ox, oy] of offsets) {
+        const px = Math.floor((localX + ox) / width * map.width);
+        const py = Math.floor((localY + oy) / height * map.height);
+        if (px < 0 || py < 0 || px >= map.width || py >= map.height) continue;
+        if (map.data[(py * map.width + px) * 4 + 3] > 48) return veg.harvest_id;
+      }
+    }
+    return null;
+  }, [harvests]);
+
+  const toPercent = (clientX: number, clientY: number) => {
+    const rect = containerRef.current!.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) / rect.width * 100,
+      y: (clientY - rect.top) / rect.height * 100,
+    };
   };
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLImageElement>, id: string) => {
-    if (draggingId !== id) return;
-    
-    const parent = e.currentTarget.parentElement;
-    const width = parent ? parent.offsetWidth : window.innerWidth;
-    const height = parent ? parent.offsetHeight : window.innerHeight;
-
-    const moveX = (e.movementX / width) * 100;
-    const moveY = (e.movementY / height) * 100;
-
-    const cx = 50; 
-    const cy = 60; 
-    const rx = 35;
-    const rz = 12;
-
+  const moveVegetable = (id: string, x: number, y: number) => {
     setHarvests(prev => prev.map(veg => {
-      if (veg.harvest_id === id) {
-        let nextX = veg.screenX + moveX;
-        let nextY = veg.screenY + moveY;
-
-        nextX = Math.max(cx - rx, Math.min(cx + rx, nextX));
-
-        const dx = nextX - cx;
-        const maxDy = Math.sqrt(1 - Math.pow(dx / rx, 2)) * rz;
-        const maxY = cy + maxDy; 
-        nextY = Math.min(maxY, nextY);
-
-        const minY = 20;
-        nextY = Math.max(minY, nextY);
-
-        return {
-          ...veg,
-          screenX: nextX,
-          screenY: nextY,
-        };
-      }
-      return veg;
+      if (veg.harvest_id !== id) return veg;
+      const next = clampToBasket(veg, x, y);
+      return { ...veg, screenX: next.x, screenY: next.y };
     }));
   };
 
-  const handlePointerUp = (e: React.PointerEvent<HTMLImageElement>, id: string) => {
-    if (draggingId !== id) return;
-    setDraggingId(null);
-    e.currentTarget.releasePointerCapture(e.pointerId);
-    
+  const settleVegetable = (id: string) => {
     setHarvests(prev => {
-      const next = prev.map(veg => {
-        if (veg.harvest_id === id) {
-          return {
-            ...veg,
-            zIndex: Math.floor(veg.screenY * 100)
-          };
-        }
-        return veg;
-      });
-
-      const positionsToStore: Record<string, HarvestPosition> = {};
-      next.forEach(v => {
-        positionsToStore[v.harvest_id] = {
-          screenX: v.screenX,
-          screenY: v.screenY,
-          zIndex: v.zIndex,
-          rotation: v.rotation,
-          scale: v.scale
-        };
-      });
-      localStorage.setItem(LOCAL_STORAGE_BASKET_KEY, JSON.stringify(positionsToStore));
-
+      const next = prev.map(veg =>
+        veg.harvest_id === id
+          ? { ...veg, zIndex: depthIndex(veg, veg.screenY) }
+          : veg
+      );
+      storePositions(next);
       return next;
     });
   };
 
-  const getFallbackImagePath = (vegName: string, vegSize: string) => {
-    let size = vegSize || 'L';
-    let jpName = 'かぼちゃ';
-
-    if (['かぼちゃ', 'kabocha', 'pumpkin', 'L'].includes(vegName)) {
-      jpName = 'かぼちゃ';
-      size = 'L';
-    } else if (['キャベツ', 'cabbage'].includes(vegName)) {
-      jpName = 'キャベツ';
-      size = 'L';
-    } else if (['トウモロコシ', 'corn'].includes(vegName)) {
-      jpName = 'トウモロコシ';
-      size = 'L';
-    } else if (['ブロッコリー', 'broccoli'].includes(vegName)) {
-      jpName = 'ブロッコリー';
-      size = 'L';
-    } else if (['カリフラワー', 'cauliflower'].includes(vegName)) {
-      jpName = 'カリフラワー';
-      size = 'L';
-    } else if (['赤パプリカ', 'ピーマン', 'なす', 'キュウリ', 'タケノコ', 'M'].includes(vegName)) {
-      jpName = vegName === 'M' ? 'なす' : vegName;
-      size = 'M';
-    } else if (['プチトマト', 'オクラ', '枝豆', 'シイタケ', 'ネギ', 'S'].includes(vegName)) {
-      jpName = vegName === 'S' ? 'プチトマト' : vegName;
-      size = 'S';
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const id = hitTest(e.clientX, e.clientY);
+    if (!id) {
+      setSelectedId(null);
+      return;
     }
-
-    return `/野菜${size}/収穫_${jpName}.png`;
+    const veg = harvests.find(v => v.harvest_id === id)!;
+    const point = toPercent(e.clientX, e.clientY);
+    dragRef.current = {
+      id,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      grabX: point.x - veg.screenX,
+      grabY: point.y - veg.screenY,
+      moved: false,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
   };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) {
+      if (e.pointerType === 'mouse') setHoverId(hitTest(e.clientX, e.clientY));
+      return;
+    }
+    if (!drag.moved) {
+      if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < DRAG_THRESHOLD) return;
+      drag.moved = true;
+      setDraggingId(drag.id);
+      setSelectedId(null);
+    }
+    const point = toPercent(e.clientX, e.clientY);
+    moveVegetable(drag.id, point.x - drag.grabX, point.y - drag.grabY);
+  };
+
+  const finishPointer = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    dragRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    if (drag.moved) {
+      setDraggingId(null);
+      settleVegetable(drag.id);
+    } else {
+      setSelectedId(current => (current === drag.id ? null : drag.id));
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLImageElement>, veg: VisualHarvest) => {
+    const step = e.shiftKey ? KEY_STEP_LARGE : KEY_STEP;
+    const moves: Record<string, [number, number]> = {
+      ArrowLeft: [-step, 0],
+      ArrowRight: [step, 0],
+      ArrowUp: [0, -step],
+      ArrowDown: [0, step],
+    };
+    if (moves[e.key]) {
+      e.preventDefault();
+      const [mx, my] = moves[e.key];
+      moveVegetable(veg.harvest_id, veg.screenX + mx, veg.screenY + my * STAGE_ASPECT);
+      settleVegetable(veg.harvest_id);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setSelectedId(current => (current === veg.harvest_id ? null : veg.harvest_id));
+    } else if (e.key === 'Escape') {
+      setSelectedId(null);
+    }
+  };
+
+  const selected = harvests.find(v => v.harvest_id === selectedId) || null;
 
   if (loading) return <Layout><p className="status-line">かごを運んでいます…</p></Layout>;
   if (error) return <Layout><p className="status-line is-error">{error}</p></Layout>;
@@ -263,6 +490,7 @@ const HarvestBasket: React.FC = () => {
     <Layout>
       <div className="basket-scene">
         <div className="basket-scene-far" aria-hidden="true" />
+        <div className="basket-scene-seam" aria-hidden="true" />
         <div className="basket-scene-pond" aria-hidden="true" />
 
         <header className="basket-sign">
@@ -273,118 +501,103 @@ const HarvestBasket: React.FC = () => {
         </header>
 
         <div className="basket-pool">
-          <div className="basket-area">
-            <div className="basket-stage">
-              <div className="basket-water" aria-hidden="true">
-                <span className="basket-ripple" />
-                <span className="basket-ripple" />
-                <span className="basket-ripple" />
-              </div>
-
-              <img
-                src="/VegeTASK_籠(前).png"
-                alt=""
-                aria-hidden="true"
-                className="basket-reflection"
-              />
-
-              <img 
-                src="/VegeTASK_籠(後).png" 
-                alt="籠の背面"
-                className="basket-layer-back"
-              />
-
-              <div className="basket-veg-container">
-                {harvests.length === 0 ? (
-                  <></>
-                ) : (
-                  harvests.map((veg) => {
-                    const isDragging = draggingId === veg.harvest_id;
-                    
-                    return (
-                      <img 
-                        key={veg.harvest_id}
-                        title={`${veg.vegetable_name} (収穫日: ${veg.harvested_at})`}
-                        src={veg.image_url || getFallbackImagePath(veg.vegetable_name, veg.vegetable_size)}
-                        alt={veg.vegetable_name}
-                        draggable={false}
-                        className="basket-veg-item"
-                        style={{
-                          left: `${veg.screenX}%`,
-                          top: `${veg.screenY}%`,
-                          width: `${12 * veg.scale}%`,
-                          zIndex: isDragging ? 999999 : veg.zIndex,
-                          cursor: isDragging ? 'grabbing' : 'grab',
-                          filter: isDragging 
-                            ? `drop-shadow(0px 20px 14px rgba(20, 48, 42, 0.45))` 
-                            : `drop-shadow(0px 3px 3px rgba(20, 48, 42, 0.5))`,
-                          transition: isDragging 
-                            ? 'none' 
-                            : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s',
-                          transform: isDragging
-                            ? `translate(-50%, calc(-100% - 2vw)) rotate(${veg.rotation}deg) scale(1.15)`
-                            : `translate(-50%, -100%) rotate(${veg.rotation}deg)`
-                        }}
-                        onPointerDown={(e) => handlePointerDown(e, veg.harvest_id)}
-                        onPointerMove={(e) => handlePointerMove(e, veg.harvest_id)}
-                        onPointerUp={(e) => handlePointerUp(e, veg.harvest_id)}
-                        onMouseEnter={(e) => {
-                          if (draggingId) return;
-                          e.currentTarget.style.transform = `translate(-50%, calc(-100% - 1.5vw)) rotate(${veg.rotation}deg) scale(1.15)`;
-                          e.currentTarget.style.zIndex = '9999';
-                        }}
-                        onMouseLeave={(e) => {
-                          if (draggingId) return;
-                          e.currentTarget.style.transform = `translate(-50%, -100%) rotate(${veg.rotation}deg)`;
-                          e.currentTarget.style.zIndex = String(veg.zIndex);
-                        }}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          const fallback = getFallbackImagePath(veg.vegetable_name, veg.vegetable_size);
-                          if (!target.src.includes(fallback)) {
-                            target.src = fallback;
-                          } else {
-                            target.style.display = 'none';
-                          }
-                        }}
-                      />
-                    );
-                  })
-                )}
-              </div>
-
-              <img 
-                src="/VegeTASK_籠(前).png" 
-                alt="籠の前面"
-                className="basket-layer-front"
-              />
-              <div className="basket-submerge" aria-hidden="true" />
-              <div className="basket-waterline" aria-hidden="true" />
-              <div className="basket-water basket-water-front" aria-hidden="true">
-                <span className="basket-ripple" />
-                <span className="basket-ripple" />
-                <span className="basket-ripple" />
-              </div>
+          <div className="basket-stage">
+            <div className="basket-water" aria-hidden="true">
+              <span className="basket-ripple" />
+              <span className="basket-ripple" />
+              <span className="basket-ripple" />
             </div>
+
+            <img
+              src="/VegeTASK_籠(後).png"
+              alt=""
+              aria-hidden="true"
+              className="basket-layer-back"
+            />
+            <div className="basket-hollow" aria-hidden="true" />
+
+            <div
+              ref={containerRef}
+              className={`basket-veg-container${draggingId ? ' is-dragging' : hoverId ? ' is-hovering' : ''}`}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={finishPointer}
+              onPointerCancel={finishPointer}
+              onPointerLeave={() => setHoverId(null)}
+            >
+              {harvests.map((veg) => {
+                const isDragging = draggingId === veg.harvest_id;
+                const isActive = hoverId === veg.harvest_id || selectedId === veg.harvest_id;
+                const { width } = getFootprint(veg);
+
+                return (
+                  <img
+                    key={veg.harvest_id}
+                    src={getImagePath(veg)}
+                    alt={`${veg.vegetable_name}（${formatHarvestDate(veg.harvested_at)}）`}
+                    draggable={false}
+                    tabIndex={0}
+                    role="button"
+                    aria-pressed={selectedId === veg.harvest_id}
+                    className={`basket-veg-item${isDragging ? ' is-dragging' : ''}${isActive && !isDragging ? ' is-active' : ''}`}
+                    style={{
+                      left: `${veg.screenX}%`,
+                      top: `${veg.screenY}%`,
+                      width: `${width}%`,
+                      zIndex: isDragging ? 9999 : veg.zIndex,
+                      '--veg-rotation': `${veg.rotation}deg`,
+                    } as React.CSSProperties}
+                    onKeyDown={(e) => handleKeyDown(e, veg)}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                );
+              })}
+            </div>
+
+            <img
+              src="/VegeTASK_籠(前).png"
+              alt=""
+              aria-hidden="true"
+              className="basket-layer-front"
+            />
+            <div className="basket-submerge" aria-hidden="true" />
+            <div className="basket-waterline" aria-hidden="true" />
+            <div className="basket-water basket-water-front" aria-hidden="true">
+              <span className="basket-ripple" />
+              <span className="basket-ripple" />
+              <span className="basket-ripple" />
+            </div>
+
+            {selected && !draggingId && (
+              <div
+                className="basket-tag"
+                role="status"
+                style={{
+                  left: `${selected.screenX}%`,
+                  top: `${selected.screenY - getFootprint(selected).height}%`,
+                }}
+              >
+                <span className="basket-tag-name">{selected.vegetable_name}</span>
+                <span className="basket-tag-date">{formatHarvestDate(selected.harvested_at)}</span>
+              </div>
+            )}
           </div>
 
           {harvests.length === 0 ? (
             <p className="basket-hint">育ち切った野菜を畑でクリックすると、ここに入ります。</p>
           ) : (
-            <p className="basket-hint">野菜はドラッグして並べ替えられます。</p>
+            <p className="basket-hint">ドラッグで移動、タップで名前と収穫日</p>
           )}
         </div>
 
         <div className="basket-scene-light" aria-hidden="true" />
 
         <svg className="basket-filters" aria-hidden="true">
-          <filter id="basket-waterline-wobble">
+          <filter id="basket-waterline-wobble" x="-10%" y="-10%" width="120%" height="120%">
             <feTurbulence type="fractalNoise" baseFrequency="0.01 0.09" numOctaves="2" seed="7" />
             <feDisplacementMap in="SourceGraphic" scale="7" xChannelSelector="R" yChannelSelector="G" />
-          </filter>
-          <filter id="basket-ripple-wobble">
-            <feTurbulence type="fractalNoise" baseFrequency="0.006 0.03" numOctaves="2" seed="11" />
-            <feDisplacementMap in="SourceGraphic" scale="12" xChannelSelector="R" yChannelSelector="G" />
           </filter>
         </svg>
       </div>
