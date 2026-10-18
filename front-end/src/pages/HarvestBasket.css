@@ -33,8 +33,8 @@
   right: -12px;
   height: calc(46% + 12px);
   background-image: url('/VegeTASK_里山.webp');
-  background-size: 140% auto;
-  background-position: 100% 14%;
+  background-size: 108% auto;
+  background-position: 100% 16%;
   filter: blur(3px) saturate(1.05) contrast(1.02);
 }
 
@@ -69,8 +69,8 @@
 @media (max-width: 700px) {
   .basket-scene-far {
     height: calc(38% + 12px);
-    background-size: auto 190%;
-    background-position: 62% top;
+    background-size: auto 150%;
+    background-position: 70% 30%;
   }
 
   .basket-scene-pond {
@@ -314,7 +314,7 @@
   height: 100%;
   object-fit: contain;
   z-index: 10;
-  filter: blur(1.1px);
+  filter: saturate(0.88) contrast(0.92) blur(1.1px);
 }
 
 .basket-layer-front {
@@ -326,7 +326,7 @@
   object-fit: contain;
   z-index: 10000;
   pointer-events: none;
-  filter: blur(1.1px);
+  filter: saturate(0.88) contrast(0.92) blur(1.1px);
 }
 
 .basket-hollow {
@@ -372,7 +372,7 @@
   pointer-events: none;
   transform-origin: bottom center;
   transform: translate(-50%, -100%) rotate(var(--veg-rotation));
-  filter: blur(0.45px) drop-shadow(0.35vmin 0.6vmin 0.5vmin rgba(30, 26, 12, 0.5));
+  filter: saturate(0.88) contrast(0.92) blur(0.45px) drop-shadow(0.35vmin 0.6vmin 0.5vmin rgba(30, 26, 12, 0.5));
   transition: transform 0.18s ease-out, filter 0.18s ease-out;
 }
 
@@ -383,6 +383,8 @@
 .basket-veg-item.is-active,
 .basket-veg-item:focus-visible {
   filter:
+    saturate(0.88)
+    contrast(0.92)
     blur(0.45px)
     drop-shadow(0 0 0.25vmin rgba(255, 249, 228, 0.95))
     drop-shadow(0 0 0.6vmin rgba(255, 236, 170, 0.7))
@@ -392,7 +394,7 @@
 .basket-veg-item.is-dragging {
   transition: none;
   transform: translate(-50%, calc(-100% - 1.5%)) rotate(var(--veg-rotation)) scale(1.06);
-  filter: blur(0.45px) drop-shadow(1.2vmin 2.4vmin 1.4vmin rgba(30, 26, 12, 0.35));
+  filter: saturate(0.88) contrast(0.92) blur(0.45px) drop-shadow(1.2vmin 2.4vmin 1.4vmin rgba(30, 26, 12, 0.35));
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -464,31 +466,12 @@
   justify-content: center;
   gap: 0.25rem 0.75rem;
   margin-top: 0;
-  padding: 0.3rem 0.4rem 0.3rem 1rem;
+  padding: 0.3rem 1rem;
   border-radius: 999px;
   background: rgba(22, 44, 40, 0.62);
   backdrop-filter: blur(4px);
   font-size: 0.875rem;
   color: var(--foam);
-}
-
-p.basket-hint {
-  padding-right: 1rem;
-}
-
-.basket-rearrange {
-  padding: 0.2rem 0.85rem;
-  border: 1px solid rgba(243, 241, 230, 0.55);
-  border-radius: 999px;
-  background: transparent;
-  font: inherit;
-  font-weight: 700;
-  color: var(--foam);
-  cursor: pointer;
-}
-
-.basket-rearrange:hover {
-  background: rgba(243, 241, 230, 0.16);
 }
 
 @media (max-width: 700px) {

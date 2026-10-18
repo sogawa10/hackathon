@@ -109,29 +109,10 @@ const clampToBasket = (veg: HarvestedVegetable, x: number, y: number) => {
   return { x: nextX, y: nextY };
 };
 
-const toPixelDistance = (ax: number, ay: number, bx: number, by: number) => {
-  const dx = ax - bx;
-  const dy = (ay - by) / STAGE_ASPECT;
-  return Math.sqrt(dx * dx + dy * dy);
-};
+const SIZE_TIER: Record<VegetableShape['size'], number> = { L: 1000, M: 2000, S: 3000 };
 
-const stackingIndex = (
-  veg: VisualHarvest,
-  x: number,
-  y: number,
-  others: VisualHarvest[],
-) => {
-  const { radius } = getFootprint(veg);
-  let zIndex = Math.round(y * 10);
-  for (const other of others) {
-    if (other.harvest_id === veg.harvest_id) continue;
-    const reach = radius + getFootprint(other).radius;
-    if (toPixelDistance(x, y, other.screenX, other.screenY) < reach * 0.8 && other.screenY - y < 4) {
-      zIndex = Math.max(zIndex, other.zIndex + 1);
-    }
-  }
-  return Math.min(zIndex, 9000);
-};
+const depthIndex = (veg: HarvestedVegetable, y: number) =>
+  SIZE_TIER[getShape(veg).size] + Math.round(y * 10);
 
 const BASKET_ROWS = [-0.72, 0.02, 0.58];
 const ROW_OVERLAP = 0.82;
@@ -222,7 +203,7 @@ const arrangeInBasket = (data: HarvestedVegetable[], stored: Record<string, Harv
           ...veg,
           screenX: x,
           screenY: y,
-          zIndex: Math.min(9000, Math.round(y * 10) + layer * 1000 + Math.round(Math.abs(x - BASKET.centerX) / 4)),
+          zIndex: depthIndex(veg, y),
           rotation: lean + wobble,
         });
       });
@@ -234,7 +215,7 @@ const arrangeInBasket = (data: HarvestedVegetable[], stored: Record<string, Harv
     const saved = stored[veg.harvest_id];
     if (!saved) return byId.get(veg.harvest_id)!;
     const { x, y } = clampToBasket(veg, saved.screenX, saved.screenY);
-    return { ...veg, screenX: x, screenY: y, zIndex: saved.zIndex, rotation: saved.rotation };
+    return { ...veg, screenX: x, screenY: y, zIndex: depthIndex(veg, y), rotation: saved.rotation };
   });
 };
 
@@ -318,7 +299,6 @@ const HarvestBasket: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const alphaMaps = useRef(new Map<string, AlphaMap>());
-  const rawHarvests = useRef<HarvestedVegetable[]>([]);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -338,7 +318,6 @@ const HarvestBasket: React.FC = () => {
           throw new Error('データの取得に失敗しました');
         }
         const data: HarvestedVegetable[] = await response.json();
-        rawHarvests.current = data;
         const arranged = arrangeInBasket(data, readStoredPositions());
         storePositions(arranged);
 
@@ -420,7 +399,7 @@ const HarvestBasket: React.FC = () => {
     setHarvests(prev => {
       const next = prev.map(veg =>
         veg.harvest_id === id
-          ? { ...veg, zIndex: stackingIndex(veg, veg.screenX, veg.screenY, prev) }
+          ? { ...veg, zIndex: depthIndex(veg, veg.screenY) }
           : veg
       );
       storePositions(next);
@@ -500,13 +479,6 @@ const HarvestBasket: React.FC = () => {
     } else if (e.key === 'Escape') {
       setSelectedId(null);
     }
-  };
-
-  const rearrange = () => {
-    const arranged = arrangeInBasket(rawHarvests.current, {});
-    storePositions(arranged);
-    setHarvests(arranged);
-    setSelectedId(null);
   };
 
   const selected = harvests.find(v => v.harvest_id === selectedId) || null;
@@ -616,12 +588,7 @@ const HarvestBasket: React.FC = () => {
           {harvests.length === 0 ? (
             <p className="basket-hint">育ち切った野菜を畑でクリックすると、ここに入ります。</p>
           ) : (
-            <div className="basket-hint">
-              <span>ドラッグで移動、タップで名前と収穫日</span>
-              <button type="button" className="basket-rearrange" onClick={rearrange}>
-                並べ直す
-              </button>
-            </div>
+            <p className="basket-hint">ドラッグで移動、タップで名前と収穫日</p>
           )}
         </div>
 
