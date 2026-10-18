@@ -35,7 +35,7 @@
   background-image: url('/VegeTASK_里山.webp');
   background-size: 108% auto;
   background-position: 100% 16%;
-  filter: blur(1.8px);
+  filter: blur(3px) saturate(1.05) contrast(1.02);
 }
 
 .basket-scene-pond {
