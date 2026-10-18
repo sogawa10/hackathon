@@ -1,51 +1,154 @@
-.basket-container {
+.basket-scene {
+  --pond-deep: #24453f;
+  --cedar: #c9955a;
+  --cedar-dark: #8b5a2b;
+  --sumi: #2a2116;
+  --foam: #f3f1e6;
+
+  position: relative;
   flex: 1;
-  width: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  box-sizing: border-box;
+  min-height: 560px;
+  margin: -24px calc(-1 * clamp(16px, 3vw, 40px));
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--pond-deep);
 }
 
-.basket-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.25rem 1.5rem;
-  width: 100%;
-  max-width: 900px;
-  margin-bottom: 1rem;
+.basket-scene-far,
+.basket-scene-pond {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: -1;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.basket-scene-far {
+  top: 0;
+  height: 46%;
+  background-image: url('/VegeTASK_里山.webp');
+  background-position: center 22%;
+}
+
+.basket-scene-far::after {
+  content: '';
+  position: absolute;
+  inset: 55% 0 0;
+  background: linear-gradient(to bottom, rgba(226, 232, 206, 0), rgba(226, 232, 206, 0.45));
+}
+
+.basket-scene-pond {
+  top: 30%;
+  bottom: 0;
+  background-image:
+    linear-gradient(to bottom, rgba(20, 40, 36, 0) 55%, rgba(20, 40, 36, 0.35)),
+    url('/VegeTASK_洗い場.webp');
+  background-position: center, center top;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 2%, #000 9%);
+  mask-image: linear-gradient(to bottom, transparent 2%, #000 9%);
+}
+
+@media (max-width: 700px) {
+  .basket-scene-far {
+    height: 40%;
+    background-size: auto 190%;
+    background-position: 62% top;
+  }
+
+  .basket-scene-pond {
+    top: 26%;
+  }
+}
+
+.basket-scene-light {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(150% 110% at 50% 45%, transparent 55%, rgba(16, 38, 34, 0.38));
+}
+
+.basket-scene-light::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(90% 80% at 22% 0%, rgba(255, 226, 168, 0.55), transparent 65%);
+  mix-blend-mode: soft-light;
+}
+
+.basket-sign {
+  position: relative;
+  z-index: 2;
+  align-self: flex-start;
+  margin: clamp(16px, 3vw, 32px) clamp(16px, 4vw, 48px) 0;
+  padding: 0.9rem 1.5rem 1rem;
+  color: var(--sumi);
+  background:
+    repeating-linear-gradient(
+      178deg,
+      rgba(139, 90, 43, 0) 0 7px,
+      rgba(139, 90, 43, 0.14) 7px 8px,
+      rgba(139, 90, 43, 0) 8px 15px
+    ),
+    linear-gradient(180deg, #ddb07a, var(--cedar) 60%, #b98349);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 -3px 0 rgba(90, 55, 22, 0.35),
+    inset 0 1px 0 rgba(255, 240, 210, 0.55),
+    0 14px 24px -10px rgba(20, 30, 20, 0.55);
+}
+
+.basket-sign::before,
+.basket-sign::after {
+  content: '';
+  position: absolute;
+  top: 0.55rem;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #8d8a80, #3d3a33);
+}
+
+.basket-sign::before {
+  left: 0.55rem;
+}
+
+.basket-sign::after {
+  right: 0.55rem;
 }
 
 .basket-title {
   margin: 0;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(1.75rem, 3.2vw, 2.4rem);
+  line-height: 1.15;
+  letter-spacing: 0.08em;
+  color: var(--sumi);
+  text-shadow: 0 1px 0 rgba(255, 236, 200, 0.6);
 }
 
-.basket-card {
-  position: relative;
+.basket-pool {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100%;
-  max-width: 900px;
-  padding: 1.5rem 1rem 1.25rem;
-  background: var(--paper) url('/VegeTASK_水辺.svg') center / cover no-repeat;
-  border-radius: var(--radius-m);
-  border-bottom: 6px solid #b07a3c;
-  box-shadow: 0 10px 24px rgba(46, 31, 18, 0.08);
-  overflow: hidden;
+  justify-content: flex-end;
+  padding: 0 16px clamp(16px, 3vh, 32px);
 }
 
 .basket-area {
   position: relative;
-  height: min(55vh, calc((100vw - 64px) * 3 / 4));
+  z-index: 0;
+  height: min(58vh, calc((100vw - 32px) * 3 / 4));
   aspect-ratio: 4 / 3;
   max-width: 100%;
   display: flex;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .basket-stage {
@@ -56,49 +159,79 @@
   height: 88.9%;
 }
 
-.basket-water {
+.basket-water,
+.basket-submerge,
+.basket-waterline {
   position: absolute;
-  left: 50%;
-  top: 68%;
-  width: 84%;
-  aspect-ratio: 4 / 1;
-  transform: translate(-50%, -50%);
-  z-index: 5;
+  left: 0;
+  top: 9.09%;
+  width: 100%;
+  height: 81.82%;
   pointer-events: none;
+}
+
+.basket-water {
+  z-index: 5;
+}
+
+.basket-water-front {
+  z-index: 10003;
+  clip-path: inset(57.4% 0 0 0);
+}
+
+.basket-water.basket-water-front::before {
+  content: none;
 }
 
 .basket-water::before {
   content: '';
   position: absolute;
-  inset: 30% 8% 8%;
+  left: 8%;
+  top: 40%;
+  width: 84%;
+  height: 44%;
   border-radius: 50%;
-  background: rgba(38, 104, 92, 0.38);
-  filter: blur(16px);
+  background: radial-gradient(closest-side, rgba(12, 36, 32, 0.6), rgba(12, 36, 32, 0.25) 70%, transparent);
+  filter: blur(6px);
 }
 
 .basket-ripple {
   position: absolute;
-  inset: 0;
+  left: 10.2%;
+  top: 33.3%;
+  width: 79.6%;
+  height: 48.2%;
   border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.7);
+  background: radial-gradient(
+    closest-side,
+    transparent 90%,
+    rgba(14, 44, 40, 0.22) 94%,
+    rgba(236, 248, 240, 0.55) 97.4%,
+    rgba(236, 248, 240, 0) 100%
+  );
   opacity: 0;
-  animation: basket-ripple 6s ease-out infinite;
+  filter: url('#basket-ripple-wobble');
+  animation: basket-ripple 9s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
 }
 
 .basket-ripple:nth-child(2) {
-  animation-delay: 3s;
+  animation-delay: -3s;
+}
+
+.basket-ripple:nth-child(3) {
+  animation-delay: -6s;
 }
 
 @keyframes basket-ripple {
   0% {
-    transform: scale(0.82);
+    transform: scale(1.1);
     opacity: 0;
   }
-  15% {
-    opacity: 0.8;
+  12% {
+    opacity: 0.9;
   }
   100% {
-    transform: scale(1.18);
+    transform: scale(1.36);
     opacity: 0;
   }
 }
@@ -106,12 +239,66 @@
 @media (prefers-reduced-motion: reduce) {
   .basket-ripple {
     animation: none;
-    opacity: 0.5;
+    transform: scale(1.16);
+    opacity: 0.6;
   }
 
-  .basket-ripple:nth-child(2) {
+  .basket-ripple:nth-child(n + 2) {
     display: none;
   }
+}
+
+.basket-reflection {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  z-index: 6;
+  pointer-events: none;
+  transform-origin: 50% 75.8%;
+  transform: scaleY(-0.45);
+  opacity: 0.35;
+  filter: blur(1.5px) saturate(0.6) brightness(0.7);
+  -webkit-mask-image: linear-gradient(to top, transparent 20%, #000 60%);
+  mask-image: linear-gradient(to top, transparent 20%, #000 60%);
+}
+
+.basket-submerge {
+  z-index: 10001;
+  mix-blend-mode: multiply;
+  background: radial-gradient(
+    39.8% 24.1% at 50% 57.4%,
+    #fff 99.6%,
+    rgb(190, 222, 212) 101%,
+    rgb(128, 176, 166) 110%,
+    rgb(78, 128, 120) 126%
+  );
+}
+
+.basket-waterline {
+  z-index: 10002;
+  background: radial-gradient(
+    39.8% 24.1% at 50% 57.4%,
+    transparent 99%,
+    rgba(238, 250, 244, 0.5) 99.7%,
+    rgba(238, 250, 244, 0) 100.9%,
+    rgba(150, 196, 186, 0) 104%,
+    rgba(120, 170, 160, 0.28) 126%
+  );
+}
+
+.basket-submerge,
+.basket-waterline {
+  filter: url('#basket-waterline-wobble');
+  -webkit-mask:
+    url('/VegeTASK_籠(前).png') 0 0 / 100% 100% no-repeat,
+    linear-gradient(to bottom, transparent 55%, #000 58%);
+  -webkit-mask-composite: source-in;
+  mask:
+    url('/VegeTASK_籠(前).png') 0 0 / 100% 100% no-repeat intersect,
+    linear-gradient(to bottom, transparent 55%, #000 58%);
 }
 
 .basket-layer-back {
@@ -122,6 +309,7 @@
   height: 100%;
   object-fit: contain;
   z-index: 10;
+  filter: saturate(0.9) brightness(0.96);
 }
 
 .basket-layer-front {
@@ -133,6 +321,7 @@
   object-fit: contain;
   z-index: 10000;
   pointer-events: none;
+  filter: saturate(0.9) brightness(0.96) drop-shadow(0 2px 2px rgba(20, 48, 42, 0.35));
 }
 
 .basket-veg-container {
@@ -158,22 +347,32 @@
 
 .basket-hint {
   position: relative;
-  margin-top: 0.75rem;
-  padding: 0.25rem 0.9rem;
+  z-index: 2;
+  margin-top: 0.25rem;
+  padding: 0.3rem 1rem;
   border-radius: 999px;
-  background: rgba(252, 251, 246, 0.78);
+  background: rgba(22, 44, 40, 0.62);
+  backdrop-filter: blur(4px);
   font-size: 0.875rem;
-  color: var(--soil-soft);
+  color: var(--foam);
 }
 
 .basket-summary-text {
+  margin-top: 0.15rem;
   font-weight: 700;
-  color: var(--soil-soft);
+  font-size: 0.9rem;
+  color: rgba(42, 33, 22, 0.82);
 }
 
 .basket-summary-count {
   font-family: var(--display);
-  font-size: 1.6rem;
-  color: var(--soil);
+  font-size: 1.5rem;
+  color: var(--sumi);
   font-variant-numeric: tabular-nums;
+}
+
+.basket-filters {
+  position: absolute;
+  width: 0;
+  height: 0;
 }

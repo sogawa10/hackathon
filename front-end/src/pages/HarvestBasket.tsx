@@ -261,23 +261,32 @@ const HarvestBasket: React.FC = () => {
 
   return (
     <Layout>
-      <div className="basket-container">
-        
-        <div className="basket-heading">
-          <h1 className="page-title basket-title">収穫かご</h1>
+      <div className="basket-scene">
+        <div className="basket-scene-far" aria-hidden="true" />
+        <div className="basket-scene-pond" aria-hidden="true" />
+
+        <header className="basket-sign">
+          <h1 className="basket-title">収穫かご</h1>
           <p className="basket-summary-text">
             これまでに収穫した野菜 <span className="basket-summary-count">{harvests.length}</span> 個
           </p>
-        </div>
+        </header>
 
-        <div className="basket-card">
-          
+        <div className="basket-pool">
           <div className="basket-area">
             <div className="basket-stage">
               <div className="basket-water" aria-hidden="true">
                 <span className="basket-ripple" />
                 <span className="basket-ripple" />
+                <span className="basket-ripple" />
               </div>
+
+              <img
+                src="/VegeTASK_籠(前).png"
+                alt=""
+                aria-hidden="true"
+                className="basket-reflection"
+              />
 
               <img 
                 src="/VegeTASK_籠(後).png" 
@@ -307,8 +316,8 @@ const HarvestBasket: React.FC = () => {
                           zIndex: isDragging ? 999999 : veg.zIndex,
                           cursor: isDragging ? 'grabbing' : 'grab',
                           filter: isDragging 
-                            ? `drop-shadow(0px 20px 15px rgba(0,0,0,0.4))` 
-                            : `drop-shadow(0px 3px 4px rgba(0,0,0,0.4))`,
+                            ? `drop-shadow(0px 20px 14px rgba(20, 48, 42, 0.45))` 
+                            : `drop-shadow(0px 3px 3px rgba(20, 48, 42, 0.5))`,
                           transition: isDragging 
                             ? 'none' 
                             : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s',
@@ -349,6 +358,13 @@ const HarvestBasket: React.FC = () => {
                 alt="籠の前面"
                 className="basket-layer-front"
               />
+              <div className="basket-submerge" aria-hidden="true" />
+              <div className="basket-waterline" aria-hidden="true" />
+              <div className="basket-water basket-water-front" aria-hidden="true">
+                <span className="basket-ripple" />
+                <span className="basket-ripple" />
+                <span className="basket-ripple" />
+              </div>
             </div>
           </div>
 
@@ -358,6 +374,19 @@ const HarvestBasket: React.FC = () => {
             <p className="basket-hint">野菜はドラッグして並べ替えられます。</p>
           )}
         </div>
+
+        <div className="basket-scene-light" aria-hidden="true" />
+
+        <svg className="basket-filters" aria-hidden="true">
+          <filter id="basket-waterline-wobble">
+            <feTurbulence type="fractalNoise" baseFrequency="0.01 0.09" numOctaves="2" seed="7" />
+            <feDisplacementMap in="SourceGraphic" scale="7" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+          <filter id="basket-ripple-wobble">
+            <feTurbulence type="fractalNoise" baseFrequency="0.006 0.03" numOctaves="2" seed="11" />
+            <feDisplacementMap in="SourceGraphic" scale="12" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </svg>
       </div>
     </Layout>
   );
