@@ -33,14 +33,7 @@
   height: calc(46% + 12px);
   background-image: url('/VegeTASK_里山.webp');
   background-position: center 22%;
-  filter: blur(3px) saturate(0.85) brightness(1.04);
-}
-
-.basket-scene-far::after {
-  content: '';
-  position: absolute;
-  inset: 40% 0 0;
-  background: linear-gradient(to bottom, rgba(214, 226, 196, 0), rgba(214, 226, 196, 0.5));
+  filter: blur(3px) saturate(1.15) contrast(1.08);
 }
 
 .basket-scene-pond {
@@ -50,18 +43,18 @@
     linear-gradient(to bottom, rgba(20, 40, 36, 0) 60%, rgba(20, 40, 36, 0.3)),
     url('/VegeTASK_洗い場.webp');
   background-position: center, center top;
-  filter: drop-shadow(0 -2px 6px rgba(30, 44, 26, 0.35));
+  filter: saturate(1.2) contrast(1.1);
 }
 
 .basket-scene-seam {
   position: absolute;
   left: 0;
   right: 0;
-  top: 9%;
-  height: 18%;
+  top: 15%;
+  height: 13%;
   z-index: -1;
   pointer-events: none;
-  background: linear-gradient(to bottom, rgba(214, 226, 196, 0), rgba(214, 226, 196, 0.22) 60%, rgba(214, 226, 196, 0.12) 85%, rgba(214, 226, 196, 0));
+  background: linear-gradient(to bottom, rgba(38, 58, 30, 0), rgba(38, 58, 30, 0.32) 55%, rgba(38, 58, 30, 0.6));
 }
 
 @media (max-width: 700px) {
@@ -76,8 +69,8 @@
   }
 
   .basket-scene-seam {
-    top: 7%;
-    height: 14%;
+    top: 13%;
+    height: 12%;
   }
 }
 
@@ -86,7 +79,7 @@
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background: radial-gradient(120% 95% at 50% 62%, transparent 42%, rgba(16, 38, 34, 0.5));
+  background: radial-gradient(130% 105% at 50% 55%, transparent 55%, rgba(16, 38, 34, 0.35));
 }
 
 .basket-scene-light::before {
@@ -312,7 +305,7 @@
   height: 100%;
   object-fit: contain;
   z-index: 10;
-  filter: saturate(0.8) contrast(0.86) sepia(0.16) brightness(1) blur(0.75px);
+  filter: blur(1.1px);
 }
 
 .basket-layer-front {
@@ -324,35 +317,7 @@
   object-fit: contain;
   z-index: 10000;
   pointer-events: none;
-  filter: saturate(0.8) contrast(0.86) sepia(0.16) brightness(1) blur(0.75px);
-}
-
-.basket-shade {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  mix-blend-mode: multiply;
-  background:
-    radial-gradient(70% 90% at 26% 22%, rgba(255, 250, 235, 0.85), rgba(255, 250, 235, 0) 65%),
-    linear-gradient(
-      to bottom,
-      #fff 20%,
-      rgb(216, 212, 192) 46%,
-      rgb(176, 176, 156) 64%,
-      rgb(124, 142, 132) 88%
-    );
-}
-
-.basket-shade-back {
-  z-index: 11;
-  -webkit-mask: url('/VegeTASK_籠(後).png') 0 0 / 100% 100% no-repeat;
-  mask: url('/VegeTASK_籠(後).png') 0 0 / 100% 100% no-repeat;
-}
-
-.basket-shade-front {
-  z-index: 10000;
-  -webkit-mask: url('/VegeTASK_籠(前).png') 0 0 / 100% 100% no-repeat;
-  mask: url('/VegeTASK_籠(前).png') 0 0 / 100% 100% no-repeat;
+  filter: blur(1.1px);
 }
 
 .basket-hollow {
@@ -388,7 +353,7 @@
   cursor: grab;
   transform-origin: bottom center;
   transform: translate(-50%, -100%) rotate(var(--veg-rotation));
-  filter: saturate(0.84) contrast(0.88) sepia(0.12) brightness(0.96) blur(0.45px) drop-shadow(0.35vmin 0.6vmin 0.5vmin rgba(30, 26, 12, 0.55));
+  filter: blur(0.45px) drop-shadow(0.35vmin 0.6vmin 0.5vmin rgba(30, 26, 12, 0.5));
   transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s;
 }
 
@@ -400,57 +365,12 @@
   cursor: grabbing;
   transition: none;
   transform: translate(-50%, calc(-100% - 2%)) rotate(var(--veg-rotation)) scale(1.1);
-  filter: saturate(0.84) contrast(0.88) sepia(0.12) brightness(1) blur(0.45px) drop-shadow(1.2vmin 2.4vmin 1.4vmin rgba(30, 26, 12, 0.35));
+  filter: blur(0.45px) drop-shadow(1.2vmin 2.4vmin 1.4vmin rgba(30, 26, 12, 0.35));
 }
 
 @media (prefers-reduced-motion: reduce) {
   .basket-veg-item {
     transition: none;
-  }
-}
-
-.basket-glow {
-  position: absolute;
-  pointer-events: none;
-  border-radius: 50%;
-}
-
-.basket-glow-pool {
-  left: -6%;
-  right: -6%;
-  top: 22%;
-  bottom: -4%;
-  z-index: 4;
-  background: radial-gradient(closest-side, rgba(255, 240, 200, 0.5), rgba(255, 240, 200, 0.18) 55%, rgba(255, 240, 200, 0));
-  mix-blend-mode: screen;
-}
-
-.basket-glow-key {
-  left: 4%;
-  right: 4%;
-  top: -12%;
-  bottom: 18%;
-  z-index: 10004;
-  background: radial-gradient(closest-side at 46% 52%, rgba(255, 234, 186, 0.26), rgba(255, 234, 186, 0.1) 60%, rgba(255, 234, 186, 0));
-  mix-blend-mode: screen;
-}
-
-@keyframes basket-glow-breathe {
-  0%, 100% {
-    opacity: 0.85;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.basket-glow-key {
-  animation: basket-glow-breathe 8s ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .basket-glow-key {
-    animation: none;
   }
 }
 

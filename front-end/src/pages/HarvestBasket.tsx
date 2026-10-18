@@ -325,7 +325,6 @@ const HarvestBasket: React.FC = () => {
 
         <div className="basket-pool">
           <div className="basket-stage">
-            <div className="basket-glow basket-glow-pool" aria-hidden="true" />
             <div className="basket-water" aria-hidden="true">
               <span className="basket-ripple" />
               <span className="basket-ripple" />
@@ -337,7 +336,6 @@ const HarvestBasket: React.FC = () => {
               alt="籠の背面"
               className="basket-layer-back"
             />
-            <div className="basket-shade basket-shade-back" aria-hidden="true" />
             <div className="basket-hollow" aria-hidden="true" />
 
             <div className="basket-veg-container">
@@ -376,10 +374,8 @@ const HarvestBasket: React.FC = () => {
               alt="籠の前面"
               className="basket-layer-front"
             />
-            <div className="basket-shade basket-shade-front" aria-hidden="true" />
             <div className="basket-submerge" aria-hidden="true" />
             <div className="basket-waterline" aria-hidden="true" />
-            <div className="basket-glow basket-glow-key" aria-hidden="true" />
             <div className="basket-water basket-water-front" aria-hidden="true">
               <span className="basket-ripple" />
               <span className="basket-ripple" />
