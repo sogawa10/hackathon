@@ -61,7 +61,7 @@
   height: 18%;
   z-index: -1;
   pointer-events: none;
-  background: linear-gradient(to bottom, rgba(214, 226, 196, 0), rgba(214, 226, 196, 0.4) 60%, rgba(214, 226, 196, 0.25) 85%, rgba(214, 226, 196, 0));
+  background: linear-gradient(to bottom, rgba(214, 226, 196, 0), rgba(214, 226, 196, 0.22) 60%, rgba(214, 226, 196, 0.12) 85%, rgba(214, 226, 196, 0));
 }
 
 @media (max-width: 700px) {
@@ -86,7 +86,7 @@
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background: radial-gradient(150% 110% at 50% 45%, transparent 55%, rgba(16, 38, 34, 0.38));
+  background: radial-gradient(120% 95% at 50% 62%, transparent 42%, rgba(16, 38, 34, 0.5));
 }
 
 .basket-scene-light::before {
@@ -312,7 +312,7 @@
   height: 100%;
   object-fit: contain;
   z-index: 10;
-  filter: saturate(0.76) contrast(0.86) sepia(0.18) brightness(0.86) blur(0.3px);
+  filter: saturate(0.8) contrast(0.86) sepia(0.16) brightness(1) blur(0.75px);
 }
 
 .basket-layer-front {
@@ -324,7 +324,7 @@
   object-fit: contain;
   z-index: 10000;
   pointer-events: none;
-  filter: saturate(0.76) contrast(0.86) sepia(0.18) brightness(0.86) blur(0.3px);
+  filter: saturate(0.8) contrast(0.86) sepia(0.16) brightness(1) blur(0.75px);
 }
 
 .basket-shade {
@@ -388,7 +388,7 @@
   cursor: grab;
   transform-origin: bottom center;
   transform: translate(-50%, -100%) rotate(var(--veg-rotation));
-  filter: saturate(0.8) contrast(0.86) sepia(0.14) brightness(0.86) blur(0.3px) drop-shadow(0.35vmin 0.6vmin 0.5vmin rgba(30, 26, 12, 0.55));
+  filter: saturate(0.84) contrast(0.88) sepia(0.12) brightness(0.96) blur(0.45px) drop-shadow(0.35vmin 0.6vmin 0.5vmin rgba(30, 26, 12, 0.55));
   transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s;
 }
 
@@ -400,12 +400,57 @@
   cursor: grabbing;
   transition: none;
   transform: translate(-50%, calc(-100% - 2%)) rotate(var(--veg-rotation)) scale(1.1);
-  filter: saturate(0.8) contrast(0.86) sepia(0.14) brightness(0.92) blur(0.3px) drop-shadow(1.2vmin 2.4vmin 1.4vmin rgba(30, 26, 12, 0.35));
+  filter: saturate(0.84) contrast(0.88) sepia(0.12) brightness(1) blur(0.45px) drop-shadow(1.2vmin 2.4vmin 1.4vmin rgba(30, 26, 12, 0.35));
 }
 
 @media (prefers-reduced-motion: reduce) {
   .basket-veg-item {
     transition: none;
+  }
+}
+
+.basket-glow {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+}
+
+.basket-glow-pool {
+  left: -6%;
+  right: -6%;
+  top: 22%;
+  bottom: -4%;
+  z-index: 4;
+  background: radial-gradient(closest-side, rgba(255, 240, 200, 0.5), rgba(255, 240, 200, 0.18) 55%, rgba(255, 240, 200, 0));
+  mix-blend-mode: screen;
+}
+
+.basket-glow-key {
+  left: 4%;
+  right: 4%;
+  top: -12%;
+  bottom: 18%;
+  z-index: 10004;
+  background: radial-gradient(closest-side at 46% 52%, rgba(255, 234, 186, 0.26), rgba(255, 234, 186, 0.1) 60%, rgba(255, 234, 186, 0));
+  mix-blend-mode: screen;
+}
+
+@keyframes basket-glow-breathe {
+  0%, 100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.basket-glow-key {
+  animation: basket-glow-breathe 8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .basket-glow-key {
+    animation: none;
   }
 }
 

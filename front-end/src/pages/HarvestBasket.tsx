@@ -325,6 +325,7 @@ const HarvestBasket: React.FC = () => {
 
         <div className="basket-pool">
           <div className="basket-stage">
+            <div className="basket-glow basket-glow-pool" aria-hidden="true" />
             <div className="basket-water" aria-hidden="true">
               <span className="basket-ripple" />
               <span className="basket-ripple" />
@@ -378,6 +379,7 @@ const HarvestBasket: React.FC = () => {
             <div className="basket-shade basket-shade-front" aria-hidden="true" />
             <div className="basket-submerge" aria-hidden="true" />
             <div className="basket-waterline" aria-hidden="true" />
+            <div className="basket-glow basket-glow-key" aria-hidden="true" />
             <div className="basket-water basket-water-front" aria-hidden="true">
               <span className="basket-ripple" />
               <span className="basket-ripple" />
