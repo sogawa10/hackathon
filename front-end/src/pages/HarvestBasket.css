@@ -14,7 +14,7 @@
   overflow: hidden;
   isolation: isolate;
   background: var(--pond-deep);
-  filter: saturate(0.86) contrast(0.92) brightness(1.08);
+  filter: saturate(0.86) contrast(0.92) brightness(1.12);
 }
 
 .basket-scene-far,

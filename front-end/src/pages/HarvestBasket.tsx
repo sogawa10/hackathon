@@ -48,7 +48,7 @@ const VEGETABLE_SHAPES: Record<string, VegetableShape> = {
 const FALLBACK_VEGETABLE: Record<string, string> = { S: 'プチトマト', M: 'なす', L: 'かぼちゃ' };
 
 const STAGE_ASPECT = 1408 / 768;
-const VEGETABLE_SCALE = 0.85;
+const VEGETABLE_SCALE = 0.92;
 
 const BASKET = {
   centerX: 50,
@@ -115,7 +115,7 @@ const depthIndex = (veg: HarvestedVegetable, y: number) =>
   SIZE_TIER[getShape(veg).size] + Math.round(y * 10);
 
 const BASKET_ROWS = [-0.72, 0.02, 0.58];
-const ROW_OVERLAP = 0.82;
+const ROW_OVERLAP = 0.7;
 const LAYER_LIFT = 3;
 
 const rowY = (depth: number, x: number) => {
