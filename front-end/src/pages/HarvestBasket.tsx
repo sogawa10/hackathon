@@ -48,6 +48,7 @@ const VEGETABLE_SHAPES: Record<string, VegetableShape> = {
 const FALLBACK_VEGETABLE: Record<string, string> = { S: 'プチトマト', M: 'なす', L: 'かぼちゃ' };
 
 const STAGE_ASPECT = 1408 / 768;
+const VEGETABLE_SCALE = 0.85;
 
 const BASKET = {
   centerX: 50,
@@ -55,11 +56,12 @@ const BASKET = {
   floorCenterY: 52.5,
   floorRadiusX: 34,
   floorRadiusY: 11.5,
+  floorFrontRadiusY: 19,
   rimCenterY: 40.5,
   rimRadiusX: 41.7,
   rimRadiusY: 19.5,
   maxPileHeight: 20,
-  minVisibleRatio: 0.45,
+  minVisibleRatio: 0.25,
 };
 
 const LOCAL_STORAGE_BASKET_KEY = 'harvest_basket_positions_v2';
@@ -86,7 +88,8 @@ const getImagePath = (veg: HarvestedVegetable) => {
 };
 
 const getFootprint = (veg: HarvestedVegetable) => {
-  const { imageWidth, imageHeight, longSide } = getShape(veg);
+  const { imageWidth, imageHeight } = getShape(veg);
+  const longSide = getShape(veg).longSide * VEGETABLE_SCALE;
   const longest = Math.max(imageWidth, imageHeight);
   const width = longSide * imageWidth / longest;
   const height = longSide * imageHeight / longest * STAGE_ASPECT;
@@ -104,10 +107,10 @@ const clampToBasket = (veg: HarvestedVegetable, x: number, y: number) => {
   const nextX = Math.max(BASKET.centerX - maxDx, Math.min(BASKET.centerX + maxDx, x));
 
   const dx = (nextX - BASKET.centerX) / BASKET.floorRadiusX;
-  const floorSpan = BASKET.floorRadiusY * Math.sqrt(Math.max(0, 1 - dx * dx));
-  const floorBack = BASKET.floorCenterY - floorSpan;
+  const span = Math.sqrt(Math.max(0, 1 - dx * dx));
+  const floorBack = BASKET.floorCenterY - BASKET.floorRadiusY * span;
   const floorFront = Math.min(
-    BASKET.floorCenterY + floorSpan,
+    BASKET.floorCenterY + BASKET.floorFrontRadiusY * span,
     frontRimTop(nextX) + height * (1 - BASKET.minVisibleRatio),
   );
   const nextY = Math.max(floorBack - BASKET.maxPileHeight, Math.min(floorFront, y));
@@ -163,7 +166,7 @@ const arrangeInBasket = (data: HarvestedVegetable[], stored: Record<string, Harv
       const base = clampToBasket(
         veg,
         BASKET.centerX + r * Math.cos(theta) * BASKET.floorRadiusX,
-        BASKET.floorCenterY + r * Math.sin(theta) * BASKET.floorRadiusY,
+        BASKET.floorCenterY + r * Math.sin(theta) * (Math.sin(theta) > 0 ? BASKET.floorFrontRadiusY : BASKET.floorRadiusY),
       );
 
       let overlap = 0;
@@ -310,8 +313,8 @@ const HarvestBasket: React.FC = () => {
     <Layout>
       <div className="basket-scene">
         <div className="basket-scene-far" aria-hidden="true" />
-        <div className="basket-scene-pond" aria-hidden="true" />
         <div className="basket-scene-seam" aria-hidden="true" />
+        <div className="basket-scene-pond" aria-hidden="true" />
 
         <header className="basket-sign">
           <h1 className="basket-title">収穫かご</h1>
