@@ -61,10 +61,6 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
   const navigate = useNavigate();
   const field: (TodaySubtask | null)[] = Array(25).fill(null);
 
-  const vegetableCount = new Set(
-    (subtasks || []).filter((t): t is TodaySubtask => Boolean(t)).map((t) => t.task_id)
-  ).size;
-
   const [recentCompleted, setRecentCompleted] = useState<Set<string>>(new Set());
   const [growthMsgs, setGrowthMsgs] = useState<{ [subTaskId: string]: string }>({});
   const [isClearingSystemMessage, setIsClearingSystemMessage] = useState(false);
@@ -257,13 +253,6 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
       >
         {systemMessage}
       </div>
-
-      <header className="field-sign">
-        <h2 className="field-sign-title">がんばり農園</h2>
-        <p className="field-sign-summary">
-          育てている野菜 <span className="field-sign-count">{vegetableCount}</span> 個
-        </p>
-      </header>
 
       <div className="field-scene">
         <div className="field-board" ref={boardRef} onClick={() => setHoveredTask(null)}>
