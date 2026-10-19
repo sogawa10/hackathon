@@ -62,7 +62,9 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
   const field: (TodaySubtask | null)[] = Array(25).fill(null);
 
   const userName = (localStorage.getItem('user_name') || '').trim();
-  const farmName = userName ? `${userName}のがんばり農園` : 'がんばり農園';
+  const vegetableCount = new Set(
+    (subtasks || []).filter((t): t is TodaySubtask => Boolean(t)).map((t) => t.task_id)
+  ).size;
 
   const [recentCompleted, setRecentCompleted] = useState<Set<string>>(new Set());
   const [growthMsgs, setGrowthMsgs] = useState<{ [subTaskId: string]: string }>({});
@@ -258,7 +260,11 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
       </div>
 
       <header className="field-sign">
-        <h2 className="field-sign-title">{farmName}</h2>
+        <h2 className="field-sign-title">がんばり農園</h2>
+        <p className="field-sign-summary">
+          {userName ? `${userName}さんが育てている野菜 ` : '育てている野菜 '}
+          <span className="field-sign-count">{vegetableCount}</span> 個
+        </p>
       </header>
 
       <div className="field-scene">

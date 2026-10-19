@@ -54,6 +54,20 @@
   text-shadow: 0 1px 0 rgba(255, 236, 200, 0.6);
 }
 
+.field-sign-summary {
+  margin-top: 0.15rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: rgba(42, 33, 22, 0.82);
+}
+
+.field-sign-count {
+  font-family: var(--display);
+  font-size: 1.5rem;
+  color: #2a2116;
+  font-variant-numeric: tabular-nums;
+}
+
 .system-toast {
   position: absolute;
   top: 3rem;
