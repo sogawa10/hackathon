@@ -31,8 +31,8 @@
   z-index: 1;
   isolation: isolate;
   left: 50%;
-  transform: translate(-50%, 5vh);
-  width: min(calc(78vh * 1472 / 720), 150vw);
+  transform: translate(-50%, 9vh);
+  width: min(calc(72vh * 1472 / 720), 150vw);
   aspect-ratio: 1472 / 720;
   background: url("/VegeTASK_畑の周り.png") center / 100% 100% no-repeat;
 }
