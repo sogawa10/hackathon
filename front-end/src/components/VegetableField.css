@@ -9,9 +9,10 @@
 
 .field-sign {
   position: relative;
+  z-index: 2;
   align-self: flex-start;
-  margin: 0 0 clamp(0.4rem, 1vh, 0.9rem) 1.5%;
-  padding: 0.6rem 1.6rem 0.75rem;
+  margin: 0 0 clamp(14px, 2vh, 24px) clamp(16px, 4vw, 48px);
+  padding: 0.9rem 1.5rem 1rem;
   color: #2a2116;
   background:
     repeating-linear-gradient(
@@ -25,30 +26,30 @@
   box-shadow:
     inset 0 -3px 0 rgba(90, 55, 22, 0.35),
     inset 0 1px 0 rgba(255, 240, 210, 0.55),
-    0 14px 24px -10px rgba(20, 30, 20, 0.45);
+    0 14px 24px -10px rgba(20, 30, 20, 0.55);
 }
 
 .field-sign::before,
 .field-sign::after {
   content: '';
   position: absolute;
-  top: 0.5rem;
+  top: 0.55rem;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #8d8a80, #3d3a33);
 }
 
-.field-sign::before { left: 0.5rem; }
-.field-sign::after { right: 0.5rem; }
+.field-sign::before { left: 0.55rem; }
+.field-sign::after { right: 0.55rem; }
 
 .field-sign-title {
   margin: 0;
   font-family: var(--display);
   font-weight: 400;
-  font-size: clamp(1.3rem, 2.3vw, 1.85rem);
+  font-size: clamp(1.75rem, 3.2vw, 2.4rem);
   line-height: 1.15;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: #2a2116;
   text-shadow: 0 1px 0 rgba(255, 236, 200, 0.6);
 }
@@ -76,7 +77,7 @@
 
 .field-scene {
   position: relative;
-  width: min(100%, calc(80vh * 1472 / 720));
+  width: min(100%, calc(88vh * 1472 / 720));
   aspect-ratio: 1472 / 720;
   margin: 0 auto;
   background: url("/VegeTASK_畑の周り.png") center / 100% 100% no-repeat;
@@ -84,9 +85,9 @@
 
 .field-board {
   position: absolute;
-  left: 20.7%;
-  top: 0.83%;
-  width: 57.7%;
+  left: 25.2%;
+  top: 3.99%;
+  width: 49%;
   aspect-ratio: 9 / 8;
   background-image: url("/VegeTASK_畑.png");
   background-size: contain;

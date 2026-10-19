@@ -11,12 +11,12 @@
   gap: clamp(16px, 3vw, 40px);
   align-items: center;
   width: 100%;
-  max-width: 1720px;
+  max-width: 1760px;
   margin: 0 auto;
 }
 
 .home-field-section {
-  flex: 1.75;
+  flex: 2;
   min-width: 0;
   display: flex;
   align-items: center;
