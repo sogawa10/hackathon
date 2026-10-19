@@ -28,9 +28,12 @@
 
 .field-scene {
   position: relative;
-  width: min(100%, calc(88vh * 1472 / 720));
+  z-index: 1;
+  isolation: isolate;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(84vh * 1472 / 720), 150vw);
   aspect-ratio: 1472 / 720;
-  margin: 0 auto;
   background: url("/VegeTASK_畑の周り.png") center / 100% 100% no-repeat;
 }
 
@@ -262,6 +265,8 @@
 
 @media (max-width: 600px) {
   .field-scene {
+    left: auto;
+    transform: none;
     width: 100%;
     aspect-ratio: 9 / 8;
     background: none;

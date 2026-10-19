@@ -87,6 +87,8 @@
 }
 
 .todo-section {
+  position: relative;
+  z-index: 2;
   flex: 1;
   min-width: 0;
   height: 64vh;
