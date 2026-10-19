@@ -325,6 +325,7 @@
 
   .field-sign {
     position: static;
+    align-self: flex-start;
     margin: 0 0 12px;
   }
 
