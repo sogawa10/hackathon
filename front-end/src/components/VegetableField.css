@@ -1,17 +1,56 @@
 .field-container {
-  text-align: center;
   padding: 0;
   position: relative;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
-.field-title {
-  margin: 0 0 0.5rem;
+.field-sign {
+  position: relative;
+  align-self: flex-start;
+  margin: 0 0 clamp(0.4rem, 1vh, 0.9rem) 1.5%;
+  padding: 0.6rem 1.6rem 0.75rem;
+  color: #2a2116;
+  background:
+    repeating-linear-gradient(
+      178deg,
+      rgba(139, 90, 43, 0) 0 7px,
+      rgba(139, 90, 43, 0.14) 7px 8px,
+      rgba(139, 90, 43, 0) 8px 15px
+    ),
+    linear-gradient(180deg, #ddb07a, #c9955a 60%, #b98349);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 -3px 0 rgba(90, 55, 22, 0.35),
+    inset 0 1px 0 rgba(255, 240, 210, 0.55),
+    0 14px 24px -10px rgba(20, 30, 20, 0.45);
+}
+
+.field-sign::before,
+.field-sign::after {
+  content: '';
+  position: absolute;
+  top: 0.5rem;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #8d8a80, #3d3a33);
+}
+
+.field-sign::before { left: 0.5rem; }
+.field-sign::after { right: 0.5rem; }
+
+.field-sign-title {
+  margin: 0;
   font-family: var(--display);
   font-weight: 400;
-  font-size: 1.35rem;
-  letter-spacing: 0.04em;
-  color: var(--soil);
+  font-size: clamp(1.3rem, 2.3vw, 1.85rem);
+  line-height: 1.15;
+  letter-spacing: 0.06em;
+  color: #2a2116;
+  text-shadow: 0 1px 0 rgba(255, 236, 200, 0.6);
 }
 
 .system-toast {
@@ -45,9 +84,9 @@
 
 .field-board {
   position: absolute;
-  left: 25.3%;
-  top: 8.6%;
-  width: 48.6%;
+  left: 20.7%;
+  top: 0.83%;
+  width: 57.7%;
   aspect-ratio: 9 / 8;
   background-image: url("/VegeTASK_畑.png");
   background-size: contain;

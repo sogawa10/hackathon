@@ -60,7 +60,10 @@ const ASSET_SCALE = 0.3;
 const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMessage, onClearSystemMessage, onHarvestClick }) => {
   const navigate = useNavigate();
   const field: (TodaySubtask | null)[] = Array(25).fill(null);
-  
+
+  const userName = (localStorage.getItem('user_name') || '').trim();
+  const farmName = userName ? `${userName}のがんばり農園` : 'がんばり農園';
+
   const [recentCompleted, setRecentCompleted] = useState<Set<string>>(new Set());
   const [growthMsgs, setGrowthMsgs] = useState<{ [subTaskId: string]: string }>({});
   const [isClearingSystemMessage, setIsClearingSystemMessage] = useState(false);
@@ -254,7 +257,9 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
         {systemMessage}
       </div>
 
-      <h2 className="field-title">がんばり農園</h2>
+      <header className="field-sign">
+        <h2 className="field-sign-title">{farmName}</h2>
+      </header>
 
       <div className="field-scene">
         <div className="field-board" ref={boardRef} onClick={() => setHoveredTask(null)}>
