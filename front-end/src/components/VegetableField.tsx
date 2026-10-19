@@ -256,133 +256,135 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
 
       <h2 className="field-title">がんばり農園</h2>
 
-      <div className="field-board" ref={boardRef} onClick={() => setHoveredTask(null)}>
-        {field.map((task, index) => {
-          if (!task || task.vegetable_name === undefined) return null;
+      <div className="field-scene">
+        <div className="field-board" ref={boardRef} onClick={() => setHoveredTask(null)}>
+          {field.map((task, index) => {
+            if (!task || task.vegetable_name === undefined) return null;
 
-          const { path, label, bgColor, scaleMultiplier, bottomOffsetBase, statusText } = getVegetableInfo(task);
-          const pos = GRID_POSITIONS[index] || { top: '50%', left: '50%' };
-          const isAnimating = recentCompleted.has(task.sub_task_id);
-          const growthMsg = growthMsgs[task.sub_task_id];
-          const isHarvestable = task.growth_stage === 10 && Boolean(onHarvestClick);
-          const isInteractive = isHarvestable;
-          const activateCrop = () => {
-            if (isHarvestable) onHarvestClick?.(task);
-          };
+            const { path, label, bgColor, scaleMultiplier, bottomOffsetBase, statusText } = getVegetableInfo(task);
+            const pos = GRID_POSITIONS[index] || { top: '50%', left: '50%' };
+            const isAnimating = recentCompleted.has(task.sub_task_id);
+            const growthMsg = growthMsgs[task.sub_task_id];
+            const isHarvestable = task.growth_stage === 10 && Boolean(onHarvestClick);
+            const isInteractive = isHarvestable;
+            const activateCrop = () => {
+              if (isHarvestable) onHarvestClick?.(task);
+            };
 
-          const currentScale = ASSET_SCALE * scaleMultiplier * boardScale;
-          const bottomOffset = `${bottomOffsetBase * boardScale}px`;
+            const currentScale = ASSET_SCALE * scaleMultiplier * boardScale;
+            const bottomOffset = `${bottomOffsetBase * boardScale}px`;
 
-          const openTaskDetail = () => {
-            navigate(`/tasks/${task.task_id}`);
-          };
+            const openTaskDetail = () => {
+              navigate(`/tasks/${task.task_id}`);
+            };
 
-          return (
-            <div 
-              key={index}
-              className="crop-slot"
-              onMouseEnter={() => showTaskHover(task.sub_task_id)}
-              onMouseLeave={hideTaskHover}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isHarvestable) return;
-                setHoveredTask(task.sub_task_id);
-              }}
-              style={{
-                top: pos.top,
-                left: pos.left,
-                zIndex: hoveredTask === task.sub_task_id ? 99 : index
-              }}
-            >
-              <div className="crop-wrapper">
-                
-                {growthMsg && (
-                  <div 
-                    className="popup-tooltip growth-message"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setGrowthMsgs(prev => {
-                        const next = { ...prev };
-                        delete next[task.sub_task_id];
-                        return next;
-                      });
-                    }}
-                  >
-                    {growthMsg}
-                  </div>
-                )}
-
-                {hoveredTask === task.sub_task_id && !growthMsg && (
-                  <div className={`popup-tooltip hover-task-name${isHarvestable ? ' is-ripe' : ''}`}>
-                    {statusText && (
-                      <span className={`crop-status stage-${task.growth_stage === 10 ? 'ripe' : task.growth_stage <= 0 ? 'seed' : 'growing'}`}>
-                        {statusText}
-                      </span>
-                    )}
-                    <span className="crop-task-title">{task.task_title}</span>
-                    <button
-                      type="button"
-                      className="crop-detail-btn"
+            return (
+              <div 
+                key={index}
+                className="crop-slot"
+                onMouseEnter={() => showTaskHover(task.sub_task_id)}
+                onMouseLeave={hideTaskHover}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isHarvestable) return;
+                  setHoveredTask(task.sub_task_id);
+                }}
+                style={{
+                  top: pos.top,
+                  left: pos.left,
+                  zIndex: hoveredTask === task.sub_task_id ? 99 : index
+                }}
+              >
+                <div className="crop-wrapper">
+                  
+                  {growthMsg && (
+                    <div 
+                      className="popup-tooltip growth-message"
                       onClick={(e) => {
                         e.stopPropagation();
-                        openTaskDetail();
+                        setGrowthMsgs(prev => {
+                          const next = { ...prev };
+                          delete next[task.sub_task_id];
+                          return next;
+                        });
                       }}
                     >
-                      詳細を見る
-                    </button>
-                  </div>
-                )}
+                      {growthMsg}
+                    </div>
+                  )}
 
-                {path && (
-                  <img 
-                    key={path}
-                    src={path} 
-                    alt={task.task_title || '野菜'}
-                    className={`crop-image${task.growth_stage === 10 ? ' is-ripe' : ''}`}
-                    draggable={false}
-                    role={isHarvestable ? 'button' : undefined}
-                    tabIndex={isInteractive ? 0 : undefined}
-                    aria-label={isInteractive ? `${task.task_title}：収穫する` : undefined}
-                    onDragStart={(e) => e.preventDefault()}
-                    onClick={(e) => {
-                      if (isInteractive) {
-                        e.stopPropagation();
-                        activateCrop();
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (isInteractive && (e.key === 'Enter' || (isHarvestable && e.key === ' '))) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        activateCrop();
-                      }
-                    }}
-                    style={{ 
-                      bottom: bottomOffset,
-                      '--target-scale': currentScale,
-                      transform: `translateX(-50%) scale(${currentScale})`, 
-                      opacity: task.growth_stage === -1 ? 0 : (isAnimating ? 0.4 : 1),
-                      cursor: isInteractive ? 'pointer' : 'default',
-                    } as React.CSSProperties} 
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                    }}
-                  />
+                  {hoveredTask === task.sub_task_id && !growthMsg && (
+                    <div className={`popup-tooltip hover-task-name${isHarvestable ? ' is-ripe' : ''}`}>
+                      {statusText && (
+                        <span className={`crop-status stage-${task.growth_stage === 10 ? 'ripe' : task.growth_stage <= 0 ? 'seed' : 'growing'}`}>
+                          {statusText}
+                        </span>
+                      )}
+                      <span className="crop-task-title">{task.task_title}</span>
+                      <button
+                        type="button"
+                        className="crop-detail-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openTaskDetail();
+                        }}
+                      >
+                        詳細を見る
+                      </button>
+                    </div>
+                  )}
+
+                  {path && (
+                    <img 
+                      key={path}
+                      src={path} 
+                      alt={task.task_title || '野菜'}
+                      className={`crop-image${task.growth_stage === 10 ? ' is-ripe' : ''}`}
+                      draggable={false}
+                      role={isHarvestable ? 'button' : undefined}
+                      tabIndex={isInteractive ? 0 : undefined}
+                      aria-label={isInteractive ? `${task.task_title}：収穫する` : undefined}
+                      onDragStart={(e) => e.preventDefault()}
+                      onClick={(e) => {
+                        if (isInteractive) {
+                          e.stopPropagation();
+                          activateCrop();
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (isInteractive && (e.key === 'Enter' || (isHarvestable && e.key === ' '))) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          activateCrop();
+                        }
+                      }}
+                      style={{ 
+                        bottom: bottomOffset,
+                        '--target-scale': currentScale,
+                        transform: `translateX(-50%) scale(${currentScale})`, 
+                        opacity: task.growth_stage === -1 ? 0 : (isAnimating ? 0.4 : 1),
+                        cursor: isInteractive ? 'pointer' : 'default',
+                      } as React.CSSProperties} 
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                  )}
+                </div>
+
+                {label && (
+                  <span 
+                    className="crop-label" 
+                    style={{ backgroundColor: bgColor }}
+                  >
+                    {label}
+                  </span>
                 )}
               </div>
-
-              {label && (
-                <span 
-                  className="crop-label" 
-                  style={{ backgroundColor: bgColor }}
-                >
-                  {label}
-                </span>
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
