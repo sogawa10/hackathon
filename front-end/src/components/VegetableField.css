@@ -37,18 +37,18 @@
 
 .field-scene {
   position: relative;
-  width: min(100%, calc(64vh * 5 / 3));
-  aspect-ratio: 5 / 3;
+  width: min(100%, calc(76vh * 1472 / 720));
+  aspect-ratio: 1472 / 720;
   margin: 0 auto;
-  background: url("/VegeTASK_畑の周り.svg") center / 100% 100% no-repeat;
+  background: url("/VegeTASK_畑の周り.png") center / 100% 100% no-repeat;
 }
 
 .field-board {
   position: absolute;
-  left: 21.875%;
-  top: 11.111%;
-  width: 56.25%;
-  height: 83.333%;
+  left: 25.5%;
+  top: 13%;
+  width: 52%;
+  aspect-ratio: 9 / 8;
   background-image: url("/VegeTASK_畑.png");
   background-size: contain;
   background-repeat: no-repeat;
@@ -280,6 +280,7 @@
     left: 0;
     top: 0;
     width: 100%;
+    aspect-ratio: auto;
     height: 100%;
   }
 }
