@@ -11,12 +11,12 @@
   gap: clamp(16px, 3vw, 40px);
   align-items: center;
   width: 100%;
-  max-width: 1440px;
+  max-width: 1720px;
   margin: 0 auto;
 }
 
 .home-field-section {
-  flex: 6;
+  flex: 1.75;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -24,7 +24,7 @@
 }
 
 .todo-section {
-  flex: 4;
+  flex: 1;
   min-width: 0;
   height: 64vh;
   display: flex;

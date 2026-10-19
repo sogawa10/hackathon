@@ -37,7 +37,7 @@
 
 .field-scene {
   position: relative;
-  width: min(100%, calc(76vh * 1472 / 720));
+  width: min(100%, calc(80vh * 1472 / 720));
   aspect-ratio: 1472 / 720;
   margin: 0 auto;
   background: url("/VegeTASK_畑の周り.png") center / 100% 100% no-repeat;
@@ -45,9 +45,9 @@
 
 .field-board {
   position: absolute;
-  left: 25.5%;
-  top: 13%;
-  width: 52%;
+  left: 24%;
+  top: 11.5%;
+  width: 53.5%;
   aspect-ratio: 9 / 8;
   background-image: url("/VegeTASK_畑.png");
   background-size: contain;
