@@ -260,10 +260,12 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
       </div>
 
       <header className="field-sign">
-        <h2 className="field-sign-title">がんばり農園</h2>
+        <h2 className="field-sign-title">
+          {userName && <span className="field-sign-owner">{userName}さんの</span>}
+          がんばり農園
+        </h2>
         <p className="field-sign-summary">
-          {userName ? `${userName}さんが育てている野菜 ` : '育てている野菜 '}
-          <span className="field-sign-count">{vegetableCount}</span> 個
+          育てている野菜 <span className="field-sign-count">{vegetableCount}</span> 個
         </p>
       </header>
 

@@ -54,6 +54,16 @@
   text-shadow: 0 1px 0 rgba(255, 236, 200, 0.6);
 }
 
+.field-sign-owner {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  margin-right: 0.15em;
+  color: rgba(42, 33, 22, 0.82);
+  text-shadow: none;
+}
+
 .field-sign-summary {
   margin-top: 0.15rem;
   font-weight: 700;
