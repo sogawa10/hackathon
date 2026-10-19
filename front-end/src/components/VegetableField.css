@@ -8,10 +8,11 @@
 }
 
 .field-sign {
-  position: relative;
-  z-index: 2;
-  align-self: flex-start;
-  margin: 0 0 clamp(14px, 2vh, 24px) clamp(16px, 4vw, 48px);
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  margin: 0;
   padding: 0.9rem 1.5rem 1rem;
   color: #2a2116;
   background:
@@ -324,6 +325,11 @@
 }
 
 @media (max-width: 600px) {
+  .field-sign {
+    position: static;
+    margin: 0 0 12px;
+  }
+
   .field-scene {
     width: 100%;
     aspect-ratio: 9 / 8;
