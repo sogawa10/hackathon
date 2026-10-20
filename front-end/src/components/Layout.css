@@ -10,6 +10,7 @@
   width: 100%;
   padding: 24px clamp(16px, 3vw, 40px);
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
 }

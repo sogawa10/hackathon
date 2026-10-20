@@ -30,6 +30,7 @@ const Signup: React.FC = () => {
       }
 
       localStorage.setItem('access_token', data.access_token);
+      localStorage.setItem('user_name', username);
       localStorage.removeItem('refresh_token');
 
       navigate('/home', { replace: true });

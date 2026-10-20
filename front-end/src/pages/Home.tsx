@@ -322,6 +322,9 @@ const Home: React.FC = () => {
   const checkableTasks = validTasks.filter(t => t.is_checkable !== false);
 
   const fieldTasks = subtasks.filter(t => t && t.growth_stage !== 11);
+  const vegetableCount = new Set(
+    fieldTasks.map((t) => t?.task_id).filter((id): id is string => Boolean(id))
+  ).size;
 
   return (
     <Layout>
@@ -362,8 +365,14 @@ const Home: React.FC = () => {
       )}
 
       <div className="home-container">
+        <header className="field-sign">
+          <h2 className="field-sign-title">がんばり農園</h2>
+          <p className="field-sign-summary">
+            育てている野菜 <span className="field-sign-count">{vegetableCount}</span> 個
+          </p>
+        </header>
         <div className="home-layout">
-          
+
           <section className="home-field-section">
             <VegetableField 
               subtasks={fieldTasks} 
