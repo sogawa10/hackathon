@@ -411,6 +411,7 @@ func TestAuthMiddlewareToken(t *testing.T) {
 			{"DELETE", "/api/tasks/00000000-0000-0000-0000-000000000000"},
 			{"POST", "/api/tasks/harvest"},
 			{"GET", "/api/harvest_basket"},
+			{"GET", "/api/vegetables"},
 		} {
 			if rec := reqRaw(t, ep.method, ep.path, "", "{}"); rec.Code != 401 {
 				t.Errorf("%s %s: 期待401, 実際 %d", ep.method, ep.path, rec.Code)
@@ -983,13 +984,13 @@ func TestTaskList(t *testing.T) {
 
 	t.Run("必須フィールドが揃っている", func(t *testing.T) {
 		o := byID[today]
-		for _, k := range []string{"task_id", "task_type", "task_title", "start_date", "end_date", "buffer_days", "vegetable_name", "growth_stage", "field_position"} {
+		for _, k := range []string{"task_id", "task_type", "task_title", "start_date", "end_date", "buffer_days", "vegetable_name", "vegetable_size", "growth_stage", "field_position"} {
 			if _, ok := o[k]; !ok {
 				t.Fatalf("フィールド %s が無い: %v", k, o)
 			}
 		}
-		if o["vegetable_name"] != "プチトマト" {
-			t.Fatalf("vegetable_name 期待プチトマト, 実際 %v", o["vegetable_name"])
+		if o["vegetable_name"] != "プチトマト" || o["vegetable_size"] != "S" {
+			t.Fatalf("野菜 期待プチトマト(S), 実際 %v(%v)", o["vegetable_name"], o["vegetable_size"])
 		}
 		if o["field_position"].(float64) != 12 {
 			t.Fatalf("field_position 期待12, 実際 %v", o["field_position"])
@@ -1030,6 +1031,9 @@ func TestTodaySubtasks(t *testing.T) {
 				}
 				if o["field_position"].(float64) != 12 {
 					t.Fatalf("field_position 期待12, 実際 %v", o["field_position"])
+				}
+				if o["vegetable_size"] != "S" {
+					t.Fatalf("vegetable_size 期待S, 実際 %v", o["vegetable_size"])
 				}
 			}
 		}
@@ -1241,6 +1245,8 @@ func TestHarvestAndBasket(t *testing.T) {
 	testDB.Exec(`UPDATE "SUB_TASKS" SET is_completed=true WHERE task_id=$1 AND task_content<>'予備日（調整期間）'`, taskID)
 	testDB.Exec(`UPDATE "TASKS" SET growth_stage=10 WHERE task_id=$1`, taskID)
 
+	var harvestID string
+
 	t.Run("growth_stage10なら収穫成功", func(t *testing.T) {
 		rec := req(t, "POST", "/api/tasks/harvest", token, map[string]string{"task_id": taskID})
 		mustStatus(t, rec, 200)
@@ -1248,16 +1254,32 @@ func TestHarvestAndBasket(t *testing.T) {
 		if obj["vegetable_name"] != "プチトマト" || obj["size"] != "S" {
 			t.Fatalf("収穫レスポンス不正: %v", obj)
 		}
+		harvestID, _ = obj["harvest_id"].(string)
+		if harvestID == "" || harvestID == taskID {
+			t.Fatalf("harvest_id はタスクIDと別の収穫IDであるべき: %v", obj)
+		}
 		if dbGrowthStage(t, taskID) != 11 {
 			t.Fatalf("収穫後 growth_stage 期待11, 実際 %d", dbGrowthStage(t, taskID))
 		}
 	})
 
-	t.Run("かごに収穫済みが入る", func(t *testing.T) {
+	t.Run("HARVESTSに収穫日付きで記録される", func(t *testing.T) {
+		var gotTask string
+		var harvestedAt time.Time
+		if err := testDB.QueryRow(`SELECT task_id, harvested_at FROM "HARVESTS" WHERE harvest_id=$1`, harvestID).Scan(&gotTask, &harvestedAt); err != nil {
+			t.Fatalf("HARVESTS に記録が無い: %v", err)
+		}
+		if gotTask != taskID || harvestedAt.Format("2006-01-02") != day(0) {
+			t.Fatalf("HARVESTS の内容が不正: task_id=%s harvested_at=%s", gotTask, harvestedAt.Format("2006-01-02"))
+		}
+	})
+
+	t.Run("かごに収穫済みが入り_収穫日は期日ではなく実際の収穫日", func(t *testing.T) {
 		rec := req(t, "GET", "/api/harvest_basket", token, nil)
 		mustStatus(t, rec, 200)
 		arr := decodeArray(t, rec)
-		if len(arr) != 1 || arr[0]["vegetable_name"] != "プチトマト" || arr[0]["vegetable_size"] != "S" {
+		if len(arr) != 1 || arr[0]["harvest_id"] != harvestID || arr[0]["task_id"] != taskID ||
+			arr[0]["vegetable_name"] != "プチトマト" || arr[0]["vegetable_size"] != "S" || arr[0]["harvested_at"] != day(0) {
 			t.Fatalf("かご内容が不正: %s", rec.Body.String())
 		}
 	})
@@ -1303,7 +1325,8 @@ func TestHarvestEdgeCases(t *testing.T) {
 		rec := req(t, "POST", "/api/tasks/harvest", token, map[string]string{"task_id": taskID})
 		mustStatus(t, rec, 200)
 		obj := decodeObj(t, rec)
-		if obj["harvest_id"] != taskID || obj["size"] != "L" {
+		harvestID, _ := obj["harvest_id"].(string)
+		if harvestID == "" || harvestID == taskID || obj["size"] != "L" {
 			t.Fatalf("収穫レスポンス不正: %v", obj)
 		}
 		mustStatus(t, req(t, "POST", "/api/tasks/harvest", token, map[string]string{"task_id": taskID}), 400)
@@ -1313,7 +1336,7 @@ func TestHarvestEdgeCases(t *testing.T) {
 		for _, o := range decodeArray(t, rec) {
 			if o["task_id"] == taskID {
 				count++
-				if o["harvest_id"] != taskID || o["vegetable_size"] != "L" || o["harvested_at"] != day(6) {
+				if o["harvest_id"] != harvestID || o["vegetable_size"] != "L" || o["harvested_at"] != day(0) {
 					t.Fatalf("かごの内容が不正: %v", o)
 				}
 			}
@@ -1323,21 +1346,31 @@ func TestHarvestEdgeCases(t *testing.T) {
 		}
 	})
 
-	t.Run("かごは終了日の新しい順_枯れたタスクは入らない", func(t *testing.T) {
+	t.Run("かごは収穫日の新しい順_枯れたタスクは入らない", func(t *testing.T) {
+		savedToday := os.Getenv("MOCK_TODAY")
+		defer setToday(savedToday)
+
 		_, token := newUser(t, "basket-order")
-		older := newTaskWithVeg(t, token, "問題集", "older", 10, 1, day(0), day(6), "プチトマト")
-		newer := newTaskWithVeg(t, token, "問題集", "newer", 10, 1, day(0), day(20), "なす")
+		older := newTaskWithVeg(t, token, "問題集", "older", 10, 1, day(0), day(20), "プチトマト")
+		newer := newTaskWithVeg(t, token, "問題集", "newer", 10, 1, day(0), day(6), "なす")
 		dead := newTaskWithVeg(t, token, "問題集", "dead", 10, 1, day(0), day(30), "ネギ")
-		testDB.Exec(`UPDATE "TASKS" SET growth_stage=11 WHERE task_id IN ($1, $2)`, older, newer)
+		testDB.Exec(`UPDATE "TASKS" SET growth_stage=10 WHERE task_id IN ($1, $2)`, older, newer)
 		testDB.Exec(`UPDATE "TASKS" SET growth_stage=-1 WHERE task_id=$1`, dead)
+
+		setToday(day(1))
+		mustStatus(t, req(t, "POST", "/api/tasks/harvest", token, map[string]string{"task_id": older}), 200)
+		setToday(day(3))
+		mustStatus(t, req(t, "POST", "/api/tasks/harvest", token, map[string]string{"task_id": newer}), 200)
+		setToday(savedToday)
 
 		rec := req(t, "GET", "/api/harvest_basket", token, nil)
 		arr := decodeArray(t, rec)
 		if len(arr) != 2 || arr[0]["task_id"] != newer || arr[1]["task_id"] != older {
 			t.Fatalf("かごの並び・件数が不正: %s", rec.Body.String())
 		}
-		if arr[0]["vegetable_size"] != "M" || arr[1]["vegetable_size"] != "S" {
-			t.Fatalf("vegetable_size が不正: %s", rec.Body.String())
+		if arr[0]["vegetable_size"] != "M" || arr[1]["vegetable_size"] != "S" ||
+			arr[0]["harvested_at"] != day(3) || arr[1]["harvested_at"] != day(1) {
+			t.Fatalf("vegetable_size・harvested_at が不正: %s", rec.Body.String())
 		}
 	})
 }
@@ -1365,6 +1398,23 @@ func TestDeleteTask(t *testing.T) {
 		testDB.QueryRow(`SELECT count(*) FROM "SUB_TASKS" WHERE task_id=$1`, taskID).Scan(&cnt)
 		if cnt != 0 {
 			t.Fatalf("サブタスクがカスケード削除されていない: %d 件", cnt)
+		}
+	})
+
+	t.Run("収穫済みタスクを削除すると収穫記録も消える", func(t *testing.T) {
+		harvested := newTaskWithVeg(t, token, "問題集", "delete-harvested", 10, 1, day(0), day(6), "オクラ")
+		testDB.Exec(`UPDATE "TASKS" SET growth_stage=10 WHERE task_id=$1`, harvested)
+		mustStatus(t, req(t, "POST", "/api/tasks/harvest", token, map[string]string{"task_id": harvested}), 200)
+
+		mustStatus(t, req(t, "DELETE", "/api/tasks/"+harvested, token, nil), 200)
+
+		var cnt int
+		testDB.QueryRow(`SELECT count(*) FROM "HARVESTS" WHERE task_id=$1`, harvested).Scan(&cnt)
+		if cnt != 0 {
+			t.Fatalf("収穫記録が削除されていない: %d 件", cnt)
+		}
+		if arr := decodeArray(t, req(t, "GET", "/api/harvest_basket", token, nil)); len(arr) != 0 {
+			t.Fatalf("削除したタスクの収穫物がかごに残っている: %v", arr)
 		}
 	})
 
@@ -1477,6 +1527,40 @@ func TestBufferConsumptionAndWithering(t *testing.T) {
 		testDB.QueryRow(`SELECT count(*) FROM "SUB_TASKS" WHERE task_id=$1 AND task_content='予備日（消費済み）'`, taskID).Scan(&consumed)
 		if consumed != 2 {
 			t.Fatalf("予備日（消費済み）マーカー 期待2, 実際 %d", consumed)
+		}
+	})
+}
+
+func TestVegetables(t *testing.T) {
+	_, token := newUser(t, "vegetables")
+
+	rec := req(t, "GET", "/api/vegetables", token, nil)
+	mustStatus(t, rec, 200)
+	arr := decodeArray(t, rec)
+
+	var dbCount int
+	testDB.QueryRow(`SELECT count(*) FROM "VEGETABLES"`).Scan(&dbCount)
+
+	t.Run("VEGETABLESテーブルの全件が返る", func(t *testing.T) {
+		if len(arr) == 0 || len(arr) != dbCount {
+			t.Fatalf("件数 期待%d, 実際 %d", dbCount, len(arr))
+		}
+	})
+
+	t.Run("サイズはDBの値でS_M_Lの順に並ぶ", func(t *testing.T) {
+		order := map[string]int{"S": 1, "M": 2, "L": 3}
+		prev := 0
+		for _, o := range arr {
+			rank, ok := order[o["vegetable_size"].(string)]
+			if !ok || rank < prev {
+				t.Fatalf("サイズまたは並びが不正: %s", rec.Body.String())
+			}
+			prev = rank
+			var dbSize string
+			testDB.QueryRow(`SELECT size FROM "VEGETABLES" WHERE vegetable_name=$1`, o["vegetable_name"]).Scan(&dbSize)
+			if dbSize != o["vegetable_size"] {
+				t.Fatalf("%v のサイズ 期待%s, 実際 %v", o["vegetable_name"], dbSize, o["vegetable_size"])
+			}
 		}
 	})
 }

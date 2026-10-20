@@ -14,6 +14,7 @@ type Task = {
   start_date: string;
   end_date: string;
   vegetable_name: string;
+  vegetable_size: string;
   growth_stage: number;
 };
 
@@ -234,7 +235,7 @@ const Tasks: React.FC = () => {
             {visibleTasks.map(task => {
               const status = getTaskStatus(task);
               const calendar = getCalendar(task);
-              const image = cropImagePath(task.vegetable_name, task.growth_stage);
+              const image = cropImagePath(task.vegetable_name, task.vegetable_size, task.growth_stage);
               const stageForPips = task.growth_stage === 11 ? 10 : task.growth_stage;
 
               return (

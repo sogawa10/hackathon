@@ -1,19 +1,15 @@
 export type VegetableSize = 'S' | 'M' | 'L';
 
-export const VEGETABLES: Record<VegetableSize, string[]> = {
-  S: ['プチトマト', 'オクラ', '枝豆', 'シイタケ', 'ネギ'],
-  M: ['赤パプリカ', 'ピーマン', 'なす', 'キュウリ', 'タケノコ'],
-  L: ['キャベツ', 'かぼちゃ', 'トウモロコシ', 'ブロッコリー', 'カリフラワー'],
+export type Vegetable = {
+  vegetable_name: string;
+  vegetable_size: VegetableSize;
 };
 
-export const sizeOfVegetable = (name: string): VegetableSize | null => {
-  const sizes: VegetableSize[] = ['S', 'M', 'L'];
-  return sizes.find((size) => VEGETABLES[size].includes(name)) ?? null;
-};
+const isVegetableSize = (size: string | undefined): size is VegetableSize =>
+  size === 'S' || size === 'M' || size === 'L';
 
-export const cropImagePath = (name: string, growthStage: number): string | null => {
-  const size = sizeOfVegetable(name);
-  if (!size) return null;
+export const cropImagePath = (name: string, size: string | undefined, growthStage: number): string | null => {
+  if (!name || !isVegetableSize(size)) return null;
   if (growthStage <= 0) return `/野菜${size}/種_${name}.png`;
   if (growthStage >= 1 && growthStage <= 10) return `/野菜${size}/(${growthStage})_${name}.png`;
   return `/野菜${size}/収穫_${name}.png`;

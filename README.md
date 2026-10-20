@@ -105,6 +105,7 @@
 | PATCH | `/api/subtasks` | ToDo にチェックを付ける |
 | POST | `/api/tasks/harvest` | 野菜の収穫 |
 | GET | `/api/harvest_basket` | 収穫した野菜一覧 |
+| GET | `/api/vegetables` | 野菜の一覧 |
 
 ### `POST /api/signup`・`POST /api/login`
 
@@ -157,6 +158,7 @@
     "end_date": "YYYY-MM-DD",
     "buffer_days": "予備日数",
     "vegetable_name": "vegetable_name",
+    "vegetable_size": "S | M | L",
     "growth_stage": "-1〜11",
     "field_position": "0〜24 | null"
   }
@@ -164,6 +166,8 @@
 ```
 
 ### `DELETE /api/tasks/{task_id}`
+
+収穫済みのタスクを削除すると，その収穫記録もかごから消える。
 
 ```json
 { "message": "タスクを正常に削除しました" }
@@ -182,6 +186,7 @@
     "task_content": "何問・何単語など",
     "is_completed": "Boolean",
     "vegetable_name": "vegetable_name",
+    "vegetable_size": "S | M | L",
     "growth_stage": "-1〜11",
     "field_position": "0〜24 | null"
   }
@@ -199,6 +204,8 @@
 ```
 
 ### `POST /api/tasks/harvest`
+
+`HARVESTS` に収穫記録を作り，今日を収穫日として記録する。
 
 ```jsonc
 // リクエスト
@@ -222,6 +229,18 @@
 ]
 ```
 
+収穫日の新しい順に返す。
+
+### `GET /api/vegetables`
+
+`VEGETABLES` テーブルの全件を S → M → L の順に返す。
+
+```json
+[
+  { "vegetable_name": "vegetable_name", "vegetable_size": "S | M | L" }
+]
+```
+
 ## 画面
 
 | 画面 | パス | 内容 | 利用 API |
@@ -229,7 +248,7 @@
 | 新規登録 | `/signup` | アカウントを作成する | `POST /api/signup` |
 | ログイン | `/login` | ログインする | `POST /api/login` |
 | ホーム | `/home` | 畑と今日の ToDo を見る。チェックと収穫を行う | `GET /api/subtasks/today`，`GET /api/tasks`，`PATCH /api/subtasks`，`POST /api/tasks/harvest` |
-| タスク作成（モーダル） | — | タスクを登録し，野菜を選ぶ | `POST /api/tasks`，`POST /api/vegetable/{task_id}` |
+| タスク作成（モーダル） | — | タスクを登録し，野菜を選ぶ | `POST /api/tasks`，`GET /api/vegetables`，`POST /api/vegetable/{task_id}` |
 | タスク一覧 | `/tasks` | 作成済みタスクを一覧で見る | `GET /api/tasks` |
 | タスク詳細 | `/tasks/{task_id}` | タスクの内容を見る。削除する | `GET /api/tasks`，`DELETE /api/tasks/{task_id}` |
 | 収穫かご | `/basket` | 収穫した野菜を見る | `GET /api/harvest_basket` |

@@ -69,6 +69,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 		authGroup.DELETE("/api/tasks/:task_id", handlers.DeleteTaskHandler(db))
 		authGroup.POST("/api/tasks/harvest", handlers.HarvestTaskHandler(db))
 		authGroup.GET("/api/harvest_basket", handlers.GetHarvestBasketHandler(db))
+		authGroup.GET("/api/vegetables", handlers.GetVegetablesHandler(db))
 	}
 
 	return r

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { VEGETABLES, TASK_TYPE_CLASS } from '../vegetables';
+import { TASK_TYPE_CLASS, type Vegetable } from '../vegetables';
 import './TaskCreateModal.css';
 
 type TaskCreateModalProps = {
@@ -48,6 +48,7 @@ const TaskCreateForm: React.FC<Omit<TaskCreateModalProps, 'isOpen'>> = ({ onClos
 
   const [createdTaskId, setCreatedTaskId] = useState<string | null>(null);
   const [assignedSize, setAssignedSize] = useState<'S' | 'M' | 'L' | null>(null);
+  const [seedNames, setSeedNames] = useState<string[]>([]);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -100,9 +101,18 @@ const TaskCreateForm: React.FC<Omit<TaskCreateModalProps, 'isOpen'>> = ({ onClos
       }
       
       const data = await response.json();
-      
+
+      const vegetablesResponse = await fetch(`${API_BASE_URL}/api/vegetables`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!vegetablesResponse.ok) {
+        throw new Error('野菜の一覧の取得に失敗しました');
+      }
+      const vegetables: Vegetable[] = await vegetablesResponse.json();
+
       setCreatedTaskId(data.task_id);
       setAssignedSize(data.size);
+      setSeedNames(vegetables.filter(v => v.vegetable_size === data.size).map(v => v.vegetable_name));
       setStep(2);
 
     } catch (err) {
@@ -284,7 +294,7 @@ const TaskCreateForm: React.FC<Omit<TaskCreateModalProps, 'isOpen'>> = ({ onClos
             </p>
 
             <div className="seed-packets">
-              {VEGETABLES[assignedSize].map(veg => (
+              {seedNames.map(veg => (
                 <button
                   type="button"
                   key={veg}

@@ -11,6 +11,7 @@ interface TodaySubtask {
   task_content: string;
   is_completed: boolean;
   vegetable_name: string;
+  vegetable_size: string;
   growth_stage: number;
   is_checkable?: boolean;
   field_position?: number | null;
@@ -188,17 +189,8 @@ const VegetableField: React.FC<VegetableFieldProps> = ({ subtasks = [], systemMe
   }
 
   const getVegetableInfo = (task: TodaySubtask) => {
-    const vegName = task.vegetable_name || 'かぼちゃ';
-    let size = 'L';
-    let jpName = 'かぼちゃ';
-
-    if (['かぼちゃ', 'kabocha', 'pumpkin', 'L'].includes(vegName)) { jpName = 'かぼちゃ'; size = 'L'; }
-    else if (['キャベツ', 'cabbage'].includes(vegName)) { jpName = 'キャベツ'; size = 'L'; }
-    else if (['トウモロコシ', 'corn'].includes(vegName)) { jpName = 'トウモロコシ'; size = 'L'; }
-    else if (['ブロッコリー', 'broccoli'].includes(vegName)) { jpName = 'ブロッコリー'; size = 'L'; }
-    else if (['カリフラワー', 'cauliflower'].includes(vegName)) { jpName = 'カリフラワー'; size = 'L'; }
-    else if (['赤パプリカ', 'ピーマン', 'なす', 'キュウリ', 'タケノコ', 'M'].includes(vegName)) { jpName = vegName === 'M' ? 'なす' : vegName; size = 'M'; }
-    else if (['プチトマト', 'オクラ', '枝豆', 'シイタケ', 'ネギ', 'S'].includes(vegName)) { jpName = vegName === 'S' ? 'プチトマト' : vegName; size = 'S'; }
+    const jpName = task.vegetable_name || 'かぼちゃ';
+    const size = task.vegetable_size || 'L';
 
     const stage = task.growth_stage;
     let path: string;
