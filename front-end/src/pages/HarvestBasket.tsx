@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout';
+import type { VegetableSize } from '../vegetables';
 import './HarvestBasket.css';
 
 type HarvestedVegetable = {
   harvest_id: string;
   task_id: string;
   vegetable_name: string;
-  vegetable_size: string;
+  vegetable_size: VegetableSize;
   image_url?: string;
   harvested_at: string;
 };
@@ -21,31 +22,30 @@ type HarvestPosition = {
 type VisualHarvest = HarvestedVegetable & HarvestPosition;
 
 type VegetableShape = {
-  size: 'S' | 'M' | 'L';
   imageWidth: number;
   imageHeight: number;
   longSide: number;
 };
 
 const VEGETABLE_SHAPES: Record<string, VegetableShape> = {
-  'かぼちゃ': { size: 'L', imageWidth: 217, imageHeight: 193, longSide: 20 },
-  'キャベツ': { size: 'L', imageWidth: 203, imageHeight: 182, longSide: 19.5 },
-  'トウモロコシ': { size: 'L', imageWidth: 165, imageHeight: 199, longSide: 20 },
-  'ブロッコリー': { size: 'L', imageWidth: 190, imageHeight: 183, longSide: 17.5 },
-  'カリフラワー': { size: 'L', imageWidth: 157, imageHeight: 161, longSide: 16.5 },
-  'なす': { size: 'M', imageWidth: 157, imageHeight: 168, longSide: 14.5 },
-  'キュウリ': { size: 'M', imageWidth: 190, imageHeight: 162, longSide: 16.5 },
-  'タケノコ': { size: 'M', imageWidth: 91, imageHeight: 170, longSide: 13.5 },
-  'ピーマン': { size: 'M', imageWidth: 132, imageHeight: 162, longSide: 11.5 },
-  '赤パプリカ': { size: 'M', imageWidth: 126, imageHeight: 162, longSide: 12.5 },
-  'ネギ': { size: 'S', imageWidth: 194, imageHeight: 189, longSide: 18 },
-  'オクラ': { size: 'S', imageWidth: 173, imageHeight: 172, longSide: 11.5 },
-  '枝豆': { size: 'S', imageWidth: 180, imageHeight: 166, longSide: 11 },
-  'シイタケ': { size: 'S', imageWidth: 153, imageHeight: 145, longSide: 9.5 },
-  'プチトマト': { size: 'S', imageWidth: 134, imageHeight: 140, longSide: 7.5 },
+  'かぼちゃ': { imageWidth: 217, imageHeight: 193, longSide: 20 },
+  'キャベツ': { imageWidth: 203, imageHeight: 182, longSide: 19.5 },
+  'トウモロコシ': { imageWidth: 165, imageHeight: 199, longSide: 20 },
+  'ブロッコリー': { imageWidth: 190, imageHeight: 183, longSide: 17.5 },
+  'カリフラワー': { imageWidth: 157, imageHeight: 161, longSide: 16.5 },
+  'なす': { imageWidth: 157, imageHeight: 168, longSide: 14.5 },
+  'キュウリ': { imageWidth: 190, imageHeight: 162, longSide: 16.5 },
+  'タケノコ': { imageWidth: 91, imageHeight: 170, longSide: 13.5 },
+  'ピーマン': { imageWidth: 132, imageHeight: 162, longSide: 11.5 },
+  '赤パプリカ': { imageWidth: 126, imageHeight: 162, longSide: 12.5 },
+  'ネギ': { imageWidth: 194, imageHeight: 189, longSide: 18 },
+  'オクラ': { imageWidth: 173, imageHeight: 172, longSide: 11.5 },
+  '枝豆': { imageWidth: 180, imageHeight: 166, longSide: 11 },
+  'シイタケ': { imageWidth: 153, imageHeight: 145, longSide: 9.5 },
+  'プチトマト': { imageWidth: 134, imageHeight: 140, longSide: 7.5 },
 };
 
-const FALLBACK_VEGETABLE: Record<string, string> = { S: 'プチトマト', M: 'なす', L: 'かぼちゃ' };
+const FALLBACK_VEGETABLE: Record<VegetableSize, string> = { S: 'プチトマト', M: 'なす', L: 'かぼちゃ' };
 
 const STAGE_ASPECT = 1408 / 768;
 const VEGETABLE_SCALE = 0.92;
@@ -69,13 +69,13 @@ const LOCAL_STORAGE_BASKET_KEY = 'harvest_basket_positions_v2';
 const resolveVegetableName = (veg: HarvestedVegetable) =>
   VEGETABLE_SHAPES[veg.vegetable_name]
     ? veg.vegetable_name
-    : FALLBACK_VEGETABLE[veg.vegetable_size] || 'かぼちゃ';
+    : FALLBACK_VEGETABLE[veg.vegetable_size];
 
 const getShape = (veg: HarvestedVegetable) => VEGETABLE_SHAPES[resolveVegetableName(veg)];
 
 const getImagePath = (veg: HarvestedVegetable) => {
   const name = resolveVegetableName(veg);
-  return `/野菜${VEGETABLE_SHAPES[name].size}/収穫_${name}.png`;
+  return `/野菜${veg.vegetable_size}/収穫_${name}.png`;
 };
 
 const getFootprint = (veg: HarvestedVegetable) => {
@@ -109,10 +109,10 @@ const clampToBasket = (veg: HarvestedVegetable, x: number, y: number) => {
   return { x: nextX, y: nextY };
 };
 
-const SIZE_TIER: Record<VegetableShape['size'], number> = { L: 1000, M: 2000, S: 3000 };
+const SIZE_TIER: Record<VegetableSize, number> = { L: 1000, M: 2000, S: 3000 };
 
 const depthIndex = (veg: HarvestedVegetable, y: number) =>
-  SIZE_TIER[getShape(veg).size] + Math.round(y * 10);
+  SIZE_TIER[veg.vegetable_size] + Math.round(y * 10);
 
 const BASKET_ROWS = [-0.72, 0.02, 0.58];
 const ROW_OVERLAP = 0.7;

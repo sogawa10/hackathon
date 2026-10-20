@@ -118,8 +118,10 @@ npm run preview             # ビルド済み dist/ を配信
 - **コードと設定ファイルにコメントは書かない**（Go / TypeScript / SQL / YAML / Dockerfile /
   nginx.conf すべて）。意図は名前とコミットメッセージで伝える。
 - タスク種別は `問題集` / `単語帳` / `過去問` / `その他` のいずれかのリテラル文字列。
-  野菜名は `DB/02_add_vegetable.sql` にある 15 個の日本語名（S/M/L 各 5 個）。どちらも
-  サーバー側でハードコードされた集合と照合して検証される。
+  タスク種別はサーバー側でハードコードされた集合と照合して検証される。野菜名とサイズは
+  `VEGETABLES` テーブル（シードは `DB/02_add_vegetable.sql`）が唯一の情報源で、サーバーは
+  このテーブルと照合し、フロントは `GET /api/vegetables` とレスポンスの `vegetable_size` を使う。
+  野菜を足すときは SQL と画像（`front-end/public/野菜{S,M,L}/`）、`HarvestBasket.tsx` の `VEGETABLE_SHAPES`（画像寸法）を追加する。
 - ルーティングの単一の情報源は `main.go` の `SetupRouter` に保つこと。他の場所でルートを
   登録すると、テストと本番サーバーが食い違う。
 

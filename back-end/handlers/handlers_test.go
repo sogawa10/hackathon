@@ -7,20 +7,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func TestGetVegetableSize(t *testing.T) {
-	cases := map[string]string{
-		"プチトマト": "S", "オクラ": "S", "枝豆": "S", "シイタケ": "S", "ネギ": "S",
-		"赤パプリカ": "M", "ピーマン": "M", "なす": "M", "キュウリ": "M", "タケノコ": "M",
-		"キャベツ": "L", "かぼちゃ": "L", "トウモロコシ": "L", "ブロッコリー": "L", "カリフラワー": "L",
-		"スイカ": "Unknown", "": "Unknown",
-	}
-	for name, want := range cases {
-		if got := getVegetableSize(name); got != want {
-			t.Errorf("getVegetableSize(%q) 期待 %s, 実際 %s", name, want, got)
-		}
-	}
-}
-
 func TestFieldPlacementOrder(t *testing.T) {
 	if len(fieldPlacementOrder) != 25 {
 		t.Fatalf("スロット数 期待25, 実際 %d", len(fieldPlacementOrder))

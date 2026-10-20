@@ -20,6 +20,7 @@ type TodaySubtaskResponse struct {
 	TaskContent   string `json:"task_content"`
 	IsCompleted   bool   `json:"is_completed"`
 	VegetableName string `json:"vegetable_name"`
+	VegetableSize string `json:"vegetable_size"`
 	GrowthStage   int    `json:"growth_stage"`
 	FieldPosition *int   `json:"field_position"`
 	IsCheckable   bool   `json:"is_checkable"`
@@ -244,6 +245,7 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 				s.task_content,
 				s.is_completed,
 				v.vegetable_name,
+				v.size,
 				t.growth_stage,
 				t.field_position
 			FROM "SUB_TASKS" s
@@ -265,7 +267,6 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 
 		for rows.Next() {
 			var s TodaySubtaskResponse
-			var vegName sql.NullString
 			var fieldPos sql.NullInt64
 			var scDate time.Time
 
@@ -277,7 +278,8 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 				&s.TaskTitle,
 				&s.TaskContent,
 				&s.IsCompleted,
-				&vegName,
+				&s.VegetableName,
+				&s.VegetableSize,
 				&s.GrowthStage,
 				&fieldPos,
 			); err != nil {
@@ -285,10 +287,6 @@ func GetTodaySubtasksHandler(db *sql.DB) gin.HandlerFunc {
 			}
 
 			s.ScheduledDate = scDate.Format("2006-01-02")
-
-			if vegName.Valid {
-				s.VegetableName = vegName.String
-			}
 
 			if fieldPos.Valid {
 				p := int(fieldPos.Int64)

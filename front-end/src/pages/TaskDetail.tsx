@@ -15,6 +15,7 @@ type TaskDetail = {
   end_date: string;
   buffer_days: number;
   vegetable_name: string;
+  vegetable_size: string;
   growth_stage: number;
 };
 
@@ -89,7 +90,7 @@ const TaskDetail: React.FC = () => {
   if (loading) return <Layout><p className="status-line">タスクを読み込んでいます…</p></Layout>;
   if (error || !task) return <Layout><p className="status-line is-error">{error}</p></Layout>;
 
-  const image = cropImagePath(task.vegetable_name, task.growth_stage);
+  const image = cropImagePath(task.vegetable_name, task.vegetable_size, task.growth_stage);
   const typeClass = TASK_TYPE_CLASS[task.task_type] ?? 'type-other';
   const stateClass = task.growth_stage === -1 ? 'is-withered' : task.growth_stage === 10 ? 'is-ripe' : '';
 

@@ -304,16 +304,19 @@ func AssignVegetableHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		validVegetables := map[string]bool{
-			"プチトマト": true, "オクラ": true, "枝豆": true, "シイタケ": true, "ネギ": true,
-			"赤パプリカ": true, "ピーマン": true, "なす": true, "キュウリ": true, "タケノコ": true,
-			"キャベツ": true, "かぼちゃ": true, "トウモロコシ": true, "ブロッコリー": true, "カリフラワー": true,
-		}
-
-		if !validVegetables[req.VegetableName] {
+		var vegetableID string
+		err := db.QueryRow(
+			`SELECT "vegetable_id" FROM "VEGETABLES" WHERE "vegetable_name" = $1`,
+			req.VegetableName,
+		).Scan(&vegetableID)
+		if err == sql.ErrNoRows {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": fmt.Sprintf("「%s」はアプリの仕様に存在しない野菜です。正しい野菜名を入力してください。", req.VegetableName),
 			})
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "野菜の取得に失敗しました"})
 			return
 		}
 
@@ -326,14 +329,10 @@ func AssignVegetableHandler(db *sql.DB) gin.HandlerFunc {
 
 		queryUpdateVegetable := `
             UPDATE "TASKS"
-            SET "vegetable_id" = (
-                SELECT "vegetable_id"
-                FROM "VEGETABLES"
-                WHERE "vegetable_name" = $1
-            )
+            SET "vegetable_id" = $1
             WHERE "task_id" = $2 AND "user_id" = $3
         `
-		result, err := tx.Exec(queryUpdateVegetable, req.VegetableName, taskID, userID)
+		result, err := tx.Exec(queryUpdateVegetable, vegetableID, taskID, userID)
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "野菜の割り当てに失敗しました: " + err.Error()})
@@ -417,6 +416,7 @@ type TaskResponse struct {
 	EndDate       string `json:"end_date"`
 	BufferDays    int    `json:"buffer_days"`
 	VegetableName string `json:"vegetable_name"`
+	VegetableSize string `json:"vegetable_size"`
 	GrowthStage   int    `json:"growth_stage"`
 	FieldPosition *int   `json:"field_position"`
 	ImageURL      string `json:"image_url"`
@@ -461,6 +461,7 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 				t.start_date,
 				t.end_date,
 				v.vegetable_name,
+				v.size,
 				t.growth_stage,
 				t.field_position,
 				(
@@ -488,19 +489,14 @@ func GetTasksHandler(db *sql.DB) gin.HandlerFunc {
 		for rows.Next() {
 			var t TaskResponse
 			var startDate, endDate time.Time
-			var vegName sql.NullString
 			var fieldPos sql.NullInt64
 			var missedDays int
 
 			if err := rows.Scan(
 				&t.TaskID, &t.TaskType, &t.TaskTitle, &t.TotalCount, &t.LapCount,
-				&startDate, &endDate, &vegName, &t.GrowthStage, &fieldPos, &missedDays,
+				&startDate, &endDate, &t.VegetableName, &t.VegetableSize, &t.GrowthStage, &fieldPos, &missedDays,
 			); err != nil {
 				continue
-			}
-
-			if vegName.Valid {
-				t.VegetableName = vegName.String
 			}
 
 			if fieldPos.Valid {
@@ -544,8 +540,21 @@ func DeleteTaskHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		userID := ctxUserID.(string)
 
+		tx, err := db.Begin()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラーが発生しました"})
+			return
+		}
+		defer tx.Rollback()
+
+		if _, err := tx.Exec(`DELETE FROM "HARVESTS" WHERE task_id = $1 AND user_id = $2`, taskID, userID); err != nil {
+			log.Printf("収穫記録の削除エラー: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラーが発生しました"})
+			return
+		}
+
 		query := `DELETE FROM "TASKS" WHERE task_id = $1 AND user_id = $2`
-		result, err := db.Exec(query, taskID, userID)
+		result, err := tx.Exec(query, taskID, userID)
 		if err != nil {
 			log.Printf("タスク削除エラー: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラーが発生しました"})
@@ -564,6 +573,11 @@ func DeleteTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		if err := tx.Commit(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "データの確定に失敗しました"})
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{"message": "タスクを正常に削除しました"})
 	}
 }
@@ -576,19 +590,6 @@ type HarvestResponse struct {
 	HarvestID     string `json:"harvest_id"`
 	VegetableName string `json:"vegetable_name"`
 	Size          string `json:"size"`
-}
-
-func getVegetableSize(name string) string {
-	switch name {
-	case "プチトマト", "オクラ", "枝豆", "シイタケ", "ネギ":
-		return "S"
-	case "赤パプリカ", "ピーマン", "なす", "キュウリ", "タケノコ":
-		return "M"
-	case "キャベツ", "かぼちゃ", "トウモロコシ", "ブロッコリー", "カリフラワー":
-		return "L"
-	default:
-		return "Unknown"
-	}
 }
 
 func HarvestTaskHandler(db *sql.DB) gin.HandlerFunc {
@@ -606,6 +607,16 @@ func HarvestTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		jst, err := time.LoadLocation("Asia/Tokyo")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "タイムゾーンの読み込みに失敗しました"})
+			return
+		}
+		todayStr := os.Getenv("MOCK_TODAY")
+		if todayStr == "" {
+			todayStr = time.Now().In(jst).Format("2006-01-02")
+		}
+
 		tx, err := db.Begin()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "データベースエラー"})
@@ -613,27 +624,32 @@ func HarvestTaskHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		defer tx.Rollback()
 
-		var vegName sql.NullString
-		queryCheck := `
-			SELECT v.vegetable_name 
-			FROM "TASKS" t
-			LEFT JOIN "VEGETABLES" v ON t.vegetable_id = v.vegetable_id
-			WHERE t.task_id = $1 AND t.user_id = $2 AND t.growth_stage = 10
+		var vegetableID, vegetableName, vegetableSize string
+		queryHarvest := `
+			UPDATE "TASKS" t
+			SET growth_stage = 11
+			FROM "VEGETABLES" v
+			WHERE t.vegetable_id = v.vegetable_id
+			  AND t.task_id = $1 AND t.user_id = $2 AND t.growth_stage = 10
+			RETURNING v.vegetable_id, v.vegetable_name, v.size
 		`
-		err = tx.QueryRow(queryCheck, req.TaskID, userID).Scan(&vegName)
+		err = tx.QueryRow(queryHarvest, req.TaskID, userID).Scan(&vegetableID, &vegetableName, &vegetableSize)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "収穫できるタスクが見つからないか、まだ収穫できる状態ではありません"})
 			} else {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "データ取得エラー"})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "収穫処理に失敗しました"})
 			}
 			return
 		}
 
-		queryUpdate := `UPDATE "TASKS" SET growth_stage = 11 WHERE task_id = $1`
-		_, err = tx.Exec(queryUpdate, req.TaskID)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "収穫処理に失敗しました"})
+		harvestID := uuid.New().String()
+		queryInsert := `
+			INSERT INTO "HARVESTS" (harvest_id, user_id, task_id, vegetable_id, harvested_at)
+			VALUES ($1, $2, $3, $4, $5)
+		`
+		if _, err := tx.Exec(queryInsert, harvestID, userID, req.TaskID, vegetableID, todayStr); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "収穫の記録に失敗しました"})
 			return
 		}
 
@@ -642,15 +658,10 @@ func HarvestTaskHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		vegetableNameStr := ""
-		if vegName.Valid {
-			vegetableNameStr = vegName.String
-		}
-
 		c.JSON(http.StatusOK, HarvestResponse{
-			HarvestID:     req.TaskID,
-			VegetableName: vegetableNameStr,
-			Size:          getVegetableSize(vegetableNameStr),
+			HarvestID:     harvestID,
+			VegetableName: vegetableName,
+			Size:          vegetableSize,
 		})
 	}
 }
@@ -673,11 +684,11 @@ func GetHarvestBasketHandler(db *sql.DB) gin.HandlerFunc {
 		userID := ctxUserID.(string)
 
 		query := `
-			SELECT t.task_id, v.vegetable_name, t.end_date
-			FROM "TASKS" t
-			LEFT JOIN "VEGETABLES" v ON t.vegetable_id = v.vegetable_id
-			WHERE t.user_id = $1 AND t.growth_stage = 11
-			ORDER BY t.end_date DESC
+			SELECT h.harvest_id, h.task_id, v.vegetable_name, v.size, h.harvested_at
+			FROM "HARVESTS" h
+			JOIN "VEGETABLES" v ON h.vegetable_id = v.vegetable_id
+			WHERE h.user_id = $1
+			ORDER BY h.harvested_at DESC, h.harvest_id
 		`
 		rows, err := db.Query(query, userID)
 		if err != nil {
@@ -686,29 +697,17 @@ func GetHarvestBasketHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		defer rows.Close()
 
-		var basket []HarvestBasketResponse
+		basket := []HarvestBasketResponse{}
 		for rows.Next() {
 			var h HarvestBasketResponse
-			var vegName sql.NullString
-			var endDate time.Time
+			var harvestedAt time.Time
 
-			if err := rows.Scan(&h.TaskID, &vegName, &endDate); err != nil {
+			if err := rows.Scan(&h.HarvestID, &h.TaskID, &h.VegetableName, &h.VegetableSize, &harvestedAt); err != nil {
 				continue
 			}
 
-			h.HarvestID = h.TaskID
-			h.HarvestedAt = endDate.Format("2006-01-02")
-
-			if vegName.Valid {
-				h.VegetableName = vegName.String
-				h.VegetableSize = getVegetableSize(vegName.String)
-			}
-
+			h.HarvestedAt = harvestedAt.Format("2006-01-02")
 			basket = append(basket, h)
-		}
-
-		if basket == nil {
-			basket = []HarvestBasketResponse{}
 		}
 
 		c.JSON(http.StatusOK, basket)
