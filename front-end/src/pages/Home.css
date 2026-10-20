@@ -1,3 +1,7 @@
+.app-main:has(> .home-container) {
+  background: #d3cea9 url("/VegeTASK_丘.webp") center 30% / cover no-repeat;
+}
+
 .home-container {
   position: relative;
   flex: 1;
