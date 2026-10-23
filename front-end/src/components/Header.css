@@ -55,6 +55,20 @@
   gap: 0.75rem;
 }
 
+.welcome-message {
+  color: var(--soil-soft);
+  font-family: var(--display);
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.welcome-message span {
+  color: var(--leaf-deep);
+  font-size: 1.08em;
+}
+
 .logout {
   position: relative;
 }
@@ -109,7 +123,14 @@
   }
 
   .app-header-actions {
-    gap: 0;
+    gap: 0.35rem;
+  }
+
+  .welcome-message {
+    max-width: 9rem;
+    overflow: hidden;
+    font-size: 0.8rem;
+    text-overflow: ellipsis;
   }
 
   .logout-trigger {

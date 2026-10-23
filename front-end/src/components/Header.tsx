@@ -16,6 +16,7 @@ const Header: React.FC<HeaderProps> = ({ onNewTaskClick }) => {
   const navigate = useNavigate();
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
+  const userName = localStorage.getItem('user_name');
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
@@ -64,6 +65,12 @@ const Header: React.FC<HeaderProps> = ({ onNewTaskClick }) => {
       </nav>
 
       <div className="app-header-actions">
+        {userName && (
+          <p className="welcome-message">
+            ようこそ！<span>{userName}</span>さん
+          </p>
+        )}
+
         <button type="button" className="btn btn-primary" onClick={onNewTaskClick}>
           ＋ 新規タスク
         </button>
